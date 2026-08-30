@@ -107,3 +107,9 @@ mod tests {
         assert_eq!(hash.as_bytes().len(), 32);
     }
 }
+
+pub mod signature;
+
+pub use signature::{
+    CryptoError, Keypair, PUBLIC_KEY_LEN, PublicKey, SIGNATURE_LEN, SignatureBytes, verify_hash,
+};
