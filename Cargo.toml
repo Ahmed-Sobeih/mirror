@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+
+members = [
+    "crates/mirror-node",
+    "crates/mirror-core",
+    "crates/mirror-crypto",
+    "crates/mirror-storage",
+    "crates/mirror-network",
+    "crates/mirror-consensus",
+    "crates/mirror-personhood",
+    "crates/mirror-protocol",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Ahmed-Sobeih/mirror"
+
+[workspace.dependencies]
+sha2 = "0.11.0"
