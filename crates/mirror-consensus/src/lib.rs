@@ -198,6 +198,7 @@ mod tests {
             1,
             Hash256::default(),
             Hash256::default(),
+            Hash256::default(),
             0,
             INITIAL_POW_BITS,
             0,
@@ -237,15 +238,15 @@ mod tests {
 
         let result = mine(&mut header).unwrap();
 
-        assert_eq!(result.nonce, 12_161);
-        assert_eq!(result.attempts, 12_162);
+        assert_eq!(result.nonce, 4_481);
+        assert_eq!(result.attempts, 4_482);
 
         assert_eq!(
             result.hash.to_hex(),
-            "00027a95ffd40126197b4c52bfaf31be65095150ed77c47325bbf50b3d874fe6"
+            "0000d7a59dd226fff21dba990f9f48aed3bfe39d62ad033f0b8736b6695db686"
         );
 
-        assert_eq!(header.nonce(), 12_161);
+        assert_eq!(header.nonce(), 4_481);
     }
 
     #[test]

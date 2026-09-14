@@ -11,6 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1,
         Hash256::default(),
         Hash256::default(),
+        Hash256::default(),
         0,
         INITIAL_POW_BITS,
         0,
