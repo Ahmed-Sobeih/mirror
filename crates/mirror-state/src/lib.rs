@@ -519,3 +519,205 @@ mod tests {
         assert_eq!(state, before);
     }
 }
+
+use mirror_core::Block;
+
+/// Result of deterministically executing an ordered transaction list
+/// against a specific pre-state.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StateTransition {
+    post_state: ChainState,
+    state_root: Hash256,
+    total_fees: u64,
+}
+
+impl StateTransition {
+    pub const fn post_state(&self) -> &ChainState {
+        &self.post_state
+    }
+
+    pub const fn state_root(&self) -> Hash256 {
+        self.state_root
+    }
+
+    pub const fn total_fees(&self) -> u64 {
+        self.total_fees
+    }
+
+    pub fn into_post_state(self) -> ChainState {
+        self.post_state
+    }
+}
+
+/// Execute an ordered transaction list without modifying `pre_state`.
+///
+/// Every node given the same pre-state and transactions must produce
+/// exactly the same resulting state and state root.
+pub fn execute_transactions(
+    pre_state: &ChainState,
+    transactions: &[SignedTransaction],
+) -> Result<StateTransition, StateError> {
+    let mut post_state = pre_state.clone();
+
+    let total_fees = post_state.apply_transactions(transactions)?;
+
+    let state_root = post_state.state_root();
+
+    Ok(StateTransition {
+        post_state,
+        state_root,
+        total_fees,
+    })
+}
+
+/// State-level validation errors for a complete block.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BlockStateError {
+    State(StateError),
+
+    StateRootMismatch {
+        committed: Hash256,
+        calculated: Hash256,
+    },
+}
+
+impl core::fmt::Display for BlockStateError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::State(error) => {
+                write!(f, "state transition failed: {error}")
+            }
+
+            Self::StateRootMismatch {
+                committed,
+                calculated,
+            } => {
+                write!(
+                    f,
+                    "state root mismatch: block commits to {committed}, calculated {calculated}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for BlockStateError {}
+
+impl From<StateError> for BlockStateError {
+    fn from(error: StateError) -> Self {
+        Self::State(error)
+    }
+}
+
+/// Re-execute a block from a known pre-state and verify that the state
+/// commitment in its header is correct.
+pub fn validate_block_state(
+    pre_state: &ChainState,
+    block: &Block,
+) -> Result<StateTransition, BlockStateError> {
+    let transition = execute_transactions(pre_state, block.transactions())?;
+
+    let committed = block.header().state_root();
+    let calculated = transition.state_root();
+
+    if committed != calculated {
+        return Err(BlockStateError::StateRootMismatch {
+            committed,
+            calculated,
+        });
+    }
+
+    Ok(transition)
+}
+
+#[cfg(test)]
+mod block_state_tests {
+    use super::*;
+    use mirror_core::NUSA_PER_MRY;
+
+    use mirror_core::{
+        Address, Block, SignedTransaction, TRANSACTION_KIND_TRANSFER, TRANSACTION_VERSION,
+        TransactionBody,
+    };
+
+    use mirror_crypto::Keypair;
+
+    fn key(secret: u8) -> Keypair {
+        Keypair::from_secret_bytes([secret; 32])
+    }
+
+    fn address(keypair: &Keypair) -> Address {
+        Address::from_public_key(&keypair.public_key())
+    }
+
+    fn transaction(alice: &Keypair, bob: Address) -> SignedTransaction {
+        let body = TransactionBody::new(
+            TRANSACTION_VERSION,
+            TRANSACTION_KIND_TRANSFER,
+            MIRROR_CHAIN_ID,
+            0,
+            address(alice),
+            bob,
+            NUSA_PER_MRY,
+            0,
+            Vec::new(),
+        );
+
+        SignedTransaction::sign(body, alice).expect("test transaction must sign")
+    }
+
+    #[test]
+    fn block_state_root_can_be_reproduced() {
+        let alice = key(1);
+        let bob = key(2);
+
+        let pre_state =
+            ChainState::from_genesis_allocations([(address(&alice), 100 * NUSA_PER_MRY)]).unwrap();
+
+        let tx = transaction(&alice, address(&bob));
+
+        let transition = execute_transactions(&pre_state, std::slice::from_ref(&tx)).unwrap();
+
+        let block = Block::new(
+            1,
+            Hash256::default(),
+            transition.state_root(),
+            1_800_000_000,
+            0x1f0f_ffff,
+            vec![tx],
+        )
+        .unwrap();
+
+        let validated = validate_block_state(&pre_state, &block).unwrap();
+
+        assert_eq!(validated.state_root(), transition.state_root());
+
+        assert_eq!(validated.post_state(), transition.post_state());
+    }
+
+    #[test]
+    fn incorrect_block_state_root_is_rejected() {
+        let alice = key(1);
+        let bob = key(2);
+
+        let pre_state =
+            ChainState::from_genesis_allocations([(address(&alice), 100 * NUSA_PER_MRY)]).unwrap();
+
+        let tx = transaction(&alice, address(&bob));
+
+        let block = Block::new(
+            1,
+            Hash256::default(),
+            Hash256::default(),
+            1_800_000_000,
+            0x1f0f_ffff,
+            vec![tx],
+        )
+        .unwrap();
+
+        assert!(matches!(
+            validate_block_state(&pre_state, &block),
+            Err(BlockStateError::StateRootMismatch { .. })
+        ));
+    }
+}
