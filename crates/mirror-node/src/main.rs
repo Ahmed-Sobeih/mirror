@@ -4,18 +4,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use mirror_chain::{Chain, GenesisConfig};
+use mirror_chain::{Chain, ChainPreference, GenesisConfig};
 
 use mirror_consensus::INITIAL_POW_BITS;
 
 use mirror_core::{
-    Address, MIRROR_CHAIN_ID, NUSA_PER_MRY, SignedTransaction, TRANSACTION_KIND_TRANSFER,
+    Address, Block, MIRROR_CHAIN_ID, NUSA_PER_MRY, SignedTransaction, TRANSACTION_KIND_TRANSFER,
     TRANSACTION_VERSION, TransactionBody, decode_block, encode_block,
 };
 
 use mirror_crypto::Keypair;
 
-use mirror_network::{PeerConnection, PeerListener};
+use mirror_network::{NetworkError, PeerConnection, PeerListener};
 
 use mirror_protocol::{BlockDataMessage, GetBlockMessage, HelloMessage, WireMessage};
 
@@ -177,6 +177,33 @@ fn print_remote_hello(hello: HelloMessage) {
     println!("Peer tip:      {}", hello.tip_hash());
 }
 
+fn request_remote_block(
+    peer: &mut PeerConnection,
+    height: u64,
+) -> Result<Block, Box<dyn std::error::Error>> {
+    peer.send_message(&WireMessage::GetBlock(GetBlockMessage::new(height)))?;
+
+    println!("Requested block {height}");
+
+    let block_data = match peer.receive_message()? {
+        WireMessage::BlockData(block) => block,
+
+        other => {
+            return Err(format!("expected BlockData, got {other:?}").into());
+        }
+    };
+
+    if block_data.height() != height {
+        return Err(format!(
+            "peer returned wrong block height: requested {height}, got {}",
+            block_data.height()
+        )
+        .into());
+    }
+
+    Ok(decode_block(block_data.block_bytes())?)
+}
+
 fn run_listener(
     address: SocketAddr,
     block_directory: &str,
@@ -214,6 +241,7 @@ fn run_listener(
     validate_peer_hello(&chain, remote_hello)?;
 
     println!();
+
     println!("Received peer Hello");
 
     print_remote_hello(remote_hello);
@@ -221,35 +249,29 @@ fn run_listener(
     peer.send_message(&hello_for_chain(&chain))?;
 
     println!();
+
     println!("Sent local Hello");
 
     println!("Handshake: VALID");
 
-    if remote_hello.best_height() >= chain.height() {
-        println!();
-
-        if remote_hello.best_height() == chain.height()
-            && remote_hello.tip_hash() != chain.tip_hash()
-        {
-            return Err(
-                "peer has a different tip at the same height; fork handling is not implemented yet"
-                    .into(),
-            );
-        }
-
-        println!("No blocks to serve.");
-
-        return Ok(());
-    }
-
-    let blocks_to_serve = chain.height() - remote_hello.best_height();
-
     println!();
 
-    println!("Peer is behind by {blocks_to_serve} block(s).");
+    println!("Serving block requests...");
 
-    for _ in 0..blocks_to_serve {
-        let request = match peer.receive_message()? {
+    loop {
+        let message = match peer.receive_message() {
+            Ok(message) => message,
+
+            Err(NetworkError::ConnectionClosed) => {
+                break;
+            }
+
+            Err(error) => {
+                return Err(Box::new(error));
+            }
+        };
+
+        let request = match message {
             WireMessage::GetBlock(request) => request,
 
             other => {
@@ -259,8 +281,12 @@ fn run_listener(
 
         let height = request.height();
 
-        if height == 0 || height > chain.height() {
-            return Err(format!("peer requested invalid block height {height}").into());
+        if height > chain.height() {
+            return Err(format!(
+                "peer requested unavailable block height {height}; local height is {}",
+                chain.height()
+            )
+            .into());
         }
 
         let block = store.read_block(height)?;
@@ -276,7 +302,7 @@ fn run_listener(
 
     println!();
 
-    println!("Sync service complete.");
+    println!("Peer session complete.");
 
     Ok(())
 }
@@ -293,7 +319,7 @@ fn run_connector(
 
     println!();
 
-    let (mut chain, store, _alice, _bob) = load_chain(block_directory)?;
+    let (mut chain, store, alice, _bob) = load_chain(block_directory)?;
 
     println!("Local blockchain");
 
@@ -325,91 +351,141 @@ fn run_connector(
 
     println!("Handshake: VALID");
 
-    if remote_hello.best_height() == chain.height() {
-        if remote_hello.tip_hash() != chain.tip_hash() {
-            return Err(
-                "peer has a different tip at the same height; fork handling is not implemented yet"
-                    .into(),
-            );
-        }
+    if remote_hello.best_height() < chain.height() {
+        println!();
+
+        println!("Local chain is ahead of peer.");
+
+        println!("Keeping local canonical chain.");
+
+        return Ok(());
+    }
+
+    if remote_hello.best_height() == chain.height() && remote_hello.tip_hash() == chain.tip_hash() {
+        println!();
 
         println!("Already synchronized.");
 
         return Ok(());
     }
 
-    if remote_hello.best_height() < chain.height() {
-        println!("Local chain is ahead of peer.");
-
-        println!("Reverse-direction sync is not implemented in connect mode yet.");
-
-        return Ok(());
-    }
-
     println!();
 
-    println!(
-        "Synchronizing {} missing block(s)...",
-        remote_hello.best_height() - chain.height()
-    );
+    println!("Discovering common ancestor...");
 
-    while chain.height() < remote_hello.best_height() {
-        let next_height = chain
-            .height()
-            .checked_add(1)
-            .ok_or_else(|| std::io::Error::other("chain height overflow"))?;
+    let mut search_height = chain.height().min(remote_hello.best_height());
 
-        peer.send_message(&WireMessage::GetBlock(GetBlockMessage::new(next_height)))?;
+    let common_ancestor = loop {
+        let remote_block = request_remote_block(&mut peer, search_height)?;
 
-        println!("Requested block {next_height}");
+        let local_hash = chain
+            .block_hash_at(search_height)
+            .ok_or_else(|| format!("local block missing at height {search_height}"))?;
 
-        let block_data = match peer.receive_message()? {
-            WireMessage::BlockData(block) => block,
-
-            other => {
-                return Err(format!("expected BlockData, got {other:?}").into());
-            }
-        };
-
-        if block_data.height() != next_height {
-            return Err(format!(
-                "peer returned wrong block height: requested {next_height}, got {}",
-                block_data.height()
-            )
-            .into());
+        if remote_block.hash() == local_hash {
+            break search_height;
         }
 
-        let block = decode_block(block_data.block_bytes())?;
+        if search_height == 0 {
+            return Err("no common blockchain ancestor found".into());
+        }
 
-        let mut candidate = chain.clone();
+        search_height -= 1;
+    };
 
-        candidate.append_block(block.clone())?;
+    println!("Common ancestor: height {common_ancestor}");
 
-        store.write_block(next_height, &block)?;
+    let ancestor_index = usize::try_from(common_ancestor)
+        .map_err(|_| "common ancestor height does not fit memory index")?;
 
-        chain = candidate;
+    let mut candidate_blocks = chain.blocks()[..=ancestor_index].to_vec();
 
-        println!("Validated and stored block {next_height}");
+    let first_remote_height = common_ancestor
+        .checked_add(1)
+        .ok_or_else(|| std::io::Error::other("chain height overflow"))?;
+
+    if first_remote_height <= remote_hello.best_height() {
+        for height in first_remote_height..=remote_hello.best_height() {
+            let block = request_remote_block(&mut peer, height)?;
+
+            candidate_blocks.push(block);
+        }
     }
 
-    if chain.tip_hash() != remote_hello.tip_hash() {
+    let advertised_tip = remote_hello.tip_hash();
+
+    let candidate_tip = candidate_blocks
+        .last()
+        .ok_or("candidate chain is empty")?
+        .hash();
+
+    if candidate_tip != advertised_tip {
         return Err(format!(
-            "sync completed at advertised height but tip differs: local {}, peer {}",
-            chain.tip_hash(),
-            remote_hello.tip_hash()
+            "peer advertised tip {advertised_tip}, but downloaded candidate ends at {candidate_tip}"
         )
         .into());
     }
 
     println!();
 
-    println!("Synchronization complete.");
+    println!("Validating complete candidate chain...");
 
-    println!("Height: {}", chain.height());
+    let alice_address = Address::from_public_key(&alice.public_key());
 
-    println!("Tip:    {}", chain.tip_hash());
+    let candidate =
+        Chain::from_persisted_blocks(development_genesis(alice_address), candidate_blocks)?;
 
-    println!("Mirror chain: SYNCED + VALID");
+    println!("Candidate chain VALID");
+
+    println!("Candidate height: {}", candidate.height());
+
+    println!("Candidate tip:    {}", candidate.tip_hash());
+
+    println!();
+
+    match chain.compare_candidate(&candidate)? {
+        ChainPreference::KeepCurrent => {
+            println!("Fork choice: KEEP CURRENT");
+
+            println!("Candidate has no greater accumulated work.");
+
+            return Ok(());
+        }
+
+        ChainPreference::PreferCandidate => {
+            let old_height = chain.height();
+
+            let old_tip = chain.tip_hash();
+
+            println!("Fork choice: PREFER CANDIDATE");
+
+            println!("Replacing canonical chain...");
+
+            store.replace_chain(candidate.blocks())?;
+
+            chain = candidate;
+
+            println!();
+
+            if common_ancestor < old_height {
+                println!("REORG COMPLETE");
+
+                println!("Old height: {old_height}");
+
+                println!("Old tip:    {old_tip}");
+
+                println!("Fork point: {common_ancestor}");
+            } else {
+                println!("CHAIN EXTENSION COMPLETE");
+            }
+
+            println!("New height: {}", chain.height());
+
+            println!("New tip:    {}", chain.tip_hash());
+
+            println!("Mirror chain: CANONICAL + VALID");
+        }
+    }
 
     Ok(())
 }
