@@ -12,7 +12,7 @@ pub use signed_transaction::{
 };
 
 pub use transaction::{
-    Address, NUSA_PER_MRY, TRANSACTION_BODY_FIXED_LEN, TRANSACTION_KIND_TRANSFER,
+    Address, MIRROR_CHAIN_ID, NUSA_PER_MRY, TRANSACTION_BODY_FIXED_LEN, TRANSACTION_KIND_TRANSFER,
     TRANSACTION_VERSION, TransactionBody, TransactionError,
 };
 

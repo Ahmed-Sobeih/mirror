@@ -9,7 +9,7 @@ members = [
     "crates/mirror-network",
     "crates/mirror-consensus",
     "crates/mirror-personhood",
-    "crates/mirror-protocol",
+    "crates/mirror-protocol", "crates/mirror-state",
 ]
 
 [workspace.package]

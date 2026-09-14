@@ -11,6 +11,11 @@ pub const NUSA_PER_MRY: u64 = 10_000_000;
 /// Current Mirror transaction format version.
 pub const TRANSACTION_VERSION: u16 = 1;
 
+/// Mirror main network chain identifier.
+///
+/// Included in transaction signatures to prevent cross-chain replay.
+pub const MIRROR_CHAIN_ID: u32 = 1;
+
 /// Normal MRY transfer.
 pub const TRANSACTION_KIND_TRANSFER: u16 = 0;
 
@@ -23,7 +28,7 @@ pub const TRANSACTION_BODY_FIXED_LEN: usize = 100;
 ///
 /// Public-key-to-address derivation will be defined when
 /// we implement Mirror signatures.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Address([u8; 32]);
 
 impl Address {
