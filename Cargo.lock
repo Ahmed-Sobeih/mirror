@@ -190,6 +190,9 @@ version = "0.1.0"
 [[package]]
 name = "mirror-protocol"
 version = "0.1.0"
+dependencies = [
+ "mirror-crypto",
+]
 
 [[package]]
 name = "mirror-state"
