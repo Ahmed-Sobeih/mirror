@@ -183,6 +183,8 @@ dependencies = [
  "mirror-consensus",
  "mirror-core",
  "mirror-crypto",
+ "mirror-network",
+ "mirror-protocol",
  "mirror-state",
  "mirror-storage",
 ]
