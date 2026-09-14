@@ -34,7 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .next()
                 .unwrap_or_else(|| DEFAULT_BLOCK_DIRECTORY.to_string());
 
-            run_miner(&directory)
+            let requested_timestamp = args.next().map(|value| value.parse::<u64>()).transpose()?;
+
+            run_miner(&directory, requested_timestamp)
         }
 
         Some("listen") => {
@@ -490,7 +492,10 @@ fn run_connector(
     Ok(())
 }
 
-fn run_miner(block_directory: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn run_miner(
+    block_directory: &str,
+    requested_timestamp: Option<u64>,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Mirror Node — MINE");
 
     println!("==================");
@@ -551,7 +556,24 @@ fn run_miner(block_directory: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     let minimum_timestamp = chain.tip().header().timestamp().saturating_add(1);
 
-    let timestamp = now.max(minimum_timestamp);
+    let timestamp = match requested_timestamp {
+        Some(timestamp) => {
+            if timestamp < minimum_timestamp {
+                return Err(
+                    format!(
+                        "requested block timestamp {timestamp} is too early; minimum is {minimum_timestamp}"
+                    )
+                    .into(),
+                );
+            }
+
+            timestamp
+        }
+
+        None => now.max(minimum_timestamp),
+    };
+
+    println!("Timestamp: {timestamp}");
 
     let block = chain.mine_next_block(vec![transaction], timestamp)?;
 
