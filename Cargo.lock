@@ -180,6 +180,7 @@ dependencies = [
  "mirror-core",
  "mirror-crypto",
  "mirror-state",
+ "mirror-storage",
 ]
 
 [[package]]

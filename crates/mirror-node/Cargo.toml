@@ -11,3 +11,4 @@ mirror-crypto = { path = "../mirror-crypto" }
 mirror-consensus = { path = "../mirror-consensus" }
 mirror-state = { path = "../mirror-state" }
 mirror-chain = { path = "../mirror-chain" }
+mirror-storage = { path = "../mirror-storage" }

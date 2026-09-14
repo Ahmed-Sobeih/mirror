@@ -140,6 +140,34 @@ impl BlockStore {
         Ok(heights)
     }
 
+    /// Load every stored block from height zero upward.
+    ///
+    /// The persisted blockchain must contain every height with no gaps.
+    pub fn read_contiguous_blocks(&self) -> Result<Vec<Block>, StorageError> {
+        let heights = self.stored_heights()?;
+
+        let mut blocks = Vec::with_capacity(heights.len());
+
+        let mut expected = 0u64;
+
+        for height in heights {
+            if height != expected {
+                return Err(StorageError::NonContiguousChain {
+                    expected,
+                    got: height,
+                });
+            }
+
+            blocks.push(self.read_block(height)?);
+
+            expected = expected
+                .checked_add(1)
+                .ok_or(StorageError::HeightOverflow)?;
+        }
+
+        Ok(blocks)
+    }
+
     pub fn block_path(&self, height: u64) -> PathBuf {
         self.root.join(format!("{height:020}.{BLOCK_EXTENSION}"))
     }
@@ -203,6 +231,9 @@ pub enum StorageError {
     BlockAlreadyExists(u64),
     BlockNotFound(u64),
 
+    NonContiguousChain { expected: u64, got: u64 },
+
+    HeightOverflow,
     TemporaryFileExhausted,
 }
 
@@ -223,6 +254,17 @@ impl fmt::Display for StorageError {
 
             Self::BlockNotFound(height) => {
                 write!(f, "block not found at height {height}")
+            }
+
+            Self::NonContiguousChain { expected, got } => {
+                write!(
+                    f,
+                    "non-contiguous stored chain: expected height {expected}, found {got}"
+                )
+            }
+
+            Self::HeightOverflow => {
+                write!(f, "stored blockchain height overflow")
             }
 
             Self::TemporaryFileExhausted => {
@@ -416,6 +458,108 @@ mod tests {
         assert!(matches!(
             store.read_block(7),
             Err(StorageError::BlockNotFound(7))
+        ));
+    }
+}
+
+#[cfg(test)]
+mod contiguous_chain_tests {
+    use super::*;
+
+    use std::{
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use mirror_crypto::Hash256;
+
+    static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+    struct TestDirectory {
+        path: PathBuf,
+    }
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let unique = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+
+            let path = std::env::temp_dir().join(format!(
+                "mirror-contiguous-test-{}-{nanos}-{unique}",
+                std::process::id()
+            ));
+
+            fs::create_dir_all(&path).unwrap();
+
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn empty_block(previous: Hash256, nonce: u64) -> Block {
+        let mut block = Block::new(
+            1,
+            previous,
+            Hash256::from_bytes([0x44; 32]),
+            1_800_000_000,
+            0x1f0f_ffff,
+            Vec::new(),
+        )
+        .unwrap();
+
+        block.set_nonce(nonce);
+
+        block
+    }
+
+    #[test]
+    fn contiguous_blocks_load_in_height_order() {
+        let directory = TestDirectory::new();
+
+        let store = BlockStore::open(&directory.path).unwrap();
+
+        let block_zero = empty_block(Hash256::default(), 10);
+
+        let block_one = empty_block(block_zero.hash(), 20);
+
+        store.write_block(0, &block_zero).unwrap();
+
+        store.write_block(1, &block_one).unwrap();
+
+        let loaded = store.read_contiguous_blocks().unwrap();
+
+        assert_eq!(loaded, vec![block_zero, block_one]);
+    }
+
+    #[test]
+    fn gap_in_stored_chain_is_rejected() {
+        let directory = TestDirectory::new();
+
+        let store = BlockStore::open(&directory.path).unwrap();
+
+        store
+            .write_block(0, &empty_block(Hash256::default(), 10))
+            .unwrap();
+
+        store
+            .write_block(2, &empty_block(Hash256::from_bytes([0x22; 32]), 30))
+            .unwrap();
+
+        assert!(matches!(
+            store.read_contiguous_blocks(),
+            Err(StorageError::NonContiguousChain {
+                expected: 1,
+                got: 2,
+            })
         ));
     }
 }
