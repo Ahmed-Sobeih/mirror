@@ -35,6 +35,13 @@ pub const FRAME_HEADER_LEN: usize = 12;
 pub const MAX_FRAME_PAYLOAD_LEN: usize = 4 * 1024 * 1024;
 
 pub const MESSAGE_KIND_HELLO: u16 = 1;
+pub const MESSAGE_KIND_GET_BLOCK: u16 = 2;
+pub const MESSAGE_KIND_BLOCK_DATA: u16 = 3;
+
+pub const GET_BLOCK_PAYLOAD_LEN: usize = 8;
+
+/// Height prefix before canonical block bytes.
+pub const BLOCK_DATA_HEIGHT_LEN: usize = 8;
 
 /// Exact encoded Hello payload length.
 ///
@@ -89,14 +96,58 @@ impl HelloMessage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GetBlockMessage {
+    height: u64,
+}
+
+impl GetBlockMessage {
+    pub const fn new(height: u64) -> Self {
+        Self { height }
+    }
+
+    pub const fn height(&self) -> u64 {
+        self.height
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BlockDataMessage {
+    height: u64,
+    block_bytes: Vec<u8>,
+}
+
+impl BlockDataMessage {
+    pub fn new(height: u64, block_bytes: Vec<u8>) -> Self {
+        Self {
+            height,
+            block_bytes,
+        }
+    }
+
+    pub const fn height(&self) -> u64 {
+        self.height
+    }
+
+    pub fn block_bytes(&self) -> &[u8] {
+        &self.block_bytes
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WireMessage {
     Hello(HelloMessage),
+    GetBlock(GetBlockMessage),
+    BlockData(BlockDataMessage),
 }
 
 /// Encode one complete Mirror P2P message.
 pub fn encode_message(message: &WireMessage) -> Result<Vec<u8>, ProtocolError> {
     let (kind, payload) = match message {
         WireMessage::Hello(hello) => (MESSAGE_KIND_HELLO, encode_hello(hello)),
+
+        WireMessage::GetBlock(request) => (MESSAGE_KIND_GET_BLOCK, encode_get_block(request)),
+
+        WireMessage::BlockData(block) => (MESSAGE_KIND_BLOCK_DATA, encode_block_data(block)?),
     };
 
     if payload.len() > MAX_FRAME_PAYLOAD_LEN {
@@ -188,6 +239,10 @@ pub fn decode_message(bytes: &[u8]) -> Result<WireMessage, ProtocolError> {
     match message_kind {
         MESSAGE_KIND_HELLO => Ok(WireMessage::Hello(decode_hello(payload)?)),
 
+        MESSAGE_KIND_GET_BLOCK => Ok(WireMessage::GetBlock(decode_get_block(payload)?)),
+
+        MESSAGE_KIND_BLOCK_DATA => Ok(WireMessage::BlockData(decode_block_data(payload)?)),
+
         other => Err(ProtocolError::UnknownMessageKind(other)),
     }
 }
@@ -249,6 +304,60 @@ fn decode_hello(payload: &[u8]) -> Result<HelloMessage, ProtocolError> {
     ))
 }
 
+fn encode_get_block(request: &GetBlockMessage) -> Vec<u8> {
+    request.height.to_le_bytes().to_vec()
+}
+
+fn decode_get_block(payload: &[u8]) -> Result<GetBlockMessage, ProtocolError> {
+    if payload.len() != GET_BLOCK_PAYLOAD_LEN {
+        return Err(ProtocolError::InvalidPayloadLength {
+            kind: MESSAGE_KIND_GET_BLOCK,
+            expected: GET_BLOCK_PAYLOAD_LEN,
+            got: payload.len(),
+        });
+    }
+
+    let height = u64::from_le_bytes(
+        payload
+            .try_into()
+            .map_err(|_| ProtocolError::UnexpectedEnd)?,
+    );
+
+    Ok(GetBlockMessage::new(height))
+}
+
+fn encode_block_data(block: &BlockDataMessage) -> Result<Vec<u8>, ProtocolError> {
+    let capacity = BLOCK_DATA_HEIGHT_LEN
+        .checked_add(block.block_bytes.len())
+        .ok_or(ProtocolError::LengthOverflow)?;
+
+    let mut payload = Vec::with_capacity(capacity);
+
+    payload.extend_from_slice(&block.height.to_le_bytes());
+
+    payload.extend_from_slice(&block.block_bytes);
+
+    Ok(payload)
+}
+
+fn decode_block_data(payload: &[u8]) -> Result<BlockDataMessage, ProtocolError> {
+    if payload.len() < BLOCK_DATA_HEIGHT_LEN {
+        return Err(ProtocolError::PayloadTooShort {
+            kind: MESSAGE_KIND_BLOCK_DATA,
+            minimum: BLOCK_DATA_HEIGHT_LEN,
+            got: payload.len(),
+        });
+    }
+
+    let height = u64::from_le_bytes(
+        payload[0..8]
+            .try_into()
+            .map_err(|_| ProtocolError::UnexpectedEnd)?,
+    );
+
+    Ok(BlockDataMessage::new(height, payload[8..].to_vec()))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProtocolError {
     UnexpectedEnd,
@@ -264,6 +373,12 @@ pub enum ProtocolError {
     InvalidPayloadLength {
         kind: u16,
         expected: usize,
+        got: usize,
+    },
+
+    PayloadTooShort {
+        kind: u16,
+        minimum: usize,
         got: usize,
     },
 
@@ -306,6 +421,13 @@ impl fmt::Display for ProtocolError {
                 write!(
                     f,
                     "invalid payload length for message {kind}: expected {expected}, got {got}"
+                )
+            }
+
+            Self::PayloadTooShort { kind, minimum, got } => {
+                write!(
+                    f,
+                    "payload for message {kind} is too short: minimum {minimum}, got {got}"
                 )
             }
 
@@ -446,6 +568,85 @@ mod tests {
                 kind: MESSAGE_KIND_HELLO,
                 expected: HELLO_PAYLOAD_LEN,
                 got: HELLO_PAYLOAD_LEN - 1,
+            })
+        );
+    }
+}
+
+#[cfg(test)]
+mod block_sync_message_tests {
+    use super::*;
+
+    #[test]
+    fn get_block_round_trip() {
+        let original = WireMessage::GetBlock(GetBlockMessage::new(123));
+
+        let encoded = encode_message(&original).unwrap();
+
+        let decoded = decode_message(&encoded).unwrap();
+
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn get_block_frame_has_known_size() {
+        let encoded = encode_message(&WireMessage::GetBlock(GetBlockMessage::new(7))).unwrap();
+
+        assert_eq!(encoded.len(), FRAME_HEADER_LEN + GET_BLOCK_PAYLOAD_LEN);
+
+        assert_eq!(encoded.len(), 20);
+    }
+
+    #[test]
+    fn block_data_round_trip() {
+        let original =
+            WireMessage::BlockData(BlockDataMessage::new(9, vec![0xaa, 0xbb, 0xcc, 0xdd]));
+
+        let encoded = encode_message(&original).unwrap();
+
+        let decoded = decode_message(&encoded).unwrap();
+
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn wrong_get_block_payload_length_is_rejected() {
+        let mut encoded = encode_message(&WireMessage::GetBlock(GetBlockMessage::new(4))).unwrap();
+
+        encoded[8..12].copy_from_slice(&7u32.to_le_bytes());
+
+        encoded.pop();
+
+        assert_eq!(
+            decode_message(&encoded),
+            Err(ProtocolError::InvalidPayloadLength {
+                kind: MESSAGE_KIND_GET_BLOCK,
+                expected: GET_BLOCK_PAYLOAD_LEN,
+                got: 7,
+            })
+        );
+    }
+
+    #[test]
+    fn block_data_without_height_is_rejected() {
+        let mut frame = Vec::new();
+
+        frame.extend_from_slice(&NETWORK_MAGIC);
+
+        frame.extend_from_slice(&PROTOCOL_VERSION.to_le_bytes());
+
+        frame.extend_from_slice(&MESSAGE_KIND_BLOCK_DATA.to_le_bytes());
+
+        frame.extend_from_slice(&4u32.to_le_bytes());
+
+        frame.extend_from_slice(&[1, 2, 3, 4]);
+
+        assert_eq!(
+            decode_message(&frame),
+            Err(ProtocolError::PayloadTooShort {
+                kind: MESSAGE_KIND_BLOCK_DATA,
+                minimum: BLOCK_DATA_HEIGHT_LEN,
+                got: 4,
             })
         );
     }
