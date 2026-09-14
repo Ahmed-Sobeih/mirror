@@ -191,6 +191,49 @@ impl Chain {
         self.pow_bits
     }
 
+    /// Return a validated block at a specific chain height.
+    pub fn block_at(&self, height: u64) -> Option<&Block> {
+        let index = usize::try_from(height).ok()?;
+
+        self.blocks.get(index)
+    }
+
+    /// Return the block hash at a specific height.
+    pub fn block_hash_at(&self, height: u64) -> Option<Hash256> {
+        self.block_at(height).map(|block| block.hash())
+    }
+
+    /// Decide whether a fully validated candidate chain should replace
+    /// the current chain.
+    ///
+    /// Mirror currently requires one fixed PoW target for every block.
+    /// Therefore a strictly longer valid chain currently represents
+    /// greater accumulated expected work.
+    ///
+    /// Equal-height forks keep the current chain until one branch gains
+    /// additional work.
+    pub fn compare_candidate(
+        &self,
+        candidate: &Self,
+    ) -> Result<ChainPreference, ChainSelectionError> {
+        let current_genesis = self.genesis().hash();
+
+        let candidate_genesis = candidate.genesis().hash();
+
+        if current_genesis != candidate_genesis {
+            return Err(ChainSelectionError::GenesisMismatch {
+                current: current_genesis,
+                candidate: candidate_genesis,
+            });
+        }
+
+        if candidate.height() > self.height() {
+            Ok(ChainPreference::PreferCandidate)
+        } else {
+            Ok(ChainPreference::KeepCurrent)
+        }
+    }
+
     /// Construct and mine a candidate block extending the current tip.
     ///
     /// Difficulty comes from chain rules, never from the block producer.
@@ -258,6 +301,35 @@ impl Chain {
         Ok(())
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainPreference {
+    KeepCurrent,
+    PreferCandidate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChainSelectionError {
+    GenesisMismatch {
+        current: Hash256,
+        candidate: Hash256,
+    },
+}
+
+impl core::fmt::Display for ChainSelectionError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::GenesisMismatch { current, candidate } => {
+                write!(
+                    f,
+                    "candidate chain genesis mismatch: current {current}, candidate {candidate}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ChainSelectionError {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ChainError {
@@ -582,5 +654,119 @@ mod tests {
                 got: easier_bits,
             })
         );
+    }
+}
+
+#[cfg(test)]
+mod chain_selection_tests {
+    use super::*;
+
+    use mirror_consensus::INITIAL_POW_BITS;
+
+    use mirror_core::NUSA_PER_MRY;
+
+    use mirror_crypto::Keypair;
+
+    fn key(secret: u8) -> Keypair {
+        Keypair::from_secret_bytes([secret; 32])
+    }
+
+    fn address(keypair: &Keypair) -> Address {
+        Address::from_public_key(&keypair.public_key())
+    }
+
+    fn config(alice: &Keypair, timestamp: u64) -> GenesisConfig {
+        GenesisConfig::new(
+            timestamp,
+            INITIAL_POW_BITS,
+            vec![(address(alice), 100 * NUSA_PER_MRY)],
+        )
+    }
+
+    #[test]
+    fn strictly_longer_candidate_is_preferred() {
+        let alice = key(1);
+
+        let current = Chain::from_genesis(config(&alice, 1_800_000_000)).unwrap();
+
+        let mut candidate = current.clone();
+
+        let block = candidate
+            .mine_next_block(Vec::new(), 1_800_000_001)
+            .unwrap();
+
+        candidate.append_block(block).unwrap();
+
+        assert_eq!(
+            current.compare_candidate(&candidate),
+            Ok(ChainPreference::PreferCandidate)
+        );
+    }
+
+    #[test]
+    fn equal_height_candidate_keeps_current() {
+        let alice = key(1);
+
+        let current = Chain::from_genesis(config(&alice, 1_800_000_000)).unwrap();
+
+        let candidate = current.clone();
+
+        assert_eq!(
+            current.compare_candidate(&candidate),
+            Ok(ChainPreference::KeepCurrent)
+        );
+    }
+
+    #[test]
+    fn shorter_candidate_keeps_current() {
+        let alice = key(1);
+
+        let mut current = Chain::from_genesis(config(&alice, 1_800_000_000)).unwrap();
+
+        let candidate = current.clone();
+
+        let block = current.mine_next_block(Vec::new(), 1_800_000_001).unwrap();
+
+        current.append_block(block).unwrap();
+
+        assert_eq!(
+            current.compare_candidate(&candidate),
+            Ok(ChainPreference::KeepCurrent)
+        );
+    }
+
+    #[test]
+    fn different_genesis_is_rejected() {
+        let alice = key(1);
+
+        let current = Chain::from_genesis(config(&alice, 1_800_000_000)).unwrap();
+
+        let candidate = Chain::from_genesis(config(&alice, 1_800_000_001)).unwrap();
+
+        assert!(matches!(
+            current.compare_candidate(&candidate),
+            Err(ChainSelectionError::GenesisMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn block_lookup_uses_chain_height() {
+        let alice = key(1);
+
+        let mut chain = Chain::from_genesis(config(&alice, 1_800_000_000)).unwrap();
+
+        let genesis_hash = chain.tip_hash();
+
+        let block = chain.mine_next_block(Vec::new(), 1_800_000_001).unwrap();
+
+        let block_hash = block.hash();
+
+        chain.append_block(block).unwrap();
+
+        assert_eq!(chain.block_hash_at(0), Some(genesis_hash));
+
+        assert_eq!(chain.block_hash_at(1), Some(block_hash));
+
+        assert_eq!(chain.block_at(2), None);
     }
 }
