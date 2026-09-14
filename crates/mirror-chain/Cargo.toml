@@ -1,0 +1,12 @@
+[package]
+name = "mirror-chain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+mirror-core = { path = "../mirror-core" }
+mirror-crypto = { path = "../mirror-crypto" }
+mirror-consensus = { path = "../mirror-consensus" }
+mirror-state = { path = "../mirror-state" }
