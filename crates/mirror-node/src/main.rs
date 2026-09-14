@@ -87,11 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Mining Block 1...");
 
-    let block = chain.mine_next_block(
-        vec![transaction],
-        genesis_timestamp.saturating_add(1),
-        INITIAL_POW_BITS,
-    )?;
+    let block = chain.mine_next_block(vec![transaction], genesis_timestamp.saturating_add(1))?;
 
     println!();
     println!("Candidate Block 1 mined");

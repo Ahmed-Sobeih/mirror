@@ -5,7 +5,7 @@ pub mod merkle;
 pub mod signed_transaction;
 pub mod transaction;
 
-pub use block::{BLOCK_HEADER_LEN, BlockHeader};
+pub use block::{BLOCK_HEADER_LEN, BLOCK_VERSION, BlockHeader};
 
 pub use signed_transaction::{
     SIGNED_TRANSACTION_AUTH_LEN, SignedTransaction, SignedTransactionError,

@@ -5,7 +5,7 @@
 
 use mirror_consensus::{BlockConsensusError, mine_block, validate_block};
 
-use mirror_core::{Address, Block, BlockError, SignedTransaction};
+use mirror_core::{Address, BLOCK_VERSION, Block, BlockError, SignedTransaction};
 
 use mirror_crypto::Hash256;
 
@@ -13,7 +13,8 @@ use mirror_state::{
     BlockStateError, ChainState, StateError, execute_transactions, validate_block_state,
 };
 
-/// Configuration from which the deterministic genesis block is built.
+/// Configuration from which Mirror's deterministic genesis state and
+/// genesis block are defined.
 ///
 /// The permanent mainnet genesis configuration will be frozen later.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,23 +46,28 @@ impl GenesisConfig {
     }
 }
 
-/// An in-memory validated Mirror blockchain.
+/// Fully validated in-memory Mirror blockchain.
 ///
-/// Persistent storage will later move historical blocks and state
-/// into `mirror-storage`.
+/// Historical blocks are persisted separately by `mirror-storage`.
 #[derive(Clone, Debug)]
 pub struct Chain {
     blocks: Vec<Block>,
     state: ChainState,
+
+    /// Current required Proof-of-Work target encoding.
+    ///
+    /// For now Mirror uses a fixed development difficulty.
+    /// Difficulty adjustment rules will replace this later.
+    pow_bits: u32,
 }
 
 impl Chain {
-    /// Build and mine Mirror's deterministic genesis block.
+    /// Build and mine a new deterministic development genesis block.
     pub fn from_genesis(config: GenesisConfig) -> Result<Self, ChainError> {
         let state = ChainState::from_genesis_allocations(config.allocations)?;
 
         let mut genesis = Block::new(
-            1,
+            BLOCK_VERSION,
             Hash256::default(),
             state.state_root(),
             config.timestamp,
@@ -77,10 +83,76 @@ impl Chain {
         Ok(Self {
             blocks: vec![genesis],
             state,
+            pow_bits: config.pow_bits,
         })
     }
 
-    /// Genesis is height 0, so height is blocks.len() - 1.
+    /// Reconstruct a complete chain from persisted blocks.
+    ///
+    /// Every block is independently revalidated. State is rebuilt from
+    /// genesis allocations and transaction execution rather than trusted
+    /// from disk.
+    pub fn from_persisted_blocks(
+        config: GenesisConfig,
+        blocks: Vec<Block>,
+    ) -> Result<Self, ChainError> {
+        if blocks.is_empty() {
+            return Err(ChainError::MissingGenesis);
+        }
+
+        let initial_state = ChainState::from_genesis_allocations(config.allocations)?;
+
+        let genesis = &blocks[0];
+
+        if genesis.header().version() != BLOCK_VERSION {
+            return Err(ChainError::UnexpectedBlockVersion {
+                expected: BLOCK_VERSION,
+                got: genesis.header().version(),
+            });
+        }
+
+        if genesis.header().previous_block_hash() != Hash256::default() {
+            return Err(ChainError::InvalidGenesisPreviousHash);
+        }
+
+        if !genesis.transactions().is_empty() {
+            return Err(ChainError::GenesisContainsTransactions);
+        }
+
+        if genesis.header().timestamp() != config.timestamp {
+            return Err(ChainError::GenesisTimestampMismatch {
+                expected: config.timestamp,
+                got: genesis.header().timestamp(),
+            });
+        }
+
+        if genesis.header().pow_bits() != config.pow_bits {
+            return Err(ChainError::UnexpectedDifficulty {
+                expected: config.pow_bits,
+                got: genesis.header().pow_bits(),
+            });
+        }
+
+        // Genesis PoW, Merkle root, signatures and state commitment
+        // are not trusted merely because they came from local disk.
+        validate_block(genesis)?;
+
+        validate_block_state(&initial_state, genesis)?;
+
+        let mut chain = Self {
+            blocks: vec![genesis.clone()],
+            state: initial_state,
+            pow_bits: config.pow_bits,
+        };
+
+        for block in blocks.into_iter().skip(1) {
+            chain.append_block(block)?;
+        }
+
+        Ok(chain)
+    }
+
+    /// Genesis is height zero.
     pub fn height(&self) -> u64 {
         (self.blocks.len() - 1) as u64
     }
@@ -115,24 +187,26 @@ impl Chain {
         &self.blocks
     }
 
+    pub const fn pow_bits(&self) -> u32 {
+        self.pow_bits
+    }
+
     /// Construct and mine a candidate block extending the current tip.
     ///
-    /// This does not append it. The candidate must still go through
-    /// `append_block`, exactly like a block received from another peer.
+    /// Difficulty comes from chain rules, never from the block producer.
     pub fn mine_next_block(
         &self,
         transactions: Vec<SignedTransaction>,
         timestamp: u64,
-        pow_bits: u32,
     ) -> Result<Block, ChainError> {
         let transition = execute_transactions(&self.state, &transactions)?;
 
         let mut block = Block::new(
-            1,
+            BLOCK_VERSION,
             self.tip_hash(),
             transition.state_root(),
             timestamp,
-            pow_bits,
+            self.pow_bits,
             transactions,
         )?;
 
@@ -141,20 +215,40 @@ impl Chain {
         Ok(block)
     }
 
-    /// Validate and append a block to the current chain tip.
+    /// Fully validate and append a block to the current chain tip.
     pub fn append_block(&mut self, block: Block) -> Result<(), ChainError> {
-        let expected = self.tip_hash();
-        let got = block.header().previous_block_hash();
+        let expected_previous = self.tip_hash();
 
-        if got != expected {
-            return Err(ChainError::PreviousBlockMismatch { expected, got });
+        let got_previous = block.header().previous_block_hash();
+
+        if got_previous != expected_previous {
+            return Err(ChainError::PreviousBlockMismatch {
+                expected: expected_previous,
+                got: got_previous,
+            });
         }
 
-        // Validate signatures, Merkle root and PoW.
+        if block.header().version() != BLOCK_VERSION {
+            return Err(ChainError::UnexpectedBlockVersion {
+                expected: BLOCK_VERSION,
+                got: block.header().version(),
+            });
+        }
+
+        // Consensus-critical:
+        // the block author does not get to choose an easier target.
+        if block.header().pow_bits() != self.pow_bits {
+            return Err(ChainError::UnexpectedDifficulty {
+                expected: self.pow_bits,
+                got: block.header().pow_bits(),
+            });
+        }
+
+        // Signatures + transaction Merkle root + PoW.
         validate_block(&block)?;
 
-        // Independently execute transactions against our current state
-        // and verify the committed post-state root.
+        // Re-execute against our current state and verify the
+        // state root committed by the block header.
         let transition = validate_block_state(&self.state, &block)?;
 
         self.state = transition.into_post_state();
@@ -171,6 +265,18 @@ pub enum ChainError {
     Consensus(BlockConsensusError),
     State(StateError),
     BlockState(BlockStateError),
+
+    MissingGenesis,
+
+    InvalidGenesisPreviousHash,
+
+    GenesisContainsTransactions,
+
+    GenesisTimestampMismatch { expected: u64, got: u64 },
+
+    UnexpectedBlockVersion { expected: u32, got: u32 },
+
+    UnexpectedDifficulty { expected: u32, got: u32 },
 
     PreviousBlockMismatch { expected: Hash256, got: Hash256 },
 }
@@ -192,6 +298,39 @@ impl core::fmt::Display for ChainError {
 
             Self::BlockState(error) => {
                 write!(f, "block state validation failed: {error}")
+            }
+
+            Self::MissingGenesis => {
+                write!(f, "persisted chain contains no genesis block")
+            }
+
+            Self::InvalidGenesisPreviousHash => {
+                write!(f, "genesis previous block hash must be zero")
+            }
+
+            Self::GenesisContainsTransactions => {
+                write!(f, "Mirror genesis block must not contain transactions")
+            }
+
+            Self::GenesisTimestampMismatch { expected, got } => {
+                write!(
+                    f,
+                    "genesis timestamp mismatch: expected {expected}, got {got}"
+                )
+            }
+
+            Self::UnexpectedBlockVersion { expected, got } => {
+                write!(
+                    f,
+                    "unexpected block version: expected {expected}, got {got}"
+                )
+            }
+
+            Self::UnexpectedDifficulty { expected, got } => {
+                write!(
+                    f,
+                    "unexpected proof-of-work difficulty: expected {expected:#010x}, got {got:#010x}"
+                )
             }
 
             Self::PreviousBlockMismatch { expected, got } => {
@@ -231,7 +370,7 @@ impl From<BlockStateError> for ChainError {
 mod tests {
     use super::*;
 
-    use mirror_consensus::INITIAL_POW_BITS;
+    use mirror_consensus::{INITIAL_POW_BITS, mine_block};
 
     use mirror_core::{
         MIRROR_CHAIN_ID, NUSA_PER_MRY, TRANSACTION_KIND_TRANSFER, TRANSACTION_VERSION,
@@ -248,13 +387,16 @@ mod tests {
         Address::from_public_key(&keypair.public_key())
     }
 
-    fn test_chain(alice: &Keypair) -> Chain {
-        Chain::from_genesis(GenesisConfig::new(
+    fn config(alice: &Keypair) -> GenesisConfig {
+        GenesisConfig::new(
             1_800_000_000,
             INITIAL_POW_BITS,
             vec![(address(alice), 100 * NUSA_PER_MRY)],
-        ))
-        .unwrap()
+        )
+    }
+
+    fn test_chain(alice: &Keypair) -> Chain {
+        Chain::from_genesis(config(alice)).unwrap()
     }
 
     fn transfer(alice: &Keypair, bob: Address, nonce: u64) -> SignedTransaction {
@@ -276,6 +418,7 @@ mod tests {
     #[test]
     fn chain_starts_with_mined_genesis_block() {
         let alice = key(1);
+
         let chain = test_chain(&alice);
 
         assert_eq!(chain.height(), 0);
@@ -300,6 +443,7 @@ mod tests {
         let bob = key(2);
 
         let alice_address = address(&alice);
+
         let bob_address = address(&bob);
 
         let mut chain = test_chain(&alice);
@@ -307,11 +451,7 @@ mod tests {
         let genesis_hash = chain.tip_hash();
 
         let block = chain
-            .mine_next_block(
-                vec![transfer(&alice, bob_address, 0)],
-                1_800_000_001,
-                INITIAL_POW_BITS,
-            )
+            .mine_next_block(vec![transfer(&alice, bob_address, 0)], 1_800_000_001)
             .unwrap();
 
         assert_eq!(block.header().previous_block_hash(), genesis_hash);
@@ -338,7 +478,7 @@ mod tests {
         let mut chain = test_chain(&alice);
 
         let block = Block::new(
-            1,
+            BLOCK_VERSION,
             Hash256::from_bytes([0x99; 32]),
             chain.state().state_root(),
             1_800_000_001,
@@ -363,17 +503,12 @@ mod tests {
         let first_transaction = transfer(&alice, address(&bob), 0);
 
         let block_one = chain
-            .mine_next_block(
-                vec![first_transaction.clone()],
-                1_800_000_001,
-                INITIAL_POW_BITS,
-            )
+            .mine_next_block(vec![first_transaction.clone()], 1_800_000_001)
             .unwrap();
 
         chain.append_block(block_one).unwrap();
 
-        let result =
-            chain.mine_next_block(vec![first_transaction], 1_800_000_002, INITIAL_POW_BITS);
+        let result = chain.mine_next_block(vec![first_transaction], 1_800_000_002);
 
         assert!(matches!(
             result,
@@ -382,5 +517,70 @@ mod tests {
                 got: 0,
             }))
         ));
+    }
+
+    #[test]
+    fn persisted_chain_rebuilds_state() {
+        let alice = key(1);
+        let bob = key(2);
+
+        let alice_address = address(&alice);
+
+        let bob_address = address(&bob);
+
+        let mut original = test_chain(&alice);
+
+        let block = original
+            .mine_next_block(vec![transfer(&alice, bob_address, 0)], 1_800_000_001)
+            .unwrap();
+
+        original.append_block(block).unwrap();
+
+        let persisted = original.blocks().to_vec();
+
+        let restored = Chain::from_persisted_blocks(config(&alice), persisted).unwrap();
+
+        assert_eq!(restored.height(), original.height());
+
+        assert_eq!(restored.tip_hash(), original.tip_hash());
+
+        assert_eq!(restored.state(), original.state());
+
+        assert_eq!(restored.state().account(alice_address).nonce(), 1);
+
+        assert_eq!(
+            restored.state().account(bob_address).balance(),
+            NUSA_PER_MRY
+        );
+    }
+
+    #[test]
+    fn self_selected_easier_difficulty_is_rejected() {
+        let alice = key(1);
+
+        let mut chain = test_chain(&alice);
+
+        // Deliberately much easier than the chain rule.
+        let easier_bits = 0x207f_ffff;
+
+        let mut block = Block::new(
+            BLOCK_VERSION,
+            chain.tip_hash(),
+            chain.state().state_root(),
+            1_800_000_001,
+            easier_bits,
+            Vec::new(),
+        )
+        .unwrap();
+
+        mine_block(&mut block).unwrap();
+
+        assert_eq!(
+            chain.append_block(block),
+            Err(ChainError::UnexpectedDifficulty {
+                expected: INITIAL_POW_BITS,
+                got: easier_bits,
+            })
+        );
     }
 }

@@ -3,6 +3,9 @@ use mirror_crypto::{Hash256, sha256d};
 /// The exact serialized size of a Mirror block header.
 pub const BLOCK_HEADER_LEN: usize = 120;
 
+/// Current Mirror block format version.
+pub const BLOCK_VERSION: u32 = 1;
+
 /// Consensus-critical header of a Mirror block.
 ///
 /// Binary layout:
