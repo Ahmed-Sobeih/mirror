@@ -19,3 +19,9 @@ pub use transaction::{
 pub use merkle::merkle_root;
 
 pub use block::{Block, BlockError};
+
+pub mod codec;
+
+pub use codec::{
+    BLOCK_ENCODING_MAGIC, CodecError, MIN_ENCODED_BLOCK_LEN, decode_block, encode_block,
+};

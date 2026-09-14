@@ -1,21 +1,25 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use mirror_consensus::{INITIAL_POW_BITS, mine_block, validate_block};
+use mirror_chain::{Chain, GenesisConfig};
+
+use mirror_consensus::INITIAL_POW_BITS;
 
 use mirror_core::{
-    Address, Block, MIRROR_CHAIN_ID, NUSA_PER_MRY, SignedTransaction, TRANSACTION_KIND_TRANSFER,
+    Address, MIRROR_CHAIN_ID, NUSA_PER_MRY, SignedTransaction, TRANSACTION_KIND_TRANSFER,
     TRANSACTION_VERSION, TransactionBody,
 };
 
-use mirror_crypto::{Hash256, Keypair};
-
-use mirror_state::{ChainState, execute_transactions, validate_block_state};
+use mirror_crypto::Keypair;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Mirror Node");
     println!("===========");
     println!();
 
+    // Temporary development wallets.
+    //
+    // Permanent wallet storage and the final mainnet genesis
+    // configuration will be implemented later.
     let alice = Keypair::generate()?;
     let bob = Keypair::generate()?;
 
@@ -27,29 +31,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Bob:   {bob_address}");
     println!();
 
-    // Temporary pre-state used while the permanent Mirror genesis
-    // specification is still being designed.
-    //
-    // This is NOT the final mainnet genesis allocation.
-    let pre_state = ChainState::from_genesis_allocations([(alice_address, 100 * NUSA_PER_MRY)])?;
+    let genesis_timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
-    println!("Pre-state");
-    println!(
-        "Alice balance: {} Nusa",
-        pre_state.account(alice_address).balance()
+    // DEVELOPMENT GENESIS ONLY.
+    //
+    // Alice receives 100 MRY so we can exercise the real
+    // account-state machinery.
+    //
+    // This is NOT Mirror's final mainnet allocation.
+    let genesis = GenesisConfig::new(
+        genesis_timestamp,
+        INITIAL_POW_BITS,
+        vec![(alice_address, 100 * NUSA_PER_MRY)],
     );
-    println!(
-        "Bob balance:   {} Nusa",
-        pre_state.account(bob_address).balance()
-    );
-    println!("State root:    {}", pre_state.state_root());
+
+    println!("Creating Mirror development genesis...");
+
+    let mut chain = Chain::from_genesis(genesis)?;
+
+    let genesis_hash = chain.genesis().hash();
+
     println!();
+    println!("Genesis accepted");
+    println!("Height:     {}", chain.height());
+    println!("Hash:       {genesis_hash}");
+    println!("State root: {}", chain.state().state_root());
+    println!(
+        "Alice:      {} MRY",
+        chain.state().account(alice_address).balance() / NUSA_PER_MRY
+    );
+    println!();
+
+    // Alice sends Bob exactly 1 MRY.
+    let alice_nonce = chain.state().account(alice_address).nonce();
 
     let body = TransactionBody::new(
         TRANSACTION_VERSION,
         TRANSACTION_KIND_TRANSFER,
         MIRROR_CHAIN_ID,
-        0,
+        alice_nonce,
         alice_address,
         bob_address,
         NUSA_PER_MRY,
@@ -59,73 +79,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let transaction = SignedTransaction::sign(body, &alice)?;
 
-    transaction.verify()?;
-
-    println!("Created signed transfer");
-    println!("Amount: 1 MRY = {} Nusa", NUSA_PER_MRY);
+    println!("Transaction created");
     println!("TXID:   {}", transaction.txid()?);
+    println!("Amount: 1 MRY");
+    println!("Nonce:  {alice_nonce}");
     println!();
 
-    let transition = execute_transactions(&pre_state, std::slice::from_ref(&transaction))?;
+    println!("Mining Block 1...");
 
-    println!("Transaction executed");
-    println!("Post-state root: {}", transition.state_root());
-    println!();
-
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-
-    let mut block = Block::new(
-        1,
-        Hash256::default(),
-        transition.state_root(),
-        timestamp,
-        INITIAL_POW_BITS,
+    let block = chain.mine_next_block(
         vec![transaction],
+        genesis_timestamp.saturating_add(1),
+        INITIAL_POW_BITS,
     )?;
 
-    println!("Block assembled");
-    println!("Transactions:     {}", block.transactions().len());
-    println!("Transaction root: {}", block.header().transaction_root());
-    println!("State root:       {}", block.header().state_root());
+    println!();
+    println!("Candidate Block 1 mined");
+    println!("Previous: {}", block.header().previous_block_hash());
+    println!("Hash:     {}", block.hash());
+    println!("TX root:  {}", block.header().transaction_root());
+    println!("State:    {}", block.header().state_root());
+    println!("Nonce:    {}", block.header().nonce());
     println!();
 
-    println!("Mining complete Mirror block...");
+    // The candidate goes through the exact same validation path
+    // as a block received from another peer.
+    chain.append_block(block)?;
 
-    let result = mine_block(&mut block)?;
-
-    println!();
-    println!("Block mined");
-    println!("Nonce:    {}", result.nonce);
-    println!("Attempts: {}", result.attempts);
-    println!("Hash:     {}", result.hash);
-    println!();
-
-    validate_block(&block)?;
-
-    let verified_transition = validate_block_state(&pre_state, &block)?;
-
-    let post_state = verified_transition.post_state();
-
-    println!("Block validation");
-    println!("Signature:  VALID");
-    println!("TX root:    VALID");
-    println!("State root: VALID");
-    println!("PoW:        VALID");
+    println!("Block 1 accepted");
+    println!("================");
+    println!("Chain height: {}", chain.height());
+    println!("Chain blocks: {}", chain.len());
+    println!("Tip hash:     {}", chain.tip_hash());
     println!();
 
-    println!("Post-state");
-    println!(
-        "Alice balance: {} Nusa",
-        post_state.account(alice_address).balance()
-    );
-    println!(
-        "Alice nonce:   {}",
-        post_state.account(alice_address).nonce()
-    );
-    println!(
-        "Bob balance:   {} Nusa",
-        post_state.account(bob_address).balance()
-    );
+    let alice_account = chain.state().account(alice_address);
+
+    let bob_account = chain.state().account(bob_address);
+
+    println!("Ledger state");
+    println!("Alice: {} MRY", alice_account.balance() / NUSA_PER_MRY);
+    println!("Alice nonce: {}", alice_account.nonce());
+    println!("Bob:   {} MRY", bob_account.balance() / NUSA_PER_MRY);
+    println!("Bob nonce:   {}", bob_account.nonce());
+    println!();
+
+    println!("Mirror chain: VALID");
 
     Ok(())
 }
