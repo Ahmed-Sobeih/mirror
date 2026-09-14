@@ -170,6 +170,10 @@ dependencies = [
 [[package]]
 name = "mirror-network"
 version = "0.1.0"
+dependencies = [
+ "mirror-crypto",
+ "mirror-protocol",
+]
 
 [[package]]
 name = "mirror-node"
