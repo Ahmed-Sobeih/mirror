@@ -265,3 +265,134 @@ mod tests {
         assert_eq!(validate_pow(&header), Err(PowError::HashAboveTarget));
     }
 }
+
+/// Errors that can occur while validating or mining a complete Mirror block.
+#[derive(Debug, PartialEq, Eq)]
+pub enum BlockConsensusError {
+    Block(mirror_core::BlockError),
+    Pow(PowError),
+}
+
+impl core::fmt::Display for BlockConsensusError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Block(error) => {
+                write!(f, "block integrity error: {error}")
+            }
+            Self::Pow(error) => {
+                write!(f, "proof-of-work error: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for BlockConsensusError {}
+
+impl From<mirror_core::BlockError> for BlockConsensusError {
+    fn from(error: mirror_core::BlockError) -> Self {
+        Self::Block(error)
+    }
+}
+
+impl From<PowError> for BlockConsensusError {
+    fn from(error: PowError) -> Self {
+        Self::Pow(error)
+    }
+}
+
+/// Validate both the transaction integrity and Proof of Work
+/// of a complete Mirror block.
+pub fn validate_block(block: &mirror_core::Block) -> Result<(), BlockConsensusError> {
+    block.validate_integrity()?;
+    validate_pow(block.header())?;
+
+    Ok(())
+}
+
+/// Mine a complete Mirror block.
+///
+/// The block's transaction signatures and Merkle root are verified before
+/// any Proof-of-Work is attempted.
+pub fn mine_block(block: &mut mirror_core::Block) -> Result<MineResult, BlockConsensusError> {
+    block.validate_integrity()?;
+
+    // BlockHeader is Copy, so mine a temporary header.
+    // Only the nonce changes during mining.
+    let mut header = *block.header();
+
+    let result = mine(&mut header)?;
+
+    block.set_nonce(result.nonce);
+
+    // Defensive final validation of the complete mined block.
+    validate_block(block)?;
+
+    Ok(result)
+}
+
+#[cfg(test)]
+mod block_consensus_tests {
+    use super::*;
+
+    use mirror_core::{
+        Address, Block, SignedTransaction, TRANSACTION_KIND_TRANSFER, TRANSACTION_VERSION,
+        TransactionBody,
+    };
+
+    use mirror_crypto::{Hash256, Keypair};
+
+    fn signed_transaction() -> SignedTransaction {
+        let alice = Keypair::from_secret_bytes([1u8; 32]);
+
+        let bob = Keypair::from_secret_bytes([2u8; 32]);
+
+        let body = TransactionBody::new(
+            TRANSACTION_VERSION,
+            TRANSACTION_KIND_TRANSFER,
+            1,
+            0,
+            Address::from_public_key(&alice.public_key()),
+            Address::from_public_key(&bob.public_key()),
+            10_000_000,
+            1_000,
+            Vec::new(),
+        );
+
+        SignedTransaction::sign(body, &alice).expect("test transaction must sign")
+    }
+
+    fn unmined_block() -> Block {
+        Block::new(
+            1,
+            Hash256::default(),
+            Hash256::default(),
+            1_800_000_000,
+            INITIAL_POW_BITS,
+            vec![signed_transaction()],
+        )
+        .expect("test block must be valid")
+    }
+
+    #[test]
+    fn complete_block_can_be_mined() {
+        let mut block = unmined_block();
+
+        let result = mine_block(&mut block).unwrap();
+
+        assert_eq!(block.header().nonce(), result.nonce);
+
+        assert_eq!(block.hash(), result.hash);
+
+        assert_eq!(validate_block(&block), Ok(()));
+    }
+
+    #[test]
+    fn unmined_complete_block_fails_pow() {
+        let block = unmined_block();
+
+        assert!(matches!(
+            validate_block(&block),
+            Err(BlockConsensusError::Pow(PowError::HashAboveTarget))
+        ));
+    }
+}
