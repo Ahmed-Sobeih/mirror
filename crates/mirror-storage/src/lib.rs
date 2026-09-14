@@ -13,6 +13,7 @@
 //! renamed into place.
 
 use std::{
+    ffi::OsString,
     fmt,
     fs::{self, File, OpenOptions},
     io::Write,
@@ -38,6 +39,8 @@ impl BlockStore {
     /// Open or create a Mirror block directory.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, StorageError> {
         let root = root.as_ref().to_path_buf();
+
+        recover_interrupted_replacement(&root)?;
 
         fs::create_dir_all(&root)?;
 
@@ -168,6 +171,76 @@ impl BlockStore {
         Ok(blocks)
     }
 
+    /// Atomically replace the canonical block directory with a
+    /// completely prepared chain.
+    ///
+    /// The caller must fully validate the candidate chain before calling
+    /// this method. Storage itself only guarantees canonical persistence.
+    ///
+    /// The complete replacement is first written to a sibling staging
+    /// directory. The old canonical directory is retained as a backup
+    /// until the staged directory has been published.
+    pub fn replace_chain(&self, blocks: &[Block]) -> Result<(), StorageError> {
+        if blocks.is_empty() {
+            return Err(StorageError::EmptyReplacementChain);
+        }
+
+        let paths = replacement_paths(&self.root)?;
+
+        if paths.staging.exists() || paths.backup.exists() {
+            return Err(StorageError::ReplacementArtifactsExist);
+        }
+
+        fs::create_dir(&paths.staging)?;
+
+        let staging_store = Self {
+            root: paths.staging.clone(),
+        };
+
+        let prepare_result = (|| -> Result<(), StorageError> {
+            for (index, block) in blocks.iter().enumerate() {
+                let height = u64::try_from(index).map_err(|_| StorageError::HeightOverflow)?;
+
+                staging_store.write_block(height, block)?;
+            }
+
+            sync_directory(&paths.staging)?;
+
+            sync_directory(&paths.parent)?;
+
+            Ok(())
+        })();
+
+        if let Err(error) = prepare_result {
+            let _ = fs::remove_dir_all(&paths.staging);
+
+            return Err(error);
+        }
+
+        // From this point onward the replacement is recoverable:
+        // if we crash after moving the old chain to backup but before
+        // publishing staging, open() restores the backup.
+        fs::rename(&self.root, &paths.backup)?;
+
+        sync_directory(&paths.parent)?;
+
+        if let Err(error) = fs::rename(&paths.staging, &self.root) {
+            let _ = fs::rename(&paths.backup, &self.root);
+
+            let _ = fs::remove_dir_all(&paths.staging);
+
+            return Err(StorageError::Io(error));
+        }
+
+        sync_directory(&paths.parent)?;
+
+        fs::remove_dir_all(&paths.backup)?;
+
+        sync_directory(&paths.parent)?;
+
+        Ok(())
+    }
+
     pub fn block_path(&self, height: u64) -> PathBuf {
         self.root.join(format!("{height:020}.{BLOCK_EXTENSION}"))
     }
@@ -197,6 +270,90 @@ impl BlockStore {
 
         Err(StorageError::TemporaryFileExhausted)
     }
+}
+
+#[derive(Debug)]
+struct ReplacementPaths {
+    parent: PathBuf,
+    staging: PathBuf,
+    backup: PathBuf,
+}
+
+fn replacement_paths(root: &Path) -> Result<ReplacementPaths, StorageError> {
+    let name = root.file_name().ok_or(StorageError::InvalidStoreRoot)?;
+
+    let parent = root
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+
+    let mut staging_name = OsString::from(".");
+
+    staging_name.push(name);
+    staging_name.push(".mirror-reorg-staging");
+
+    let mut backup_name = OsString::from(".");
+
+    backup_name.push(name);
+    backup_name.push(".mirror-reorg-backup");
+
+    Ok(ReplacementPaths {
+        staging: parent.join(staging_name),
+        backup: parent.join(backup_name),
+        parent,
+    })
+}
+
+/// Recover a chain-directory swap interrupted by process or machine
+/// failure.
+///
+/// Cases:
+/// - canonical exists + backup exists: the new chain was published;
+///   discard the old backup.
+/// - canonical missing + backup exists: publication did not finish;
+///   restore the previous canonical chain.
+/// - stale staging without backup: replacement never reached commit;
+///   discard staging.
+fn recover_interrupted_replacement(root: &Path) -> Result<(), StorageError> {
+    let paths = replacement_paths(root)?;
+
+    let root_exists = root.is_dir();
+
+    let backup_exists = paths.backup.is_dir();
+
+    match (root_exists, backup_exists) {
+        (true, true) => {
+            fs::remove_dir_all(&paths.backup)?;
+
+            if paths.staging.exists() {
+                fs::remove_dir_all(&paths.staging)?;
+            }
+
+            sync_directory(&paths.parent)?;
+        }
+
+        (false, true) => {
+            // The old canonical directory was moved aside, but the
+            // candidate was never successfully published. Roll back.
+            fs::rename(&paths.backup, root)?;
+
+            if paths.staging.exists() {
+                fs::remove_dir_all(&paths.staging)?;
+            }
+
+            sync_directory(&paths.parent)?;
+        }
+
+        (_, false) => {
+            if paths.staging.exists() {
+                fs::remove_dir_all(&paths.staging)?;
+
+                sync_directory(&paths.parent)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn parse_block_filename(name: &str) -> Option<u64> {
@@ -234,6 +391,11 @@ pub enum StorageError {
     NonContiguousChain { expected: u64, got: u64 },
 
     HeightOverflow,
+
+    EmptyReplacementChain,
+    InvalidStoreRoot,
+    ReplacementArtifactsExist,
+
     TemporaryFileExhausted,
 }
 
@@ -265,6 +427,21 @@ impl fmt::Display for StorageError {
 
             Self::HeightOverflow => {
                 write!(f, "stored blockchain height overflow")
+            }
+
+            Self::EmptyReplacementChain => {
+                write!(f, "cannot replace canonical storage with an empty chain")
+            }
+
+            Self::InvalidStoreRoot => {
+                write!(f, "block store root has no usable directory name")
+            }
+
+            Self::ReplacementArtifactsExist => {
+                write!(
+                    f,
+                    "chain replacement staging or backup directory already exists"
+                )
             }
 
             Self::TemporaryFileExhausted => {
@@ -560,6 +737,146 @@ mod contiguous_chain_tests {
                 expected: 1,
                 got: 2,
             })
+        ));
+    }
+}
+
+#[cfg(test)]
+mod chain_replacement_tests {
+    use super::*;
+
+    use std::{
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use mirror_crypto::Hash256;
+
+    static NEXT_REORG_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+    struct ReorgTestDirectory {
+        path: PathBuf,
+    }
+
+    impl ReorgTestDirectory {
+        fn new() -> Self {
+            let unique = NEXT_REORG_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+
+            let path = std::env::temp_dir().join(format!(
+                "mirror-reorg-storage-test-{}-{nanos}-{unique}",
+                std::process::id()
+            ));
+
+            fs::create_dir_all(&path).unwrap();
+
+            Self { path }
+        }
+
+        fn block_root(&self) -> PathBuf {
+            self.path.join("blocks")
+        }
+    }
+
+    impl Drop for ReorgTestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn block(previous: Hash256, marker: u8) -> Block {
+        Block::new(
+            1,
+            previous,
+            Hash256::from_bytes([marker; 32]),
+            1_800_000_000 + u64::from(marker),
+            0x1f0f_ffff,
+            Vec::new(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn complete_chain_can_replace_existing_chain() {
+        let directory = ReorgTestDirectory::new();
+
+        let store = BlockStore::open(directory.block_root()).unwrap();
+
+        let old_zero = block(Hash256::default(), 1);
+
+        let old_one = block(old_zero.hash(), 2);
+
+        store.write_block(0, &old_zero).unwrap();
+
+        store.write_block(1, &old_one).unwrap();
+
+        let new_zero = block(Hash256::default(), 10);
+
+        let new_one = block(new_zero.hash(), 11);
+
+        let new_two = block(new_one.hash(), 12);
+
+        let candidate = vec![new_zero.clone(), new_one.clone(), new_two.clone()];
+
+        store.replace_chain(&candidate).unwrap();
+
+        let loaded = store.read_contiguous_blocks().unwrap();
+
+        assert_eq!(loaded, candidate);
+    }
+
+    #[test]
+    fn interrupted_swap_restores_previous_chain() {
+        let directory = ReorgTestDirectory::new();
+
+        let root = directory.block_root();
+
+        let store = BlockStore::open(&root).unwrap();
+
+        let original = block(Hash256::default(), 20);
+
+        store.write_block(0, &original).unwrap();
+
+        let paths = replacement_paths(&root).unwrap();
+
+        fs::create_dir(&paths.staging).unwrap();
+
+        let staging_store = BlockStore {
+            root: paths.staging.clone(),
+        };
+
+        staging_store
+            .write_block(0, &block(Hash256::default(), 21))
+            .unwrap();
+
+        // Simulate a crash after old canonical storage was moved
+        // to backup but before staging was published.
+        fs::rename(&root, &paths.backup).unwrap();
+
+        let recovered = BlockStore::open(&root).unwrap();
+
+        let loaded = recovered.read_block(0).unwrap();
+
+        assert_eq!(loaded, original);
+
+        assert!(!paths.backup.exists());
+
+        assert!(!paths.staging.exists());
+    }
+
+    #[test]
+    fn empty_chain_replacement_is_rejected() {
+        let directory = ReorgTestDirectory::new();
+
+        let store = BlockStore::open(directory.block_root()).unwrap();
+
+        assert!(matches!(
+            store.replace_chain(&[]),
+            Err(StorageError::EmptyReplacementChain)
         ));
     }
 }
