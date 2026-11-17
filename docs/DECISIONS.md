@@ -60,11 +60,27 @@ genesis block, transaction format or wallet balance is rewritten.
 The user requested a repository plan to finish the blockchain/enrollment software
 to the point of accepting fingerprint and ECG readings, with interchangeable
 devices supplied later, and asked that the-prompt track position and continuation.
-[MASTER_PLAN.md](../MASTER_PLAN.md) now records the proposed engineering sequence;
+[MASTER_PLAN.md](../MASTER_PLAN.md) records the proposed engineering sequence;
 [DEVICE_INPUT_CONTRACT.md](DEVICE_INPUT_CONTRACT.md) records draft compatibility
 requirements. This instruction does not choose a manufacturer, approve real data
 collection, settle the open monetary rules, or assert universal device support.
 The roadmap separates synthetic software acceptance from actual-device pilot
 acceptance. Its proposed algorithms, thresholds and policies are not user-approved
-merely because they appear as tasks. Next work is MB-01A; this planning update
-adds no new runtime capability or admission authority.
+merely because they appear as tasks. At the original planning handoff, MB-01A was
+next; that historical plan added no runtime capability or admission authority.
+
+## Engineering design selection — MIRROR-MB01A-001
+
+Following the user's instruction to continue, MB-01A reviewed current source and
+published LEDGER_MEMBERSHIP_V1.md, THREAT_MODEL.md and MEMBERSHIP_TEST_MATRIX.md.
+The selected implementation direction is a separate, explicitly initialized
+synthetic membership-dev-v2 network with new typed encodings and combined state,
+while preserving all legacy history. This is an engineering compatibility choice,
+not a new launch or monetary decision. Next task is MB-01B/B1 implementation.
+
+V2 context binds seed order/contents, configuration and limits; proposed operation
+windows, sequences and block-parent eligibility address identified source gaps.
+Proposed end-of-block activation/counters and zero-fee/no-mint test transfers are
+development semantics only. They do not settle qualifying monetary population,
+real approval policy, production fee amounts, forced revocation or human consensus.
+No source runtime behavior changed merely because this design was published.

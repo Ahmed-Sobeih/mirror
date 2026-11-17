@@ -1,13 +1,18 @@
 # Mirror master plan — blockchain to biometric enrollment readiness
 
 Planning checkpoint: **MIRROR-PLAN-001** (2026-11-18).
-Implementation checkpoint remains **MIRROR-PH-001**. This document is a roadmap,
-not a claim that the planned components already exist.
+Latest design checkpoint: **MIRROR-MB01A-001 — MB-01A design deliverables complete**.
+Runtime implementation checkpoint remains **MIRROR-PH-001**.
+A completed design task is not an implemented V2 blockchain.
 
 ## Start here: current position and next action
 
-**Next task: MB-01A — review the membership foundation and specify its versioned
-ledger integration. Status: READY; implementation has not started.**
+**Next task: MB-01B/B1 — implement V2 configuration/bootstrap-context binding and
+bounded rules with regression tests. Status: READY; runtime implementation has not started.**
+
+MB-01A deliverables: [ledger integration specification](docs/LEDGER_MEMBERSHIP_V1.md),
+[source threat review](docs/THREAT_MODEL.md), and [35-case planned test matrix](docs/MEMBERSHIP_TEST_MATRIX.md).
+See section 10 for acceptance evidence and remaining limits.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -15,8 +20,8 @@ Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 `work/personhood-register-v0.1`; PR #1 is open and unmerged at this checkpoint.
 Recheck live refs before acting. Do not restart from an older copied prompt.
 
-The user asked for this plan and a maintained continuation pointer, not for a
-mainnet launch, hardware purchase, real biometric collection, or a change to
+The original request established this plan and a maintained continuation pointer,
+not a mainnet launch, hardware purchase, real biometric collection, or a change to
 unresolved monetary policy. The work packages below are proposed engineering
 steps implementing the accepted direction. Their technical choices still require
 review, tests and, where identified, a user decision.
@@ -69,12 +74,14 @@ claim. Encryption alone is not a private duplicate-search protocol.
 
 ## 2. Verified baseline, not starting from zero
 
-Observed branch head before this plan:
+Observed branch head before the original plan:
 `dd4c2a1a7c73368364a27557537864d8c9814a03`.
 Observed `main`: `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
 PR: https://github.com/Ahmed-Sobeih/mirror/pull/1
-Latest observed baseline CI:
+Pre-plan baseline CI:
 https://github.com/Ahmed-Sobeih/mirror/actions/runs/44186275709 — SUCCESS.
+Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` also passed run 44189324502;
+that exact source was reviewed for MB-01A.
 
 Recorded suite: 133 workspace tests (26 personhood and 5 monetary-policy tests
 included), 26 additional release-mode executions of the personhood tests, and a
@@ -117,20 +124,21 @@ interfaces; human-limited participation with easy PoW subordinate to it.
 | D-06 | Supported capture profiles, matching algorithms/versions, minimum quality, error thresholds, exceptions | Actual uniqueness acceptance in MB-12 |
 
 Prepare concrete options when the relevant task is reached. Do not ask the user
-to settle all of these before MB-01A. Do not treat proposed defaults as accepted
-policy or use permissive fallback behavior to pass a gate.
+to settle all of these before membership integration. Do not treat proposed defaults
+as accepted policy or use permissive fallback behavior to pass a gate.
 
 ## 4. Progress tracker
 
 Statuses: VERIFIED_COMPONENT, READY, TODO, IN_PROGRESS, BLOCKED, VERIFIED.
-Only mark VERIFIED with implementation, acceptance evidence and publication refs.
+Only mark VERIFIED with deliverables, acceptance evidence and publication refs.
+For a design-only task this means design acceptance, NOT runtime implementation.
 A passing old suite is not proof that a newly planned task is implemented.
 
 | ID | Work package | Status | Dependencies / exit gate |
 |---|---|---|---|
 | MB-00 | Existing chain and standalone personhood baseline | VERIFIED_COMPONENT | Evidence above; integration remains open |
-| MB-01A | Integration design, threat review and test specification | READY — NEXT | Inspect actual source and PR #1 |
-| MB-01B | Harden the standalone registry against the agreed model | TODO | MB-01A |
+| MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | MIRROR-MB01A-001, section 10; T01–T35 remain planned |
+| MB-01B | Harden the standalone registry against the agreed model | READY — NEXT B1 | Implement versioned context/limits, then B2–B4 |
 | MB-02 | Versioned membership operations in block execution | TODO | MB-01A/B |
 | MB-03 | Durable state, synchronization and membership reorg/replay | TODO | MB-02 |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; some interface work can run earlier |
@@ -152,9 +160,10 @@ Do not purchase devices or introduce live biometric collection merely to unblock
 
 ### MB-01A — specify the integration before changing consensus
 
-**Deliver:** `docs/LEDGER_MEMBERSHIP_V1.md`, `docs/THREAT_MODEL.md`, and a test
-matrix mapping each rule to an actual planned assertion. These paths are future
-deliverables, not existing implementations.
+**Delivered:** [docs/LEDGER_MEMBERSHIP_V1.md](docs/LEDGER_MEMBERSHIP_V1.md),
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), and
+[docs/MEMBERSHIP_TEST_MATRIX.md](docs/MEMBERSHIP_TEST_MATRIX.md).
+These are specifications, not deployed implementations.
 
 Inspect current personhood, core encodings, account execution, chain acceptance,
 network transport and storage, including outstanding PR #1 comments. Specify:
@@ -181,6 +190,11 @@ Keep fresh-evidence biological deduplication explicitly external. Add resource
 limits for application/pending state, bounded batch execution, approved evidence
 freshness/context rules and deterministic errors. Any changes to signed bytes or
 roots require a version and test-vector update, not silent reinterpretation.
+
+Implementation slices from MB-01A: B1 configuration/seed binding and bounded rules;
+B2 signed sequences/anchors/windows; B3 staged expiry/activation and resource limits;
+B4 canonical vectors, regression tests, replay/demo and debug/release checks.
+Preserve the V1 implementation while introducing explicitly versioned V2 modules.
 
 **Pass:** duplicate/forged/stale/out-of-order approvals, mismatched networks or seed
 contexts, invalid withdrawals, overflow and oversized inputs fail without state
@@ -431,8 +445,8 @@ commands, machine-readable results and exact build hashes without private data.
 
 Use small reviewable changes with tests; do not replace whole source files merely
 to insert imports. Keep the active branch/PR explicit. Do not merge PR #1 simply
-to publish this plan. Verify its state before starting MB-01A and preserve any
-newer work. Follow existing pinned CI; add milestone-specific suites as needed.
+to publish design documents. Verify its state before the next task and preserve
+any newer work. Follow pinned CI; add milestone-specific suites as needed.
 
 For each task update this table with: state, acceptance evidence, implementation
 commit, CI run, remaining defects, and next exact subtask. Maintain
@@ -441,9 +455,9 @@ Mirror-related reply refreshes the-prompt as requested; discussion-only turns do
 not invent implementation progress. Store no secrets, biometric files or runtime
 wallet data in repository records. Record failures honestly.
 
-**Immediate next session:** read and review the current source for MB-01A; produce
-the ledger-membership specification, threat model and concrete negative-test map.
-Do not start reward minting, change the legacy genesis, or purchase hardware.
+**Immediate next session:** MB-01B/B1, implement versioned configuration/seed
+binding and bounded-rule tests from the new design. Do not repeat MB-01A, start
+reward minting, change legacy genesis or purchase hardware.
 
 ## 8. Engineering references, not extra user decisions
 
@@ -476,3 +490,29 @@ Their hooks/privacy implications must not be ignored, but they must not expand t
 current milestone without a recorded scope decision. Full anonymity remains a
 goal, not a property of this linkable pilot register. Public operation requires
 additional security, privacy and applicable legal review before real enrollment.
+
+## 10. MB-01A acceptance record — MIRROR-MB01A-001
+
+Source inspection at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` covered the
+personhood implementation/tests/codec, transaction and block formats, account
+executor, chain acceptance, storage, network transport and protocol, plus PR #1
+comments. Threat findings F01–F11 distinguish observed code from proposed remedies.
+
+Delivered compatibility and transition tables, noncircular configuration/seed
+binding, typed signed operation layout, sequences/anchors/expiry, parent-snapshot
+eligibility with block-end activation, resource budgets, combined block/ledger
+commitments, and atomic replay/storage requirements. T01–T35 are mapped to planned
+assertions and their responsible implementation milestones.
+
+Independent arithmetic check passed for 131-byte operation prefix, 160-byte header,
+168-byte empty block and signed operation lengths 243/291/227/227; proposed byte
+budgets are internally consistent. This is not runtime acceptance or a proof.
+
+No Rust source, dependencies, monetary rules, genesis, wallet balances or runtime
+files changed in MB-01A. The old suite remains 133 tests; all V2 cases are still
+NOT_IMPLEMENTED. Baseline CI run 44189324502 passed; inspect exact publication-head
+CI separately. The source review is not independent security certification.
+
+MB-01A status VERIFIED means its DESIGN deliverables are published and checked.
+MB-01B/B1 is READY; MB-02 and Gate A/B are not complete. New docs and handoff records
+are on the active feature branch in unmerged PR #1, not silently deployed on main.

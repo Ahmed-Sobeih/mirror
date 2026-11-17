@@ -30,9 +30,13 @@ code written, tests actually passed, published branch, PR and merge status.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to its exact next unfinished task; currently MB-01A.
+NEXT_SESSION.md points to its exact next unfinished task: currently MB-01B/B1.
+MB-01A is complete as a DESIGN task: read docs/LEDGER_MEMBERSHIP_V1.md,
+docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md before coding V2.
+The 35 cases are PLANNED, not passing tests. Preserve V1 APIs/encodings and use
+explicit new version domains rather than silently updating old signature bytes.
 Use docs/DEVICE_INPUT_CONTRACT.md for the private capture interface, not as a claim
-of existing hardware support. Tasks after the verified baseline remain planned.
+of existing hardware support. Later tasks remain planned.
 
 For every completed task record implementation commit, acceptance evidence/CI,
 remaining defects and next subtask in the master plan and checkpoint files.
