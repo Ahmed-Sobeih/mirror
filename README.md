@@ -3,6 +3,21 @@
 Mirror is a Rust development blockchain exploring human-based participation.
 **It is not a public mainnet, a deployed proof-of-humanity system, or real money.**
 
+## Roadmap and continuation
+
+[MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
+membership register to an integrated blockchain/enrollment stack ready for
+supported fingerprint and ECG inputs. Each task has dependencies and acceptance
+criteria. Current next task: **MB-01A**, integration design and threat review.
+
+[Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
+checklist; no physical device is supported merely because the document exists.
+[CURRENT_STATUS.md](CURRENT_STATUS.md) records verified progress;
+[NEXT_SESSION.md](NEXT_SESSION.md) gives the exact next action;
+[the-prompt](the-prompt) is the maintained copy-and-paste handoff for new chats.
+Gate A is tested software readiness; Gate B adds controlled actual-device tests.
+Both are future milestones, not a claim of completed mainnet security.
+
 ## Current direction
 
 - One eligible human, not hardware speed or wealth, is the intended unit of

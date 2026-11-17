@@ -54,3 +54,17 @@ no third party or founder can force-revoke another member through this API.
 
 No founder wallet is created, no grants are paid, and no existing database,
 genesis block, transaction format or wallet balance is rewritten.
+
+## Planning instruction — MIRROR-PLAN-001
+
+The user requested a repository plan to finish the blockchain/enrollment software
+to the point of accepting fingerprint and ECG readings, with interchangeable
+devices supplied later, and asked that the-prompt track position and continuation.
+[MASTER_PLAN.md](../MASTER_PLAN.md) now records the proposed engineering sequence;
+[DEVICE_INPUT_CONTRACT.md](DEVICE_INPUT_CONTRACT.md) records draft compatibility
+requirements. This instruction does not choose a manufacturer, approve real data
+collection, settle the open monetary rules, or assert universal device support.
+The roadmap separates synthetic software acceptance from actual-device pilot
+acceptance. Its proposed algorithms, thresholds and policies are not user-approved
+merely because they appear as tasks. Next work is MB-01A; this planning update
+adds no new runtime capability or admission authority.

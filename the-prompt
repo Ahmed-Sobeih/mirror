@@ -1,80 +1,101 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
-Work directly in GitHub, not through repeated manual paste-and-repair commands.
-This is a living continuation prompt, not permission to reset to an old snapshot.
+Work directly in GitHub, not repeated manual paste-and-repair commands.
+This is a living handoff. A stale copied prompt never overrides newer verified work.
 
-RECOVER THE LIVE STATE FIRST
-Verify the repository's default branch, active branches, pull requests and recent
-commits. At this handoff PR #1 is OPEN, ready for review and NOT MERGED:
+RECOVER THE LIVE REPOSITORY
+Verify default branch, active branches, PRs, recent commits and exact CI results.
+At this handoff PR #1 is OPEN, ready for review and NOT MERGED:
 https://github.com/Ahmed-Sobeih/mirror/pull/1
-The active branch is work/personhood-register-v0.1. Read its AGENTS.md,
-CURRENT_STATUS.md, NEXT_SESSION.md, docs/DECISIONS.md, docs/PERSONHOOD_V0_1.md,
-and the latest the-prompt before changing code. These new files are not yet on
-main. If the PR has since merged or newer work exists, follow the newer verified
-records instead. Do not recreate completed work or reset another session's changes.
+Active branch: work/personhood-register-v0.1. Observed main:
+ad7ffd120fb451fe44cf59cb909176785b33bf8f. Observed pre-plan branch head:
+dd4c2a1a7c73368364a27557537864d8c9814a03. The roadmap/checkpoint files are on the
+active branch, not yet main. Follow newer verified refs after a merge or new work.
+Do not reset, recreate completed work, or overwrite another session's changes.
 
-LAST VERIFIED CHECKPOINT
-MIRROR-PH-001: standalone Ant Kiss membership register and corrected monetary-policy
-components. Original main/base: ad7ffd120fb451fe44cf59cb909176785b33bf8f.
-Implementation: 3936d2a528e73444b667860f8987bbebcfe7ab78.
-Last verified checkpoint head: 685a6e6838e8fb8e3480131dc362afc953112702.
-Its GitHub Actions run 44181734498 passed the expanded workflow:
-https://github.com/Ahmed-Sobeih/mirror/actions/runs/44181734498
-Recorded results: 133 workspace tests, including 26 personhood and 5 monetary-policy
-tests; 26 personhood release tests; synthetic enrollment/replay demo; documentation
-command (zero doctest cases); allocation/runtime-data audit. Later changes in this
-turn are documentation-only, not new implementation or new test evidence.
+READ THESE FILES ON THE VERIFIED ACTIVE BRANCH
+AGENTS.md
+CURRENT_STATUS.md
+MASTER_PLAN.md                     <-- authoritative staged roadmap + progress table
+NEXT_SESSION.md                    <-- exact next unfinished action
+docs/DECISIONS.md
+docs/PERSONHOOD_V0_1.md
+docs/DEVICE_INPUT_CONTRACT.md       <-- draft fingerprint/ECG adapter requirements
+the-prompt                         <-- latest live handoff
 
-WHAT EXISTS / WHAT DOES NOT
-The legacy development chain already supports signed transfers, ledger state,
-persistence, TCP sync and validated reorganizations.
-The NEW, separate personhood library supports signed requests and distinct active
-member approvals, Pending/Active/Revoked states, voluntary self-withdrawal, exact
-request/key/evidence-reuse rejection, atomic event batches, population high-water
-and activation counters, deterministic state roots, and bounded event-log replay.
-It is NOT yet integrated into live blocks, peer synchronization, balances, rewards
-or human-based consensus. It does NOT perform biometric matching or anonymous
-membership proofs. New keys/new evidence from the same human remain an external
-uniqueness problem. No real people have been enrolled and no grants have been paid.
+CURRENT POSITION
+Planning checkpoint MIRROR-PLAN-001: roadmap to a blockchain/enrollment stack ready
+for supported fingerprint and ECG inputs has been written. Hardware can be a watch
+or separate devices; it is only an instrument. Do not choose/order devices now.
+Implementation checkpoint remains MIRROR-PH-001 (standalone registry).
+NEXT TASK: MB-01A — integration design, threat review and test specification.
+STATUS: READY; no new roadmap implementation task was performed in the plan turn.
 
-ACCEPTED PROJECT DECISIONS
-- No special founder allocation and no privileged marketing/airdrop reserve.
-- First 1,000 qualifying humans: 10 MRY each, founder included on identical terms;
-  this is an explicit 10,000-MRY bootstrap exception.
-- Ordinary supply allowance: 0.2 MRY per highest qualifying verified-human
-  population reached; population decreases do not lower that historical ceiling.
-- 1 MRY = 10,000,000 Nusa. Rewards and fees are not yet specified.
-- Bootstrap-floor versus additive treatment of the exception remains UNRESOLVED;
-  do not silently choose a combined supply formula or enable minting.
-- Ant Kiss is human-witnessed verification with proposed fingerprint/ECG inputs.
-  Hardware is interchangeable and out of scope for current blockchain work.
-- No raw OR encrypted biometric archive on-chain or in GitHub. Use synthetic data.
-- Founder-led initial verification is an explicit bootstrap assumption, not a
-  permanent administrator privilege. Intended participation is human-limited;
-  faster hardware should not buy extra slots. Easy PoW is secondary in that design.
-- The legacy Alice 100-MRY balance is a publicly known devnet fixture, NOT a founder
-  entitlement. Preserve existing local data/genesis; do not erase or rewrite it.
+EXACT RESUME ACTION
+Inspect current personhood/core/state/chain/storage/network source and PR comments.
+Produce docs/LEDGER_MEMBERSHIP_V1.md and docs/THREAT_MODEL.md with a concrete test
+matrix for signed operations, network/genesis/bootstrap binding, replay scope,
+resource bounds, ordering, population accounting and atomic block/state commitments.
+Choose a documented versioned devnet approach preserving existing MRB1/local data.
+Then implement MB-01B hardening and MB-02 membership-ledger integration. Continue
+numbered MASTER_PLAN.md tasks and update each status/evidence record. MB-08 adapter
+interface work may start earlier after MB-01A; monetary decisions do not block it.
+No automatic merge, mainnet launch, new policy or biometric collection is authorized
+merely by creating or refreshing this plan.
 
-EXACT RESUME POINT
-The most recent user request was to maintain this living handoff after every
-project message. That workflow is now recorded in AGENTS.md. No additional coding
-was requested or performed in this documentation turn; the development task remains:
-1. Verify the live PR/checkpoint and review remaining membership admission/replay
-   assumptions and negative-test gaps.
-2. Specify versioned membership operations and a membership-state commitment for
-   ledger integration, preserving the old devnet or explicitly versioning a new one.
-3. Implement and test membership execution/replay, then synchronization and reorgs
-   with DIFFERENT membership histories. Do not call the standalone registry a live
-   PoH blockchain. Keep actual grants/minting blocked on unresolved monetary rules.
-Do not merge PRs or change monetary policy merely to refresh this handoff.
+TARGET AND COMPLETION GATES
+Gate A: reproducibly tested software release candidate including integrated
+membership, usable persistent nodes/wallet operations, human-limited consensus,
+accepted testnet monetary rules, protected enrollment workflow and device-neutral
+interfaces tested with synthetic inputs. A matcher/consensus stub is not completion.
+Gate B: actual selected devices/SDKs/capture profiles integrated and evaluated in a
+controlled, consenting pilot. A device must expose documented usable readings;
+there is no claim that arbitrary scanners/watches automatically work.
+Neither gate is currently met. Neither means public-mainnet-ready or proven global
+biological uniqueness. Keep raw AND encrypted biometric archives off-chain/GitHub;
+private matching and human review feed signed admission evidence to the ledger.
 
-KEEP THIS FILE CURRENT
-Before the final response to EACH Mirror-related user message, refresh root
-the-prompt on the verified active branch with decisions, completed work, actual
-verification, blockers and the precise next action. Keep supporting checkpoint
-files consistent when relevant. Preserve the same next task on discussion-only
-turns. Read before editing, verify the published contents, and use current file
-SHAs. A stale copied prompt never overrides newer verified repository state.
-If a write fails, say so and provide the current handoff text rather than claiming
-it was saved. Updates happen during the conversation, not in the background.
-At a session switch, give the user the current file link so its entire contents
-can be pasted into a new conversation. Carry this requirement into future sessions.
+LAST VERIFIED IMPLEMENTATION / CI
+Source implementation: 3936d2a528e73444b667860f8987bbebcfe7ab78.
+Expanded CI: b0e9b75aad28f3804fc3a35a0bde6bfa6807e2b3 (run 44181156418).
+Later checked head 685a6e6838e8fb8e3480131dc362afc953112702 (run 44181734498).
+Latest pre-plan head dd4c2a1a7c73368364a27557537864d8c9814a03 passed run 44186275709:
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44186275709
+Recorded suite: 133 workspace tests including 26 personhood and 5 monetary-policy;
+26 personhood release-mode reruns; synthetic enrollment/replay demo; documentation
+command with zero doctest cases; allocation/runtime-data audit. Do not count the
+release reruns as additional unique tests. The plan turn changes documentation
+only; verify later exact-head checks rather than calling new code tested by history.
+
+WHAT EXISTS / LIMITS
+Legacy devnet: signed transfers, account state, persistence, TCP sync and validated
+reorgs. Separate personhood library: signed requests and distinct active approvals,
+Pending/Active/Revoked, voluntary self-withdrawal, exact request/key/evidence reuse
+rejection, atomic batches, population high-water/activation counters, roots and
+bounded event-log replay. It is NOT integrated into live blocks, peer membership
+sync, wallet rewards or human consensus. No real grants or enrollments exist.
+New keys/new evidence from the same human require external biometric deduplication;
+the register does not solve that. Public keys/reviewer relationships remain linkable.
+
+ACCEPTED POLICY — DO NOT REVERT TO OLDER BRAINSTORMING
+No founder bonus or privileged marketing reserve. First 1,000 qualifying humans
+get 10 MRY each INCLUDING founder, an explicit 10,000-MRY bootstrap exception.
+Ordinary allowance = 0.2 MRY per highest qualifying verified-human population;
+normal population decline does not lower that record. 1 MRY = 10,000,000 Nusa.
+Bootstrap-floor versus additive combination remains UNRESOLVED (D-01); so do
+reward/fee amounts (D-04). Do not invent a combined minting rule. Human review with
+fingerprint/ECG inputs is the intended Ant Kiss approach; hardware is interchangeable.
+Founder-led startup is explicit temporary trust, not a permanent administrator.
+Human slots/weight must not scale with hash rate, wallet count or device count.
+Easy PoW is secondary and not a substitute for membership/consensus security.
+The Alice 100-MRY publicly known dev fixture is NOT a founder entitlement; never
+erase or silently rewrite old genesis, runtime directories or unpushed user work.
+
+KEEP HANDOFFS CURRENT
+Before each Mirror-related final response, refresh root the-prompt on the verified
+active branch with actual progress, decisions, blockers, test evidence and next
+exact task. Maintain MASTER_PLAN.md progress, CURRENT_STATUS.md, NEXT_SESSION.md
+and decisions consistently. On discussion-only turns preserve the actual unfinished
+task. Read before editing; use current SHA/expected-head checks; verify publication.
+Do not chase a self-referential commit SHA or claim an untested head is tested.
+If publication fails, say so and provide the handoff text. Updates occur during the
+conversation, not in the background. Provide the current file link at session switch.

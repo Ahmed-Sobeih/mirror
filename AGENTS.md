@@ -1,8 +1,8 @@
 # Mirror development instructions
 
-Read CURRENT_STATUS.md, NEXT_SESSION.md and docs/DECISIONS.md first. Verify the
-live default branch, active PRs and recent commits; old chat checkpoints are not
-authority over newer verified work. Preserve the user's local unpushed changes.
+Read CURRENT_STATUS.md, MASTER_PLAN.md, NEXT_SESSION.md and docs/DECISIONS.md first.
+Verify the live default branch, active PRs and recent commits; old chat checkpoints
+are not authority over newer verified work. Preserve local unpushed changes.
 
 Use reviewable feature branches and exact base commits. Do not reset main, delete
 runtime data, rewrite old genesis, or silently change consensus encodings. The
@@ -27,6 +27,24 @@ Run `cargo test --workspace --all-targets --locked`, documentation tests and the
 membership demo. Pin CI toolchain/dependencies; do not print secrets. Distinguish
 code written, tests actually passed, published branch, PR and merge status.
 
+## Roadmap execution — MIRROR-PLAN-001
+
+MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
+NEXT_SESSION.md points to its exact next unfinished task; currently MB-01A.
+Use docs/DEVICE_INPUT_CONTRACT.md for the private capture interface, not as a claim
+of existing hardware support. Tasks after the verified baseline remain planned.
+
+For every completed task record implementation commit, acceptance evidence/CI,
+remaining defects and next subtask in the master plan and checkpoint files.
+Do not mark integration complete because standalone tests pass. Gate A is tested
+software readiness with synthetic inputs; Gate B additionally requires actual
+device/capture/matching evidence. Neither is a mainnet security guarantee.
+
+User policy decisions in docs/DECISIONS.md override proposed technical defaults.
+D-01 through D-06 in the plan are scoped decision gates, not reasons to stall all
+work. Continue dependency-ready work when one package is blocked. Do not select a
+monetary exception formula or collect real biometrics merely to pass a test.
+
 ## Living continuation prompt — explicit user requirement
 
 The root file `the-prompt` is the user's copy-and-paste handoff into a fresh
@@ -41,8 +59,8 @@ proposals. When a turn changes no implementation state, explicitly preserve the
 last verified checkpoint and next task rather than inventing progress.
 
 Read the current file before changing it; reconcile newer work and use the
-current content SHA. Verify the saved file after writing. Keep CURRENT_STATUS.md,
-NEXT_SESSION.md and decision records consistent whenever their subject changes.
+current content SHA. Verify the saved file after writing. Keep MASTER_PLAN.md,
+CURRENT_STATUS.md, NEXT_SESSION.md and decision records consistent when relevant.
 Do not include secrets, biometric data or unrelated personal/project information.
 
 A copied prompt can be stale. A new session must verify live repository metadata,
