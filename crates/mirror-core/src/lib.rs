@@ -4,6 +4,7 @@ pub mod block;
 pub mod merkle;
 pub mod signed_transaction;
 pub mod transaction;
+pub mod monetary_policy;
 
 pub use block::{BLOCK_HEADER_LEN, BLOCK_VERSION, BlockHeader};
 

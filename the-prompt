@@ -1,0 +1,16 @@
+Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
+Read AGENTS.md, CURRENT_STATUS.md, NEXT_SESSION.md, docs/DECISIONS.md and
+docs/PERSONHOOD_V0_1.md first. Verify LIVE default branch, current PRs, branch
+heads and CI; newer verified repository records take precedence.
+
+Working milestone: MIRROR-PH-001 on work/personhood-register-v0.1 — standalone
+Ant Kiss membership registry and corrected monetary-policy components. Do not
+assume it is merged or integrated into the live blockchain. Do not repeat the
+old founder-premine/marketing-reserve design. No raw/encrypted biometric archives
+on-chain. No real grants or human consensus are enabled yet.
+
+Continue the next unfinished task in NEXT_SESSION.md, preserve old development
+data, work directly in GitHub, verify tests and publication, and update these
+checkpoint records before finishing. The population allowance and 10,000-MRY
+bootstrap exception are accepted separately; their combined ceiling is still an
+explicit unresolved decision, not permission to invent a minting rule.
