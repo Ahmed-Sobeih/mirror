@@ -372,3 +372,5 @@ fn digest(domain: &[u8], fields: &[&[u8]]) -> Hash256 {
 
 #[cfg(test)]
 mod tests;
+
+pub mod v2;

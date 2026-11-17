@@ -22,6 +22,8 @@ jobs:
           persist-credentials: false
       - name: Install the development toolchain
         run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt
+      - name: Independent V2 configuration vectors
+        run: python3 tools/reference_config_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
