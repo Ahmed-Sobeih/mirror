@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Install the development toolchain
@@ -26,3 +26,15 @@ jobs:
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
         run: cargo +1.98.0 test --workspace --doc --locked
+      - name: Membership release-mode tests
+        run: cargo +1.98.0 test -p mirror-personhood --release --locked
+      - name: Synthetic enrollment and replay demonstration
+        run: cargo +1.98.0 run -p mirror-personhood --example registry_demo --locked
+      - name: Allocation and runtime-data audit
+        shell: bash
+        run: |
+          test -z "$(git ls-files mirror-data)"
+          git grep -n -E 'FOUNDER_EXTRA_ALLOCATION_NUSA|MARKETING_PREALLOCATION_NUSA|BOOTSTRAP_GRANT_NUSA' -- crates/mirror-core/src/monetary_policy.rs
+          git grep -n '100 \* NUSA_PER_MRY' -- crates/mirror-node/src/main.rs
+          echo 'Historical Alice funds are a public development fixture, not a founder grant.'
+          git diff --exit-code -- Cargo.lock
