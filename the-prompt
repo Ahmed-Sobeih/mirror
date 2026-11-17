@@ -1,16 +1,24 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
 Read AGENTS.md, CURRENT_STATUS.md, NEXT_SESSION.md, docs/DECISIONS.md and
-docs/PERSONHOOD_V0_1.md first. Verify LIVE default branch, current PRs, branch
-heads and CI; newer verified repository records take precedence.
+docs/PERSONHOOD_V0_1.md first. Verify LIVE default branch, pull request #1,
+branch heads and CI; newer verified repository records take precedence.
 
-Working milestone: MIRROR-PH-001 on work/personhood-register-v0.1 — standalone
-Ant Kiss membership registry and corrected monetary-policy components. Do not
-assume it is merged or integrated into the live blockchain. Do not repeat the
-old founder-premine/marketing-reserve design. No raw/encrypted biometric archives
-on-chain. No real grants or human consensus are enabled yet.
+Checkpoint MIRROR-PH-001: standalone Ant Kiss membership registry and corrected
+monetary-policy components implemented on work/personhood-register-v0.1.
+PR #1 was open/not merged at handoff. Source implementation 3936d2a; expanded CI
+b0e9b75 passed 133 workspace tests, 26 release personhood tests and the synthetic
+enrollment/replay demo in Actions run 44181156418. Check later head/results too.
 
-Continue the next unfinished task in NEXT_SESSION.md, preserve old development
-data, work directly in GitHub, verify tests and publication, and update these
-checkpoint records before finishing. The population allowance and 10,000-MRY
-bootstrap exception are accepted separately; their combined ceiling is still an
-explicit unresolved decision, not permission to invent a minting rule.
+Do NOT assume membership is integrated into the live blockchain. No real grants,
+biometrics, anonymous credentials or human consensus are enabled. Existing PoW
+chain and local runtime data remain unchanged; the public Alice 100-MRY fixture
+is not a founder allocation.
+
+Accepted policy: no extra founder or privileged marketing allocation; first
+1,000 qualifying humans get 10 MRY each including the founder; ordinary allowance
+is 0.2 MRY per qualifying historical population maximum. Combined bootstrap
+exception/ordinary ceiling treatment remains unresolved. Do not invent it.
+
+Continue NEXT_SESSION.md, work directly in GitHub on a reviewable branch,
+preserve existing chain data and do not collect biometric archives. Verify actual
+tests and publication state, and update checkpoint records before finishing.
