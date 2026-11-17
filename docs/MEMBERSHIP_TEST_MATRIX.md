@@ -1,14 +1,17 @@
 # Membership integration acceptance matrix
 
-Checkpoint: **MIRROR-MB01A-001**. Source baseline:
-`db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
+Design checkpoint: MIRROR-MB01A-001, reviewed baseline `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
+Current implementation checkpoint: **MIRROR-MB01B-B1-001**.
 
-This is the concrete test specification required by MB-01A. **Every V2 case below
-is PLANNED / NOT_IMPLEMENTED.** Names are proposed Rust test names, not claims
-that a test file exists. The 133-test baseline does not satisfy these V2 cases.
-When implementing, link the exact test path, tested commit and CI run in each row;
-never mark a row PASS from a screenshot, a spec assertion, or a V1 analogue.
+The 35 rows are acceptance specifications, NOT 35 passing tests. Current coverage:
+**T02 configuration/bootstrap binding VERIFIED; T03 and T20 PARTIAL; other rows
+remain PLANNED.** Narrow supporting checks do not complete a larger acceptance case.
+The 31 B1 Rust tests are separate test functions, not 31 completed roadmap rows.
 
+B1 implementation/tested commit: `809661b5e6a9338d65c15c45e540289df24fcc99`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943 — success.
+Actual tests: [config_v2.rs](../crates/mirror-personhood/tests/config_v2.rs).
+Encoding/reference: [CONFIG_V2_ENCODING.md](CONFIG_V2_ENCODING.md).
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Source gaps/residual assumptions: [THREAT_MODEL.md](THREAT_MODEL.md).
 
@@ -17,8 +20,8 @@ Source gaps/residual assumptions: [THREAT_MODEL.md](THREAT_MODEL.md).
 | Rule / case | Proposed test(s) and concrete assertion | Owner |
 |---|---|---|
 | R01 / T01 | `legacy_data_is_not_reinterpreted`: MRB1/MPH1 accepted only on their old paths; V2 rejects them; initialization refuses legacy directories; fixture bytes remain identical. | MB-01B/02 |
-| R02 / T02 | `seed_configuration_changes_signing_context`: same network and threshold with changed seed key, order, nonce, evidence or allocation yields a different C; signatures from original config fail. Vary one field at a time, with both configs otherwise valid. | B1 |
-| R03 / T03 | `bootstrap_has_no_circular_context_or_bypass`: compute C without proofs/roots, verify ordered seed proofs, reject duplicate/zero descriptors and invalid threshold/count; first seed cannot approve alone under threshold two or revoke another member. | B1 |
+| R02 / T02 | `seed_configuration_changes_signing_context`: same network and threshold with changed seed key, order, nonce, evidence or allocation yields a different C; signatures from original config fail. Vary one field at a time, with both configs otherwise valid. | B1 — VERIFIED, section 4 |
+| R03 / T03 | `bootstrap_has_no_circular_context_or_bypass`: compute C without proofs/roots, verify ordered seed proofs, reject duplicate/zero descriptors and invalid threshold/count; first seed cannot approve alone under threshold two or revoke another member. | B1 construction VERIFIED; B3 runtime still PLANNED |
 | R04 / T04 | `v2_operations_have_exact_lengths`: prefix=131; signed Transfer=243, Enroll=291, Approve/Withdraw=227; reject every truncation, wrong version/kind, oversized/trailing input before mutation. | B2/MB-02 |
 | R05 / T05 | `every_signed_field_is_bound`: mutate kind, context, anchor, height window, key, sequence, evidence, profile or target without resigning; strict signature check fails. Invalid public keys/signatures never panic. | B2 |
 | R06 / T06 | `approval_targets_complete_request`: different enrollment body/window produces another enrollment ID; an approval cannot authorize the changed request; exact request/key/evidence replay is rejected after active/revoked/expired outcomes. | B2/B3 |
@@ -35,7 +38,7 @@ Source gaps/residual assumptions: [THREAT_MODEL.md](THREAT_MODEL.md).
 | R17 / T17 | `record_counters_and_root_agree`: recompute active/pending/total activations, compare indexed state, mutate a status/sequence/activation/approval entry/counter and require a different root or invariant rejection. | B3 |
 | R18 / T18 | `high_water_uses_committed_branch_end_state`: normal active decline does not reduce record; pending/cancelled same-block activation attempts cannot manufacture a peak; reorg drops orphaned counts/peaks and preserves the new branch's own history. | B3/MB-03 |
 | R19 / T19 | `membership_batch_failure_is_atomic`: place invalid event last after valid enrollment/approval/withdrawal/expiry work; entire pre-state, indexes, sequences and roots stay byte-equivalent; test each error class. | B3 |
-| R20 / T20 | `limits_apply_to_direct_execution`: exact block/event/new-enrollment/pending/total/account bounds versus bound+1, including repeated batches; no unbounded direct apply bypass; reject before large allocation or cloning attacker data. | B1/B3/MB-02 |
+| R20 / T20 | `limits_apply_to_direct_execution`: exact block/event/new-enrollment/pending/total/account bounds versus bound+1, including repeated batches; no unbounded direct apply bypass; reject before large allocation or cloning attacker data. | B1 config VERIFIED; B3/MB-02 execution still PLANNED |
 | R21 / T21 | `codec_and_storage_limits_agree`: malformed declared sizes/counts, maximum integers and resource-exhausting files/frames rejected at each ingress before allocating the claimed size; encoding rejects oversize too. | B4/MB-03/04 |
 | R22 / T22 | `capacity_does_not_erase_replay_protection`: expiry frees pending quota but not total tombstones; at total cap, existing-member withdrawal remains possible but another Enroll fails; restarting does not clear used keys/evidence. | B3 |
 | R23 / T23 | `mrb2_header_and_hash_vectors`: header=160 bytes, empty block=168; independent canonical vectors, byte round-trip and explicit genesis hash; alter version/context/height/parent/target/roots and require rejection. | MB-02 |
@@ -78,29 +81,28 @@ expected V1 hashes merely to conceal a semantic change.
 
 ## 3. Existing evidence and its limits
 
-The baseline suite at the audited source is 133 tests. Existing personhood tests
-cover request/key/evidence equality reuse, signature tampering, network/threshold
-separation, self/duplicate/inactive approval rejection, voluntary self-withdrawal,
-batch atomicity, deterministic roots and log round-trip/replay. Examples include:
+The baseline suite at the audited source was 133 tests. Its 26 V1 personhood tests
+remain unchanged and passing. They cover exact request/key/evidence reuse,
+signature tampering, network/threshold separation, self/duplicate/inactive approval
+rejection, voluntary self-withdrawal, batch atomicity, roots and log replay.
+They are NOT proof of V2 temporal/ledger behavior. All later non-B1 requirements
+above remain planned unless a future recorded tested commit advances them.
 
-- `signature_cannot_be_replayed_on_another_network_or_threshold`
-- `withdrawn_members_cannot_approve_and_old_approvals_stop_counting`
-- `one_founder_seed_can_bootstrap_only_under_explicit_one_approval_dev_rules`
-- `rejected_batch_leaves_state_unchanged`
-- `bootstrap_root_matches_independent_fixed_vector`
+## 4. B1 implementation coverage ledger
 
-These do NOT test changed bootstrap-list context, height expiry, a block parent
-snapshot, mixed money/membership atomicity, a combined ledger commitment, enforced
-single-writer locking or real biometric recognition. V1 temporal behavior is not
-proof of the proposed V2 block-boundary behavior.
+Every name below refers to the executable integration test file
+`crates/mirror-personhood/tests/config_v2.rs` at commit
+`809661b5e6a9338d65c15c45e540289df24fcc99`, tested in debug/release by
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943 (job 134456099484).
 
-## 4. Completion ledger
+| Case | Actual tests / scope | Status |
+|---|---|---|
+| T02 | `every_scalar_configuration_setting_changes_context`, `seed_key_nonce_evidence_and_order_are_bound`, `allocation_address_balance_and_zero_entry_are_bound`, `each_resource_limit_changes_context_and_invalidates_old_proofs` | VERIFIED for config/seed proof context; runtime operation integration follows B2 |
+| T03 construction | `config_and_seed_hashes_match_independent_python_vectors`, `no_circular_context_or_caller_supplied_context`, `every_seed_proof_is_required_and_seed_indices_are_not_privileges`, `forged_last_proof_returns_no_partially_verified_bootstrap`, `malformed_or_weak_seed_keys_cannot_become_verified_bootstrap`, duplicate/zero/threshold tests | VERIFIED subcase; runtime approve/withdraw privilege tests are B3, so T03 overall PARTIAL |
+| T20 configuration | `limit_ceilings_and_zero_values_are_rejected`, `inconsistent_limits_cannot_be_used_directly`, `smallest_consistent_limits_and_largest_timestamp_round_trip`, `direct_constructor_rejects_count_over_limits_before_copying`, `maximum_config_counts_fit_and_one_more_is_rejected` | VERIFIED subcase; runtime budgets not yet enforced, so T20 overall PARTIAL |
+| Supporting format/replay checks | `canonical_round_trip_recomputes_context_and_verifies_proofs`, `all_truncations_and_trailing_bytes_are_rejected`, `declared_huge_counts_are_rejected_before_reserving_memory`, `legacy_unknown_magic_and_versions_never_fall_back`, `decoding_rechecks_descriptor_and_allocation_semantics`, `valid_legacy_enrollment_signatures_are_not_v2_seed_proofs` | PASS only for configuration/seed boundary, not full block/storage/network cases |
 
-MB-01A is complete when this matrix, source threat review and compatibility/
-transition/commitment design are published coherently. This is design acceptance
-only. MB-01B is complete only when its runtime cases have real paths, commits and
-passing debug/release evidence. MB-02/03 and later rows remain separate gates.
-
-At this checkpoint all T01–T35 are specifications. No new Rust tests or implemented
-V2 capability is claimed. Next implementation slice: **MB-01B/B1 (T02, T03 and
-configuration-bound portions of T20)**.
+31 new tests passed, all 133 prior tests retained: 164 workspace total. Release
+personhood reruns: 26 V1 + 31 B1 = 57, not extra unique cases. Independent Python
+fixture verification passed too. No V2 block or runtime registry is claimed.
+Next: **MB-01B/B2**, then B3/B4 and the separate MB-02/03 integration gates.

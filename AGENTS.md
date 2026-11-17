@@ -9,7 +9,7 @@ runtime data, rewrite old genesis, or silently change consensus encodings. The
 user prefers work directly in GitHub, not repeated fragile paste/replace scripts.
 
 No founder premine/extra allocation. No privileged marketing/airdrop reserve.
-First 1,000 qualifying humans receive the same proposed 10-MRY bootstrap grant,
+First 1,000 qualifying humans receive the same 10-MRY bootstrap allocation,
 including the founder. Ordinary allowance is 0.2 MRY per qualifying historical
 population maximum. Combined bootstrap ceiling is unresolved: no assumed formula.
 
@@ -23,18 +23,22 @@ human-weighted design. Library personhood tests are not deployed PoH. Record
 unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
-Run `cargo test --workspace --all-targets --locked`, documentation tests and the
-membership demo. Pin CI toolchain/dependencies; do not print secrets. Distinguish
-code written, tests actually passed, published branch, PR and merge status.
+Run `cargo test --workspace --all-targets --locked`, documentation tests, release
+personhood tests, independent reference checks and the membership demo. Pin CI
+toolchain/dependencies; do not print secrets. Distinguish written code, actual
+passing tests, published branch, PR and merge status. Release reruns are not new tests.
 
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to its exact next unfinished task: currently MB-01B/B1.
-MB-01A is complete as a DESIGN task: read docs/LEDGER_MEMBERSHIP_V1.md,
-docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md before coding V2.
-The 35 cases are PLANNED, not passing tests. Preserve V1 APIs/encodings and use
-explicit new version domains rather than silently updating old signature bytes.
+NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B2.
+MB-01A is complete as a DESIGN task. MB-01B/B1 configuration/bootstrap is implemented
+and verified; B2–B4 and ledger integration remain. Read docs/LEDGER_MEMBERSHIP_V1.md,
+docs/CONFIG_V2_ENCODING.md, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
+Matrix coverage is scoped: T02 config binding verified; T03/T20 partial; remaining
+rows planned. Do not claim all 35 acceptance rows from 31 B1 test functions.
+Preserve V1 APIs/encodings and frozen MCF2 vectors. New signed/root byte semantics
+require explicit versioning/documentation and independent reference calculations.
 Use docs/DEVICE_INPUT_CONTRACT.md for the private capture interface, not as a claim
 of existing hardware support. Later tasks remain planned.
 

@@ -1,24 +1,30 @@
 # Mirror master plan — blockchain to biometric enrollment readiness
 
-Planning checkpoint: **MIRROR-PLAN-001** (2026-11-18).
-Latest design checkpoint: **MIRROR-MB01A-001 — MB-01A design deliverables complete**.
-Runtime implementation checkpoint remains **MIRROR-PH-001**.
-A completed design task is not an implemented V2 blockchain.
+Roadmap: **MIRROR-PLAN-001** (2026-11-18).
+Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
+Latest implementation: **MIRROR-MB01B-B1-001 — V2 configuration/bootstrap verified**.
+The V2 ledger, runtime membership and human consensus are not implemented yet.
 
 ## Start here: current position and next action
 
-**Next task: MB-01B/B1 — implement V2 configuration/bootstrap-context binding and
-bounded rules with regression tests. Status: READY; runtime implementation has not started.**
+**Next task: MB-01B/B2 — signed V2 membership operations, canonical codecs,
+ancestry anchors and authorization windows. Status: READY.**
 
-MB-01A deliverables: [ledger integration specification](docs/LEDGER_MEMBERSHIP_V1.md),
-[source threat review](docs/THREAT_MODEL.md), and [35-case planned test matrix](docs/MEMBERSHIP_TEST_MATRIX.md).
-See section 10 for acceptance evidence and remaining limits.
+B1 source: `809661b5e6a9338d65c15c45e540289df24fcc99`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943 — SUCCESS.
+164 workspace tests; 57 personhood tests rerun in release; independent Python
+configuration vectors, legacy synthetic demo and allocation audit passed.
+See section 11 for exact scope. B1 completion does not complete MB-01B as a whole.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
-[the-prompt](the-prompt). The current active branch is
-`work/personhood-register-v0.1`; PR #1 is open and unmerged at this checkpoint.
-Recheck live refs before acting. Do not restart from an older copied prompt.
+[the-prompt](the-prompt). The active branch is `work/personhood-register-v0.1`;
+PR #1 remains open and unmerged. Recheck live refs before acting. Do not restart
+from an older copied prompt.
+
+Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
+[source threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
+and [implemented B1 encoding](docs/CONFIG_V2_ENCODING.md).
 
 The original request established this plan and a maintained continuation pointer,
 not a mainnet launch, hardware purchase, real biometric collection, or a change to
@@ -74,19 +80,17 @@ claim. Encryption alone is not a private duplicate-search protocol.
 
 ## 2. Verified baseline, not starting from zero
 
-Observed branch head before the original plan:
-`dd4c2a1a7c73368364a27557537864d8c9814a03`.
+Historical pre-plan branch: `dd4c2a1a7c73368364a27557537864d8c9814a03`.
 Observed `main`: `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
 PR: https://github.com/Ahmed-Sobeih/mirror/pull/1
-Pre-plan baseline CI:
-https://github.com/Ahmed-Sobeih/mirror/actions/runs/44186275709 — SUCCESS.
-Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` also passed run 44189324502;
-that exact source was reviewed for MB-01A.
+Pre-plan baseline CI: run 44186275709 — SUCCESS.
+Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
+that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
+passed run 44194994506. B1's actual new runtime evidence is in section 11.
 
-Recorded suite: 133 workspace tests (26 personhood and 5 monetary-policy tests
-included), 26 additional release-mode executions of the personhood tests, and a
-synthetic enrollment/replay demo. Do not add release reruns to the count of unique
-tests. Documentation-test command passes but currently has zero doctest cases.
+The historical suite had 133 workspace tests (26 personhood and 5 monetary-policy
+included). B1 adds 31 tests, bringing the workspace to 164. Release reruns are NOT
+additional unique tests. Documentation-test command passes with zero doctest cases.
 
 Already demonstrated: development signed transfers, account state, fixed easy
 PoW, persisted blocks, restart, TCP synchronization and competing-branch reorg.
@@ -94,6 +98,7 @@ Already implemented separately: signed pending/active/voluntarily-revoked
 membership, distinct active approvals, exact request/key/evidence-reuse rejection,
 atomic event batches, population/activation counters, a deterministic root, and
 bounded event-log replay. See [library scope](docs/PERSONHOOD_V0_1.md).
+B1 adds validated configuration and proof-checked bootstrap in separate V2 modules.
 
 NOT implemented: biological deduplication, live membership-bearing blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -137,8 +142,12 @@ A passing old suite is not proof that a newly planned task is implemented.
 | ID | Work package | Status | Dependencies / exit gate |
 |---|---|---|---|
 | MB-00 | Existing chain and standalone personhood baseline | VERIFIED_COMPONENT | Evidence above; integration remains open |
-| MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | MIRROR-MB01A-001, section 10; T01–T35 remain planned |
-| MB-01B | Harden the standalone registry against the agreed model | READY — NEXT B1 | Implement versioned context/limits, then B2–B4 |
+| MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | MIRROR-MB01A-001, section 10 |
+| MB-01B | Harden the standalone registry against the agreed model | IN_PROGRESS — B1 VERIFIED; NEXT B2 | B2–B4 remain |
+| MB-01B/B1 | Canonical config, seed context/proofs and bounded rules | VERIFIED | 809661b, CI 44201393943, section 11 |
+| MB-01B/B2 | Signed membership operations, sequences, anchors/windows | READY — NEXT | B1; stateful sequence enforcement completes in B3 |
+| MB-01B/B3 | Bounded staged execution, expiry, parent eligibility/activation | TODO | B2 |
+| MB-01B/B4 | Full registry codec/root/replay and adversarial regression | TODO | B3 |
 | MB-02 | Versioned membership operations in block execution | TODO | MB-01A/B |
 | MB-03 | Durable state, synchronization and membership reorg/replay | TODO | MB-02 |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; some interface work can run earlier |
@@ -191,9 +200,9 @@ limits for application/pending state, bounded batch execution, approved evidence
 freshness/context rules and deterministic errors. Any changes to signed bytes or
 roots require a version and test-vector update, not silent reinterpretation.
 
-Implementation slices from MB-01A: B1 configuration/seed binding and bounded rules;
-B2 signed sequences/anchors/windows; B3 staged expiry/activation and resource limits;
-B4 canonical vectors, regression tests, replay/demo and debug/release checks.
+Slices: B1 configuration/seed binding and bounded rules (VERIFIED); B2 signed
+sequences/anchors/windows (NEXT); B3 staged expiry/activation and execution limits;
+B4 canonical registry vectors, regression tests, replay/demo and debug/release checks.
 Preserve the V1 implementation while introducing explicitly versioned V2 modules.
 
 **Pass:** duplicate/forged/stale/out-of-order approvals, mismatched networks or seed
@@ -455,8 +464,8 @@ Mirror-related reply refreshes the-prompt as requested; discussion-only turns do
 not invent implementation progress. Store no secrets, biometric files or runtime
 wallet data in repository records. Record failures honestly.
 
-**Immediate next session:** MB-01B/B1, implement versioned configuration/seed
-binding and bounded-rule tests from the new design. Do not repeat MB-01A, start
+**Immediate next session:** MB-01B/B2, implement signed V2 membership envelopes,
+canonical decoding, anchors and windows. Do not repeat B1 or MB-01A. Do not start
 reward minting, change legacy genesis or purchase hardware.
 
 ## 8. Engineering references, not extra user decisions
@@ -491,28 +500,50 @@ current milestone without a recorded scope decision. Full anonymity remains a
 goal, not a property of this linkable pilot register. Public operation requires
 additional security, privacy and applicable legal review before real enrollment.
 
-## 10. MB-01A acceptance record — MIRROR-MB01A-001
+## 10. Historical MB-01A acceptance — MIRROR-MB01A-001
 
 Source inspection at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` covered the
 personhood implementation/tests/codec, transaction and block formats, account
 executor, chain acceptance, storage, network transport and protocol, plus PR #1
-comments. Threat findings F01–F11 distinguish observed code from proposed remedies.
+comments. Threat findings F01–F11 distinguished observed code from proposed remedies.
+Delivered compatibility/transition tables, config/seed design, signed layouts,
+sequences/anchors/expiry, parent eligibility/block-end activation, resource budgets,
+combined commitments and atomic replay requirements. T01–T35 were planned then.
 
-Delivered compatibility and transition tables, noncircular configuration/seed
-binding, typed signed operation layout, sequences/anchors/expiry, parent-snapshot
-eligibility with block-end activation, resource budgets, combined block/ledger
-commitments, and atomic replay/storage requirements. T01–T35 are mapped to planned
-assertions and their responsible implementation milestones.
+Independent arithmetic checked prefix 131, header 160, empty block 168 and operation
+lengths 243/291/227/227. No Rust or economic change was made in that design turn.
+MB-01A VERIFIED means design deliverables, not implementation or security certification.
 
-Independent arithmetic check passed for 131-byte operation prefix, 160-byte header,
-168-byte empty block and signed operation lengths 243/291/227/227; proposed byte
-budgets are internally consistent. This is not runtime acceptance or a proof.
+## 11. B1 acceptance — MIRROR-MB01B-B1-001
 
-No Rust source, dependencies, monetary rules, genesis, wallet balances or runtime
-files changed in MB-01A. The old suite remains 133 tests; all V2 cases are still
-NOT_IMPLEMENTED. Baseline CI run 44189324502 passed; inspect exact publication-head
-CI separately. The source review is not independent security certification.
+Source: `809661b5e6a9338d65c15c45e540289df24fcc99`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943
+Actual log inspected: job 134456099484. All steps passed on Rust 1.98.0.
 
-MB-01A status VERIFIED means its DESIGN deliverables are published and checked.
-MB-01B/B1 is READY; MB-02 and Gate A/B are not complete. New docs and handoff records
-are on the active feature branch in unmerged PR #1, not silently deployed on main.
+Implemented `crates/mirror-personhood/src/v2/{config,encoding,limits}.rs` and
+31 public-API tests in `crates/mirror-personhood/tests/config_v2.rs`. Canonical MCF2
+unsigned configuration binds network, versions, PoW/timestamp, threshold, evidence
+profile, all 12 limits, ordered seed descriptors and strictly sorted synthetic
+allocations. Checked sums reject overflow and duplicate zero-balance addresses.
+Context precedes seed signatures/IDs; every seed proof is strictly checked.
+ConfigV2 is not a VerifiedBootstrap until all proofs pass; no founder bypass.
+
+Independent standard-library Python reference generates full bytes/context/seed
+hashes and IDs, compared to committed vectors and Rust results. Decoders enforce
+count/byte caps before input-sized allocation, reject malformed/truncated/trailing
+inputs, and rerun constructor checks. Max-count and one-beyond cases pass.
+
+Results: 164 workspace tests (133 retained + 31 new); 57 personhood tests in release
+(26 V1 + 31 B1); reference-vector check; legacy synthetic enrollment/replay demo;
+documentation command with zero cases; allocation/runtime-data audit. Rust tests
+ran in actual GitHub Actions, not in the local chat container (no Rust toolchain).
+
+Matrix coverage: T02 verified for configuration/bootstrap binding; T03 construction/
+proof parts and T20 configuration/count parts verified. Runtime membership privilege,
+state execution/resource enforcement, operation expiry and block integration remain
+B2/B3/MB-02. Do not report all 35 cases as passed. F01 is addressed only at the V2
+config/bootstrap boundary; legacy V1 behavior and remaining findings are unchanged.
+
+No node, genesis, wallet, monetary-policy source, Cargo dependencies/lockfile or
+local runtime data changed. No real enrollment, grants or biometrics. PR remains
+unmerged. Next B2, then B3/B4, then MB-02. Gate A and Gate B remain UNMET.

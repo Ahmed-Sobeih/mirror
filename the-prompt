@@ -3,102 +3,102 @@ Work directly in GitHub, not repeated manual paste-and-repair commands.
 This is a living handoff: newer verified repository work overrides this snapshot.
 
 RECOVER LIVE STATE
-Verify default branch, active branches, PRs, recent commits, comments and exact CI.
+Verify default branch, active branches, PRs, recent commits/comments and exact CI.
 At handoff PR #1 is OPEN, ready for review and NOT MERGED:
 https://github.com/Ahmed-Sobeih/mirror/pull/1
 Active branch: work/personhood-register-v0.1. Observed main:
-ad7ffd120fb451fe44cf59cb909176785b33bf8f. Source audited for this task:
-db2861930cc0f01f735ccfba80a4f530f4d1ddd6. New documentation follows that commit;
-verify actual head rather than checking out this old snapshot. Do not reset,
-recreate finished work or overwrite concurrent/unpushed changes. New checkpoint
-files are on the feature branch, not yet main. Follow verified newer refs if merged.
+ad7ffd120fb451fe44cf59cb909176785b33bf8f.
+Latest tested implementation: 809661b5e6a9338d65c15c45e540289df24fcc99.
+Checkpoint documentation follows it; inspect actual head rather than resetting to
+this snapshot. New roadmap/checkpoint files are on the feature branch, not main.
+Do not recreate finished work or overwrite concurrent/local unpushed changes.
 
-READ FIRST
+READ FIRST ON THE VERIFIED ACTIVE BRANCH
 AGENTS.md
 CURRENT_STATUS.md
 MASTER_PLAN.md
 NEXT_SESSION.md
 docs/DECISIONS.md
 docs/LEDGER_MEMBERSHIP_V1.md
+docs/CONFIG_V2_ENCODING.md
 docs/THREAT_MODEL.md
 docs/MEMBERSHIP_TEST_MATRIX.md
 docs/PERSONHOOD_V0_1.md
 docs/DEVICE_INPUT_CONTRACT.md
-the-prompt (the latest live copy)
+the-prompt (latest live copy)
 
 CURRENT POSITION
-Roadmap MIRROR-PLAN-001. Latest completed task MIRROR-MB01A-001: MB-01A DESIGN
-DELIVERABLES verified by source inspection and consistency review, not implemented
-V2 consensus. Runtime checkpoint remains MIRROR-PH-001, standalone registry.
-NEXT: MB-01B/B1 — implement V2 configuration/bootstrap binding and bounded rules.
-READY; this handoff turn changed documentation only, no Rust or monetary policy.
-Do NOT start another MB-01A planning pass or claim all 35 planned cases passed.
+Roadmap MIRROR-PLAN-001; MB-01A design completed at 80b57b9.
+Latest completed implementation: MIRROR-MB01B-B1-001, B1 V2 config/bootstrap VERIFIED.
+MB-01B overall IN_PROGRESS. NEXT: MB-01B/B2 — signed membership operations,
+canonical codecs, ancestry anchors and authorization windows. Status READY.
+Do not do another MB-01A/B1 pass or treat the remaining planned matrix as implemented.
+
+WHAT B1 ADDED
+Separate v2 modules in mirror-personhood: immutable validated ConfigV2, checked
+LimitsV2, MCF2 canonical encoding/decoding, ordered seed descriptors, strict all-seed
+proof verification and seed IDs. Context binds versions/network/threshold/PoW/time,
+evidence profile, all limits, seed contents/order and sorted synthetic allocations.
+No circular signing/genesis dependency. No first-seed proof bypass. ConfigV2 alone
+is not VerifiedBootstrap; key possession is checked only at the proof boundary.
+Unsigned configuration cannot carry an arbitrary claimed context hash.
 
 EXACT NEXT ACTION
-Review current APIs and add an acyclic, separate V2 configuration module (for
-example mirror-personhood/src/v2/config.rs), preserving V1 APIs/MPH1/MRB1 vectors.
-Implement canonical unsigned config, ordered bootstrap descriptors, noncircular
-context derivation, seed proofs/IDs and checked limits. Bind network, seed order
-and contents, threshold, profile, limits and synthetic allocations into context.
-Use raw fixed-size descriptors rather than a personhood->core dependency cycle.
-Freeze exact bytes with independently computed vectors. Implement T02/T03 and
-configuration portions of T20 from MEMBERSHIP_TEST_MATRIX. Reject changed-context
-signatures and malformed/bootstrap/overflow configurations. Run actual pinned CI.
-Then B2 (signed sequences/anchors/windows), B3 (bounded staged expiry/activation),
-B4 (codec/root/replay regression suite). Only afterward MB-02 integrates real block
-execution, then MB-03 durable sync/reorgs with different membership histories.
+Read current v2/crypto APIs and the integration spec. Implement bounded signed
+Enroll/Approve/Withdraw envelopes with the 131-byte prefix, exact canonical bytes,
+domain-separated hashes/IDs, strict signatures, signed sequence fields and checked
+inclusive height windows. Bind to ConfigV2.context and exact recent parent-chain
+ancestry through an explicit resolver. Preserve MCF2/V1 vectors and define the
+shared-envelope boundary for later TransferV2 without silently changing bytes.
+Implement membership portions of T04/T05/T06 and ancestry/window T09/T10; stateful
+actor/sequence/target enforcement remains B3. Test mutated fields, truncations,
+wrong context/anchor, invalid keys, limit edges and overflow with independent vectors.
+Then B3 staged execution/expiry/parent eligibility/block-end activation; B4 registry
+root/codec/replay regressions; MB-02 actual mixed ledger/block execution; MB-03
+persistence/network/reorgs with different membership histories. Follow NEXT_SESSION.
 
-DESIGN NOW RECORDED
-New synthetic membership-dev-v2 profile, explicit separate config/genesis/data and
-MRB2/MPH2/MIR2 encodings; no automatic legacy migration. Unified ledger root binds
-accounts and membership. Parent-snapshot reviewer eligibility and block-end
-activation prevent same-block chains of newly admitted approvers. Signed height
-windows/ancestry and sequences limit authorization replay; expiry is not proof of
-fresh biological capture. Resource budgets are proposed dev limits, not production
-human caps. F01–F11 remain open findings until implemented tests close them.
-All T01–T35 are PLANNED/NOT_IMPLEMENTED at this checkpoint.
+ACTUAL VERIFICATION
+Implementation 809661b5e6a9338d65c15c45e540289df24fcc99 passed Actions run 44201393943:
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943
+Job 134456099484 full logs inspected. Rust 1.98.0, committed lockfile:
+164 workspace tests = 133 retained + 31 new B1 tests.
+57 personhood release reruns = 26 V1 + 31 B1 (not extra unique tests).
+Independent Python reference-vector check, legacy synthetic enrollment/replay demo,
+doc command (zero doctest cases), and allocation/runtime-data audit passed.
+Rust execution was in GitHub Actions, not the local chat environment; independent
+Python reference also ran locally. Check later exact-head CI separately.
+T02 config/bootstrap context binding VERIFIED; T03 construction/proof and T20 config
+bounds are PARTIAL row coverage. Runtime permission/resource checks remain pending.
+The historical F01 threat is addressed only at the V2 config/bootstrap boundary.
 
-VERIFIED RUNTIME BASELINE
-Implementation 3936d2a528e73444b667860f8987bbebcfe7ab78; expanded CI b0e9b75
-run 44181156418. Exact source/plan checkpoint db2861930cc0f01f735ccfba80a4f530f4d1ddd6
-passed run 44189324502:
-https://github.com/Ahmed-Sobeih/mirror/actions/runs/44189324502
-133 workspace tests including 26 personhood and 5 monetary-policy; 26 personhood
-release reruns; synthetic enrollment/replay demo; doc command with zero cases;
-allocation/runtime-data audit. Check exact later publication-head CI separately.
-No new Rust tests were added by MB-01A. Design-only layout arithmetic was checked:
-131-byte prefix, 160-byte header, 168-byte empty block, operations 243/291/227/227.
-This is not V2 runtime evidence. Do not count release reruns as new unique tests.
+WHAT DOES NOT EXIST YET
+No V2 runtime membership execution, integrated membership blocks, human consensus,
+real enrollments, biometric matching, anonymous credentials, grants/rewards/fees or
+device adapters. B1 has no money or membership mutation API. Legacy PoW chain and
+standalone V1 registry remain intact. New keys/new evidence from one human still
+need external deduplication; public membership/reviewer relationships are linkable.
+Readiness Gates A/B remain UNMET. No new protocol launch is implied by test counts.
 
-WHAT EXISTS / LIMITS
-Legacy devnet: signed transfers, account state, persistence, TCP sync and reorg.
-Separate registry: signed requests/active approvals, Pending/Active/Revoked,
-self-withdrawal, exact reuse checks, atomic batches, counters, roots and log replay.
-Not integrated into live blocks/P2P/balances/rewards or human consensus. No real
-biometric matching, anonymous credentials, enrollments or grants exist. Fresh keys
-and new evidence from one human require external deduplication. Public relationships
-are linkable. Gate A/B from the master plan remain unmet.
+ACCEPTED POLICY / PRESERVATION
+No founder bonus or privileged marketing reserve. First 1,000 qualifying humans get
+10 MRY each INCLUDING founder; explicit 10,000-MRY bootstrap exception. Ordinary
+allowance is 0.2 MRY per highest qualifying human population; normal decline does
+not lower that record. 1 MRY=10,000,000 Nusa. Combined bootstrap floor/additive rule
+D-01 and fee/reward choices D-04 remain unresolved. Do not invent or activate them.
+Founder-led startup is explicit initial trust, not permanent admin power. Hardware
+is interchangeable; fingerprint/ECG inputs assist human Ant Kiss review off-chain.
+No raw OR encrypted biometric archives, secrets or real user data on-chain/GitHub.
+Human participation weight must not scale with devices/hash rate; easy PoW is
+secondary in that intended design. Existing PoW does not enforce this equality.
+Preserve legacy Alice 100-MRY public test fixture and mirror-data; not founder funds.
+No local runtime data, node/genesis, monetary code or dependencies changed in B1.
 
-ACCEPTED POLICY / SAFETY BOUNDARIES
-No extra founder funds or privileged marketing reserve. First 1,000 qualifying
-humans get 10 MRY each including founder; explicit 10,000-MRY bootstrap exception.
-Ordinary allowance: 0.2 MRY per highest qualifying human population reached;
-ordinary decline does not lower the record. 1 MRY=10,000,000 Nusa. Combined bootstrap
-floor-versus-additive rule D-01 and fee/reward D-04 remain unresolved. Do not invent
-them. Zero-fee/no-mint synthetic integration is not a production economic decision.
-Ant Kiss: witnessed human review with fingerprint/ECG inputs; hardware interchangeable.
-No raw OR encrypted biometric archives, secrets or real user records on-chain/GitHub.
-Founder-led startup is explicit initial trust, not permanent admin power. Easy PoW
-is secondary in the intended human-weighted design; existing PoW does not ensure
-hardware equality. Preserve legacy Alice 100-MRY public test fixture and mirror-data;
-it is not a founder allocation. No mainnet launch or real enrollment is authorized.
-
-KEEP CONTINUATION CURRENT
-Before each Mirror-related final response, refresh the-prompt on the verified
-active branch and keep master/status/next/decisions coherent. Include completed work,
-actual tests, blockers and exact next slice. Read before editing, use current SHA/
-expected-head guards, verify publication. Never rewrite newer work to a copied
-snapshot. Discussion-only turns preserve the real unfinished task. Do not merge
-merely to publish a handoff. Record tested source separately from doc edits; do not
-chase self-referential commit SHAs. If write fails, say so and provide the current
-handoff text. Updates happen within the conversation, not in the background.
+KEEP THE HANDOFF CURRENT
+Before every Mirror-related final response, refresh root the-prompt and relevant
+master/status/next/agent/matrix records. Include actual progress, tests, blockers
+and next slice. Read before editing, reconcile live heads, use SHA/expected-head
+guards and verify saved contents. Discussion-only turns preserve the real unfinished
+task. Never reset newer work to a copied prompt or merge merely to publish records.
+Distinguish tested source from documentation commits; avoid self-referential SHAs.
+If a write fails, report it and provide the current handoff text. Updates happen
+within the conversation, not in the background. Give the live file link at handoff.
