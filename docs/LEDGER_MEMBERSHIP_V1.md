@@ -4,6 +4,12 @@ Checkpoint: **MIRROR-MB01A-001**. Task: MB-01A.
 Status: **DESIGN DELIVERABLE, not implemented consensus**.
 Audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
 
+Current implementation update: B1/B2/B3 are verified standalone components; B4 is
+next. [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution details,
+explicit retained-approval budgets and the frozen MPS2 field layout for B4. The
+historical design-status statements below describe the original MB-01A checkpoint.
+Actual source/test evidence is in CURRENT_STATUS.md and the acceptance matrix.
+
 This specifies the next development implementation, not mainnet rules. `V1` in
 this document's filename means design revision 1. The proposed wire formats are
 **V2**, because MRB1/MPH1 already exist. Proposed constants below are explicitly
@@ -218,6 +224,12 @@ identity protections. Reject capacity exhaustion explicitly; never evict replay
 protection to make space. These bounds constrain damage but do not solve denial of
 service: a malicious enrollment flood can fill capacity. Admission quotas, fair
 access and resource economics remain MB-04/05, not a hidden fee here.
+
+B3 refinement: retained approvals are separately capped at 64 per record and at
+configured max_records across all records. This closes quadratic approval-history
+growth without changing MCF2 fields. Expired/revoked/active records retain their
+approvals, and full capacity still permits withdrawal/expiry. These explicit
+synthetic-profile budgets can halt new admissions; they do not guarantee progress.
 
 Enforce limits on decoding, encoding, direct executor input, disk reads and peer
 messages, before reservations/clones or expensive signature batches. An error

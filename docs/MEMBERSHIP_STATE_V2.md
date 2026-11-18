@@ -212,8 +212,15 @@ a peer-supplied snapshot merely because its individual signatures verify.
 
 ## 6. Acceptance evidence
 
-Implementation and tests are being added in this B3 change. Record actual passing
-commands, tested commit and CI in CURRENT_STATUS.md and the test matrix before
-marking this slice verified. Relevant cases are T03/T06 stateful portions, T07,
-T11–T20 and T22. B4 root/codec/replay evidence, mixed-ledger execution, network
-reorgs, device readiness and Gate A/B remain pending.
+B3 implementation `b6f1233d038901aa0a13c8ddac9afbc34418e846` passed exact-source
+push CI [44317174000](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44317174000),
+job 134846238261; full logs and checkout inspected. The same source tree also passed
+locally. There are 51 new B3 tests (45 integration + 6 internal arithmetic/invariant),
+254 workspace tests total, and 147 personhood release reruns. Both existing independent
+references, all three demos, documentation command (zero cases), and preservation
+audits pass. This document's MPS2 layout remains a B4 byte contract, not a tested
+state codec/root. See CURRENT_STATUS.md and the test matrix for scoped evidence.
+
+Relevant verified B3 cases are the runtime portions of T03/T06/T07/T11–T20/T22.
+B4 root/codec/replay evidence, mixed-ledger execution, actual network reorgs, device
+readiness and Gate A/B remain pending. Tests/review are not a security certification.

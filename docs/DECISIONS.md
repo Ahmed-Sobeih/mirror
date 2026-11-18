@@ -76,7 +76,8 @@ published LEDGER_MEMBERSHIP_V1.md, THREAT_MODEL.md and MEMBERSHIP_TEST_MATRIX.md
 The selected implementation direction is a separate, explicitly initialized
 synthetic membership-dev-v2 network with new typed encodings and combined state,
 while preserving all legacy history. This is an engineering compatibility choice,
-not a new launch or monetary decision. Next task is MB-01B/B1 implementation.
+not a new launch or monetary decision. At that design checkpoint the next task was
+MB-01B/B1; CURRENT_STATUS.md and NEXT_SESSION.md now track the live implementation.
 
 V2 context binds seed order/contents, configuration and limits; proposed operation
 windows, sequences and block-parent eligibility address identified source gaps.
@@ -84,3 +85,23 @@ Proposed end-of-block activation/counters and zero-fee/no-mint test transfers ar
 development semantics only. They do not settle qualifying monetary population,
 real approval policy, production fee amounts, forced revocation or human consensus.
 No source runtime behavior changed merely because this design was published.
+
+## B3 engineering choices — MIRROR-MB01B-B3-001
+
+The separately versioned synthetic registry now has bounded staged block execution.
+Two implementation details were made explicit without changing MCF2 or B2 bytes:
+at most 64 retained approvals per record, and at most configured max_records retained
+approvals over all records. These independent finite development budgets retain
+history even after expiry/withdrawal; exhaustion can stop new admissions and does
+not weaken quorum or erase identity reservations. They are not production admission
+policy, global scalability claims, or monetary limits.
+
+Registry tip hash is external trusted provenance, excluded from canonical state
+to avoid the future block-hash/root cycle. Binding a staged state to a hash is not
+block validation. MB-02 must validate actual blocks/roots/genesis before that binding.
+The runtime nonce is a signed request salt, not a global biometric identity; exact
+ID/key/evidence checks remain the defined synthetic duplicate boundary.
+
+MPS2 state bytes are specified in MEMBERSHIP_STATE_V2.md for B4; the codec/root/replay
+still require implementation and independent vectors. No unresolved user economic,
+real-admission, privacy, recovery or human-consensus decision was selected by B3.

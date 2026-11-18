@@ -24,7 +24,7 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-personhood tests, both independent reference checks and both membership examples.
+personhood tests, both independent reference checks and all three membership examples.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -32,14 +32,23 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B3.
-MB-01A design, B1 configuration/bootstrap and B2 signed message checks are verified.
-B3 stateful execution, B4 registry roots/replay and actual ledger integration remain.
+NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B4.
+MB-01A design, B1 configuration/bootstrap, B2 messages and B3 staged execution are verified.
+B4 registry roots/codecs/replay and actual ledger integration remain unfinished.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
-docs/OPERATIONS_V2_ENCODING.md, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
+docs/OPERATIONS_V2_ENCODING.md, docs/MEMBERSHIP_STATE_V2.md,
+docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
 membership. The trusted parent view must come from locally validated stable ancestry.
+
+B3 only stages bounded immutable membership state. bind_to_validated_block attaches
+trusted provenance; it does not verify a real header/root/PoW/genesis. MB-02 must
+establish that association. Keep tip hash outside committed state to avoid cycles.
+Preserve B3 expiry/tombstone/sequence/parent-set/end-block timing and explicit approval
+budgets (64 per record; aggregate retained <= configured max_records). Never evict
+history to recover capacity. B4 replay must retain block grouping and empty blocks;
+a flat event list or structurally coherent snapshot is not trusted canonical history.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

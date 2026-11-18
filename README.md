@@ -8,7 +8,8 @@ Mirror is a Rust development blockchain exploring human-based participation.
 [MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
 membership register to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
-criteria. Current next task: **MB-01A**, integration design and threat review.
+criteria. **B1/B2/B3 are verified; next is MB-01B/B4**, canonical V2 registry
+commitments, bounded codecs and block-grouped replay. Live ledger integration follows.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -44,10 +45,13 @@ The existing development chain implements signed transfers, account balances and
 nonces, block/state commitments, fixed easy PoW, file persistence, TCP block sync,
 and validated competing-chain replacement. It is not security-audited.
 
-The experimental `mirror-personhood` crate implements signed membership requests,
-distinct active-member approvals, voluntary self-revocation, deterministic state
-roots, and bounded event-log serialization/replay. It is NOT connected to live
-block validation, peer messages, wallet balances or rewards yet.
+The experimental `mirror-personhood` crate preserves its V1 registry, state root
+and bounded event-log replay. Its separate V2 modules now implement configuration-
+bound signed messages and staged membership execution: exact sequences, expiry,
+permanent identity-reference reservations, parent eligibility, end-of-block
+activation and bounded approval history. [B3 state rules](docs/MEMBERSHIP_STATE_V2.md)
+describe the trusted integration boundary. V2 roots/codecs/replay are the next task;
+live block validation, peer messages, balances and rewards remain later integration.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
 same human presenting a different key and new evidence. Human review and private
@@ -71,10 +75,15 @@ secrets or `mirror-data` to GitHub.
 ```sh
 cargo test --workspace --all-targets --locked
 cargo test --workspace --doc --locked
+cargo test -p mirror-personhood --release --locked
+python3 tools/reference_config_v2.py --check
+python3 tools/reference_operations_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
+cargo run -p mirror-personhood --example operation_v2_demo --locked
+cargo run -p mirror-personhood --example state_v2_demo --locked
 ```
 
-The example uses synthetic attestations, issues no currency and never opens the
+The examples use synthetic attestations, issue no currency and never open the
 existing chain database. GitHub Actions verifies the workspace using Rust 1.98.0.
 
 Legacy `mirror-node mine`, `listen` and `connect` remain devnet-only. Do not run

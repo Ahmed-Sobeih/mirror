@@ -1,16 +1,17 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
-Work directly in GitHub, not repeated manual paste-and-repair commands.
-This living handoff never overrides newer verified repository work.
+Work directly in GitHub. The user expects implementation and verification, not
+repeated paste-and-repair scripts. This living handoff never overrides newer work.
 
 RECOVER LIVE STATE FIRST
 Verify default/active branches, PRs, recent commits/comments and exact CI results.
 At handoff PR #1 is OPEN, ready for review, NOT MERGED:
 https://github.com/Ahmed-Sobeih/mirror/pull/1
 Active branch: work/personhood-register-v0.1. Main observed unchanged at
-ad7ffd120fb451fe44cf59cb909176785b33bf8f. Latest tested implementation:
-af1dd66c4fb8811d8eab54a1c88a8bddae2ae80e. Checkpoint documentation follows it.
-Read latest live files on the active branch; they are not yet main. Do not reset,
-repeat completed tasks, overwrite concurrent/unpushed work or merge just for handoff.
+ad7ffd120fb451fe44cf59cb909176785b33bf8f. Latest tested IMPLEMENTATION:
+b6f1233d038901aa0a13c8ddac9afbc34418e846, tree e98daf435335e31440e6c0bf14f28f5928f556c7.
+Checkpoint documentation follows that implementation. Inspect its later CI separately.
+Read active-branch files, not stale main. Never reset to this snapshot, repeat
+completed work, overwrite concurrent/unpushed work or merge merely to save a handoff.
 
 READ FIRST
 AGENTS.md
@@ -21,6 +22,7 @@ docs/DECISIONS.md
 docs/LEDGER_MEMBERSHIP_V1.md
 docs/CONFIG_V2_ENCODING.md
 docs/OPERATIONS_V2_ENCODING.md
+docs/MEMBERSHIP_STATE_V2.md
 docs/THREAT_MODEL.md
 docs/MEMBERSHIP_TEST_MATRIX.md
 docs/PERSONHOOD_V0_1.md
@@ -28,82 +30,98 @@ docs/DEVICE_INPUT_CONTRACT.md
 the-prompt (latest live copy)
 
 CURRENT POSITION
-Roadmap MIRROR-PLAN-001. MB-01A design complete. B1 config/bootstrap verified.
-Latest implementation MIRROR-MB01B-B2-001: B2 signed membership messages VERIFIED.
-MB-01B overall IN_PROGRESS. NEXT: MB-01B/B3, bounded staged membership execution,
-sequence enforcement, pending expiry, parent eligibility and block-end activation.
-Status READY; no V2 state execution has been implemented. Do not redo B1/B2 planning.
+Roadmap MIRROR-PLAN-001. MB-01A design complete. MB-01B IN_PROGRESS.
+B1 config/bootstrap, B2 signed messages and B3 staged membership execution VERIFIED.
+Latest checkpoint MIRROR-MB01B-B3-001. NEXT: MB-01B/B4 canonical V2 registry roots,
+bounded snapshot/diagnostic codecs and block-grouped replay/reference vectors.
+Status READY. Do not redo B1/B2/B3 or jump to live money/devices.
 
-WHAT B2 ADDED
-v2/operation.rs: immutable SignedMembershipOperationV2, OperationHeaderV2 and typed
-Enroll/Approve/Withdraw, exact prefix131 and signed sizes291/227/227; strict signatures,
-bounded canonical membership-only decoder, complete-request enrollment IDs and signed
-operation IDs. Configuration, exact recent ancestry and inclusive height windows
-are checked against a documented TRUSTED ParentChainViewV2, not wall time/peer claims.
-Transfer kind0 rejects. No membership mutation or money API. B1 MCF2/V1 preserved.
+WHAT B3 ADDED
+v2/state.rs: immutable MembershipStateV2 + MembershipRegistryV2, Pending/Active/
+Revoked/Expired records, original request/seed and inclusion position, exact next
+membership sequences, activation height/ordinal, retained signed approvals,
+permanent key/evidence/ID tombstones and derived indexes/counters.
+All seed proofs required via VerifiedBootstrap; seeds have ordinary rights.
+Registry.stage_block checks input count/bytes, C/height/exact parent-hash association,
+then every B2 signature/anchor/window. Expiry occurs even on empty blocks. Approval
+requires eligible parent-Active and currently-Active reviewer, Pending exact target,
+matching expiry and proper sequence. Withdrawal affects only signer's own membership.
+Activation waits until block END, in original inclusion order. Same-block newcomers
+cannot approve; withdrawn reviewers lose activation weight, including old approvals.
+Existing Active targets are not cascade-revoked. Final Active count determines
+high-water. A bad final operation discards ALL staged expiry/sequence/index changes.
 
-EXACT NEXT WORK
-Follow NEXT_SESSION.md B3 steps. Create versioned state using VerifiedBootstrap and
-B2 operations, with tombstones, counters, current sequences and bounded atomic
-candidate-block execution. Validate parent/context/height, snapshot parent-Active
-reviewers, expire Pending applications, apply ordered signed operations with exact
-sequences/target ownership/window rules, then activate at block END in original
-inclusion order. New members cannot approve within their activation block; withdrawn
-reviewers cannot count toward new activation; already-active targets are not cascaded.
-Compute end-block population record and reject invalid batches without ANY mutation.
-Test T03/T06 stateful parts, T07, T11–T20/T22 relevant subcases. Freeze state layout
-for B4 roots/codecs/replay. Then MB-02 unified ledger/blocks and MB-03 durable sync/
-reorgs. All real consensus, biometric and economic gates remain explicit.
+Resource rules: configured operation/byte/enrollment/pending/record caps, plus explicit
+synthetic per-record64 and aggregate max_records retained-approval budgets. History
+never evicted; exhaustion can stop admissions but still permits withdrawal/expiry.
+No global runtime nonce uniqueness added; IDs/keys/evidence are equality-protected,
+not biological fingerprints. Fresh keys/new evidence need external matching.
 
-B2 verifies necessary message authorization only. It does NOT compare/consume current
-Approve/Withdraw sequences, check target status/ownership/expiry alignment or reviewer
-eligibility, detect used references, expire or activate records. Its test deliberately
-allows a context-valid unknown target/exhausted sequence; B3 MUST reject against
-state. The parent resolver must be locally validated, stable candidate ancestry.
-Synthetic views are not a live resolver or pinned network/genesis implementation.
+TRUSTED BOUNDARY: StagedMembershipStateV2::bind_to_validated_block only associates a
+candidate with an externally validated block hash. It does NOT validate real blocks,
+roots, PoW, pinned genesis or finality. The hash is outside canonical state to avoid
+hash cycles. ParentChainViewV2 must be stable locally validated candidate ancestry,
+not an applicant/peer oracle. MB-02/03 must implement actual trusted association.
+B3 supplies synthetic views and pure execution; no live V2 ledger yet.
 
-ACTUAL VERIFIED RESULTS
-Source af1dd66c4fb8811d8eab54a1c88a8bddae2ae80e passed Actions44205064789:
-https://github.com/Ahmed-Sobeih/mirror/actions/runs/44205064789
-Full job134468771581 logs inspected. Rust1.98.0/committed lockfile.
-203 workspace tests =164 retained+39 B2. 96 personhood release reruns =26 V1+31 B1+
-39 B2 (not extra unique tests). Both Python references and both synthetic demos pass,
-doc command passes with zero cases, allocation/runtime-data audit passes. New demo
-accepts authorization at candidate height1 and rejects it at9 as expired, no currency.
-Reference preimages/hashes/IDs independently calculated; Ed25519 constants generated
-locally using Python cryptography and matched by Rust. Rust ran in Actions, not the
-local chat environment. No new dependencies or changes to Cargo.lock.
-T04/T05 membership, T06 target-binding and T09 synthetic resolver subcases verified;
-T10 message windows verified. Full stateful sequence/reuse/live ancestry remain later.
-Check later exact documentation-head CI separately; do not claim all35 rows PASS.
+EXACT NEXT WORK — B4
+Follow NEXT_SESSION.md and docs/MEMBERSHIP_STATE_V2.md. Implement MPS2 canonical
+state encoding/commitment with independent fixed vectors; bounded structural input
+and trusted reconstruction; MPH2 diagnostic replay that retains block grouping and
+EMPTY blocks. Never flatten operations into V1 immediate activation. Reuse B3's
+only bounded execution path; replay must recover complete records, tombstones,
+sequences, indexes, approvals, activations and end-state counters. Verify trusted
+context/height/tip/root expectations; a valid older log is not automatically current.
+Do not allow untrusted snapshots/signature checks alone to create runtime authority.
+Add byte/hash/grouping/tampering/bounds tests and extend state_v2_demo with replay.
+After B4 passes, MB-02 integrates TransferV2/BlockV2 and atomic accounts+membership;
+MB-03 adds durable multi-node recovery/reorg. Do not claim those tasks completed now.
 
-WHAT IS NOT ENABLED
-No V2 membership state executor or live membership blocks/P2P/rewards/human consensus.
-No real enrollment, biometric matching, anonymous credentials, grants/fees or device
-adapters. The old chain and standalone V1 registry still work unchanged. Fresh keys/
-fresh evidence from one person require external deduplication. Public reviewer/member
-relationships are linkable. Gate A software readiness and Gate B actual device pilot
-remain UNMET; successful messages/tests do not imply public-mainnet security.
+Frozen future MPS2 fields: magic+version+C+height+active+pending+highwater+totalfirst+
+retainedapprovalcount+recordcount =90-byte prefix; sorted raw member IDs, origin
+Seed0(index+descriptor) or Enroll1(whole291), status Pending0/Active1/Revoked2/Expired3,
+inclusionheight/index, nextsequence, optional activation tagged0/1 thenheight/ordinal,
+count+sorted reviews(key32+acceptedheight8+signedApprove227). Tip/indexes excluded.
+Snapshot cap90+max_records*(366+267), default41,484,378bytes, distinct from4MiB log cap.
+Domain MIRROR_MEMBERSHIP_STATE_V2. Bytes specified, NOT implemented/hashed in B3 yet.
+Keep all legacy/MCF2/B2 encodings and vectors unchanged unless explicitly versioned.
+
+ACTUAL VERIFIED EVIDENCE
+Published source b6f1233d038901aa0a13c8ddac9afbc34418e846 passed exact-source push CI:
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44317174000
+Job134846238261 full logs inspected, exact checkout confirmed; PR44317184524 passed too.
+254 workspace tests=203retained+51B3. B3=45integration+6private overflow/invariant tests.
+147personhood release reruns=26V1+31B1+39B2+51B3, not additional unique tests.
+Both independent Python references, all THREE demos, doc command(zero cases), and
+allocation/runtime-data audit pass. The same complete source tree also passed local
+Rust1.98.0 checks, changed-file formatting, and preservation audit. No dependencies
+or Cargo.lock changes. Independent code/test review caught and corrected a weak
+stale-sequence regression; no blocking defect found, not an external security audit.
+New state_v2_demo demonstrates activation, reviewer withdrawal invalidating approval
+weight, rejected whole candidate and successful retry. It issues no MRY or live block.
+B3 matrix coverage is scoped; roots/replay/mixed-ledger/live reorg portions stay open.
 
 ACCEPTED POLICY / PRESERVATION
 No extra founder funds or privileged marketing reserve. First1,000 qualifying humans
-receive10 MRY each INCLUDING founder: explicit10,000-MRY bootstrap exception. Ordinary
-allowance0.2 MRY per highest qualifying human population; ordinary decline never lowers
-that record. 1 MRY=10,000,000 Nusa. Combined bootstrap floor/additive D-01 and fee/reward
-D-04 remain UNRESOLVED; do not invent/enable minting. Founder-led startup is explicit
-initial trust, not permanent admin power. Hardware interchangeable; fingerprint/ECG
-assist human Ant Kiss off-chain. No raw OR encrypted biometric archives, private keys
-or real user data on-chain/GitHub. Human weight must not scale with hardware/hashrate;
-easy PoW secondary, current legacy PoW is NOT yet equal-human consensus. Preserve
-Alice100-MRY public dev fixture, historical genesis, mirror-data and user local work;
-these are not founder entitlements. No device buying or real collection authorized.
+receive10MRY each INCLUDING founder: explicit10,000MRY bootstrap exception. Ordinary
+allowance0.2MRY per highest qualifying human population; decline never lowers it.
+1MRY=10,000,000Nusa. Bootstrap floor/additive D-01 and fee/reward D-04 remain UNRESOLVED;
+do not invent a combined ceiling or enable minting. No currency is implied by a
+synthetic membership activation or development population counter.
+Founder-led startup is explicit initial trust, not permanent admin power. Hardware
+interchangeable; fingerprints/ECG assist human Ant Kiss OFF-CHAIN. No raw OR encrypted
+biometric archives, real keys or personal data on-chain/GitHub. Public keys/reviews
+remain linkable; anonymity and private matching not implemented. Human weight must
+not scale with hardware/hashrate; existing easy PoW is development, not final consensus.
+Preserve Alice100MRY public dev fixture, historical genesis, mirror-data and user work.
+No buying devices, real enrollment/collection, live grants/rewards/fees or mainnet launch.
+Gate A software readiness and Gate B real-device pilot remain UNMET.
 
 KEEP HANDOFF CURRENT
-Before every Mirror final response refresh root the-prompt and relevant master/status/
-next/agent/matrix records with actual progress, test evidence, blockers and next slice.
-Read before editing; reconcile live heads; use current SHA/expected-head guards;
-verify saved contents. Discussion-only turns preserve the real unfinished task.
-Never reset newer work to this snapshot or silently choose policy. Separate tested
+Before EVERY Mirror final response refresh this file and relevant master/status/next/
+agent/matrix records with real progress, test evidence, publication and next task.
+Read before editing; reconcile newer work; use current SHA/expected-head guards;
+verify saved contents. Discussion-only turns preserve unfinished task. Separate tested
 source from docs commits; do not chase self-referential SHAs. If publication fails,
-say so and provide current handoff text. Updates occur during this conversation,
-not as background promises. Give the live the-prompt link for switching sessions.
+say so and provide the current handoff text. Updates occur during the conversation,
+not background promises. Give the live the-prompt link when switching sessions.

@@ -7,7 +7,29 @@ review. This is an engineering review, not an audit certification.
 
 Read with [the proposed integration specification](LEDGER_MEMBERSHIP_V1.md) and
 [the test matrix](MEMBERSHIP_TEST_MATRIX.md). No issue below is represented as fixed
-merely because a mitigation is documented. No V2 acceptance test has run yet.
+merely because a mitigation is documented. At the original design checkpoint,
+no V2 acceptance test had run.
+
+The preceding sentence describes the original design checkpoint. Current B1/B2/B3
+evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md; the section below
+records the scoped B3 update without rewriting historical findings.
+
+## B3 implementation update
+
+Source `b6f1233d038901aa0a13c8ddac9afbc34418e846`, exact-source push CI44317174000
+and PR CI44317184524 passed. B3 addresses F02/F04/F05 for the separate V2 in-memory
+executor: bounded direct inputs and retained approval history, parent-snapshot
+eligibility, deferred activation, same-block withdrawal effects, final population
+high-water and complete candidate discard on failure. B2 authorization windows are
+now enforced during state execution, with pending expiry and permanent tombstones.
+Legacy V1 is preserved, not retrospectively relabeled hardened.
+
+The supplied parent view and bind_to_validated_block remain trusted integration
+boundaries, not proofs of actual chain validity. Finite approval/history budgets
+can halt admissions and do not solve availability. A valid old log/snapshot is not
+authoritative latest state. B4 roots/replay, MB-02 ledger authority, MB-03 durable
+reorgs, human consensus and real private biological matching remain unfinished.
+No finding is declared globally closed or externally audited from these tests.
 
 ## 1. Assets and trust boundaries
 
@@ -136,9 +158,11 @@ biometrics, anonymity, recovery and inheritance are not silently implemented her
 Founder-led startup is explicitly centralized initial trust, with no claimed
 permissionless security until the specified handoff and fault model are tested.
 
-## 6. Review outcome and next action
+## 6. Original review outcome and current continuation
 
 MB-01A design deliverables identify integration blockers, choose a compatibility
-path, and map defenses to tests. They do not close F01–F11. **Next: MB-01B/B1**,
-new V2 configuration/bootstrap binding with regression tests, keeping MPH1/MRB1
-unchanged. Carry findings forward until linked passing tests demonstrate closure.
+path, and map defenses to tests. They did not close F01–F11. The original next task
+was MB-01B/B1. B1/B2/B3 are now verified standalone components; **current next:
+MB-01B/B4**, canonical state commitments/codecs and grouped-block replay.
+Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
+demonstrate the required scope, rather than inferring complete deployment security.
