@@ -36,6 +36,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-personhood --example registry_demo --locked
       - name: V2 signed authorization demonstration
         run: cargo +1.98.0 run -p mirror-personhood --example operation_v2_demo --locked
+      - name: V2 staged membership demonstration
+        run: cargo +1.98.0 run -p mirror-personhood --example state_v2_demo --locked
       - name: Allocation and runtime-data audit
         shell: bash
         run: |
