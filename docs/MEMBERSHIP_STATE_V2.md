@@ -1,9 +1,10 @@
 # V2 membership state and block execution
 
-Checkpoint: **MIRROR-MB01B-B3-001**. Synthetic development profile only.
-This document freezes the B3 state model and execution rules. B3 implements the
-in-memory transition; B4 must implement and independently verify the canonical
-codec, commitment and replay described below. See [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md),
+Checkpoint: **MIRROR-MB01B-B4-001**. Synthetic development profile only.
+This document preserves the B3 state model/execution and its frozen MPS2 layout.
+B4 adds the canonical codec, commitment and untrusted cache boundary. Grouped
+diagnostic replay is specified in [REPLAY_V2.md](REPLAY_V2.md). Exact published
+acceptance evidence is recorded in CURRENT_STATUS.md. See [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md),
 [CONFIG_V2_ENCODING.md](CONFIG_V2_ENCODING.md), [OPERATIONS_V2_ENCODING.md](OPERATIONS_V2_ENCODING.md)
 and [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md).
 
@@ -137,12 +138,12 @@ history can also stop further admissions. B3 never silently deletes history or
 weakens the quorum to escape this condition. Admission access/recovery and larger
 production capacities require explicit later policy/profile work.
 
-## 5. Frozen canonical layout for B4
+## 5. Canonical MPS2 layout
 
-**This section specifies bytes; B3 does not implement a root, snapshot decoder or
-replay codec.** B4 must add independent vectors and bounded decoding/replay before
-these bytes can be treated as verified executable serialization. MCF2, existing
-B2 signed messages, V1 state/logs and legacy blocks remain unchanged.
+**B4 implements the exact bytes frozen by B3**, with independent Python preimages
+and complete Rust comparisons. MCF2, existing B2 signed messages, V1 state/logs and
+legacy blocks remain unchanged. This is membership serialization, not an MRB2
+block, combined ledger root or source of trusted canonical history.
 
 All integers below are unsigned little endian. Hashes, keys and complete signed
 operations preserve their existing raw order/encoding. Tags accept only listed
@@ -210,7 +211,7 @@ validated block/root. B4 replay requires trusted configuration and candidate
 ancestry; MB-02/03 supplies actual block/root/storage authority. It must not accept
 a peer-supplied snapshot merely because its individual signatures verify.
 
-## 6. Acceptance evidence
+## 6. Historical B3 acceptance evidence
 
 B3 implementation `b6f1233d038901aa0a13c8ddac9afbc34418e846` passed exact-source
 push CI [44317174000](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44317174000),
@@ -224,3 +225,53 @@ state codec/root. See CURRENT_STATUS.md and the test matrix for scoped evidence.
 Relevant verified B3 cases are the runtime portions of T03/T06/T07/T11–T20/T22.
 B4 root/codec/replay evidence, mixed-ledger execution, actual network reorgs, device
 readiness and Gate A/B remain pending. Tests/review are not a security certification.
+
+The preceding evidence describes the B3 checkpoint. B4 adds the implementation
+below; historical B3 counts are not current totals.
+
+## 7. B4 codec and cache authority boundary
+
+`MembershipStateV2::encode()` returns bounded canonical bytes; `root()` returns
+their domain-separated SHA256d commitment. Both return an explicit error if the
+private state invariants, checked size or output allocation fail. Neither encodes
+the registry's external block-hash association. The same state bound to two
+different synthetic hashes has identical bytes and membership root.
+
+`UntrustedMembershipSnapshotV2::decode(config, bytes)` first enforces actual byte,
+declared count, canonical order and aggregate approval budgets. It reconstructs
+derived indexes, checks origins, IDs, inclusion positions, status/activation data,
+counters and exact sequences inferable from retained outgoing approvals plus the
+enrollment/withdrawal baseline. It checks signed metadata windows/profile and
+activation timing, then verifies all retained enrollment and approval signatures.
+No signature work precedes complete cheap parsing/accounting checks.
+
+This wrapper exposes only encoding, root, height, record count and
+`verify_against(&MembershipStateV2)`. It has **no conversion or accessor yielding
+a runtime state, staged state or registry**. A compile-fail documentation example
+guards private state access. `verify_against` compares every record, counter and
+rebuilt index with independently trusted execution state; success does not return
+an object reconstructed from the cache.
+
+These checks cannot recover missing historical authorization. In particular, the
+snapshot retains withdrawal status and resulting sequence, not the complete signed
+withdrawal. A manufactured but internally coherent revoked record may pass cache
+decoding while failing comparison to the trusted state. Root/signature/internal
+consistency alone do not establish history, canonical ancestry or latestness.
+Replay uses VerifiedBootstrap and the same B3 executor with the external trust
+checks in REPLAY_V2.md. MB-02/03 still must supply actual block/root/storage authority.
+
+The independent standard-library reference `tools/reference_state_v2.py --check`
+constructs five complete MPS2 snapshots from explicit synthetic record fixtures:
+genesis, Pending, activation/Pending withdrawal, empty-block expiry, and Active/seed
+withdrawal. It commits every status, retained approval and optional activation,
+including present height zero. Operation signatures were generated separately with
+Python Ed25519 using public test seeds; the checker needs no Python package.
+Rust signs and executes the same history and compares every byte/root without
+using a Rust-produced expected value. The same fixture independently defines MPH2
+bytes, group commitments and trusted intermediate roots for replay verification.
+
+Acceptance tests are in `tests/state_codec_v2.rs`, `tests/state_vectors_v2.rs` and
+`tests/replay_v2.rs`. Consult the current checkpoint for actual test counts and CI.
+All data are synthetic; no device capture, uniqueness decision, money, new consensus
+or real chain genesis is produced. Inclusion indices here are membership-only;
+MB-02 must preserve full mixed-block positions when adding transfers.

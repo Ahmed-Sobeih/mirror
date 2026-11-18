@@ -15,6 +15,10 @@ use super::{
     ParentChainViewV2, SignedMembershipOperationV2, VerifiedBootstrap,
 };
 
+#[path = "state_codec.rs"]
+mod codec;
+pub use codec::{StateCodecErrorV2, UntrustedMembershipSnapshotV2};
+
 /// Fixed synthetic-profile budget. Retained approvals also have an aggregate
 /// budget of `config.limits().max_records`, independent of the record count.
 /// Neither history nor duplicate protection is evicted to reclaim this budget.

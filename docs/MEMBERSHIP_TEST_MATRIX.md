@@ -1,18 +1,22 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MIRROR-MB01B-B3-001**.
-These 35 rows are acceptance requirements, NOT 35 passing tests. Runtime integration
-is still pending. B1 added 31 Rust tests, B2 added 39 and B3 added 51. Those counts
-do not represent completed roadmap rows. B3 verifies in-memory state transitions;
-V2 codecs/roots/replay and live ledger integration remain pending. Release executions
-are reruns, not new unique tests.
+Current implementation checkpoint: **MIRROR-MB01B-B4-001**.
+These 35 rows are acceptance requirements, NOT 35 passing tests. Runtime ledger
+integration is still pending. B1 added 31 Rust tests, B2 added 39 and B3 added 51.
+B4 adds canonical MPS2 commitments, untrusted cache decoding and bounded MPH2
+replay through the B3 executor. Its suites have 26 snapshot cases, 10 independent
+vector cases, 31 replay cases and two private work-budget cases; a compile-fail
+documentation test separately protects the snapshot-to-authority boundary. Counts do not
+represent completed roadmap rows. Exact source/test/CI acceptance is recorded in
+CURRENT_STATUS.md. Release executions are reruns, not new unique tests.
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
 Exact byte contracts: [CONFIG_V2_ENCODING.md](CONFIG_V2_ENCODING.md) and
 [OPERATIONS_V2_ENCODING.md](OPERATIONS_V2_ENCODING.md); frozen B4 state layout and
 B3 execution rules: [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md).
+Grouped replay: [REPLAY_V2.md](REPLAY_V2.md).
 
 ## 1. Rule-to-assertion map
 
@@ -26,31 +30,31 @@ B3 execution rules: [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md).
 | T06/R06 | `approval_targets_complete_request`: changed request/window changes enrollment ID; approval cannot authorize it; exact request/key/evidence reuse rejected after active/revoked/expired outcomes. | B2 complete-request ID/signatures and B3 retained ID/key/evidence reuse rejection VERIFIED; fresh biometric duplicates remain external |
 | T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 exact membership sequences, rollback, duplicate-review and checked overflow VERIFIED; separate Transfer sequence space MB-02 |
 | T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02 PLANNED |
-| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2 synthetic ancestry and B3 parent C/height/tip association VERIFIED SUBCASES; actual validated blocks/branch ancestry MB-02/03 |
+| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2/B3 synthetic ancestry plus B4 cached trusted hash/group/root and replay anchor checks VERIFIED COMPONENTS; actual validated blocks/branch ancestry MB-02/03 |
 | T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2 message windows and B3 per-operation rechecks VERIFIED; deterministic record expiry covered in T11 |
-| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3 VERIFIED IN MEMORY; restart/replay preservation B4/MB-03 |
+| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3 execution and B4 empty-group expiry/tombstone reconstruction VERIFIED COMPONENTS; durable restart MB-03 |
 | T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 ownership/state and per-operation authorization VERIFIED IN MEMORY |
-| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3 ordered transition VERIFIED; committed operation order/root MB-02 |
+| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3 ordered transition and B4 exact diagnostic group commitment VERIFIED COMPONENTS, including commuting-operation changes; actual block operation root MB-02 |
 | T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3 VERIFIED IN MEMORY; trusted synthetic parent snapshots, not deployed membership consensus |
 | T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3 VERIFIED IN MEMORY, including retained earlier-block approvals and no cascade revocation |
-| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3 inclusion-order, ordinal preservation/overflow and identical replica state VERIFIED; committed roots B4 |
-| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | B3 derived counts/index/activation consistency VERIFIED SUBCASES; root tampering/codec checks B4 |
+| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3 inclusion-order/ordinal preservation/overflow and B4 independent roots/replay VERIFIED COMPONENTS |
+| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | B3 derived consistency plus B4 canonical roots, snapshot metadata/sequence/counter checks and independent vectors VERIFIED COMPONENTS; snapshot remains untrusted |
 | T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | B3 final-state high-water and decline preservation VERIFIED; actual reorg/orphan counter recovery MB-03 |
-| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3 immutable staging/rejection/retry and representative late-error rollback VERIFIED; serialized roots B4, mixed ledger MB-02 |
-| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1/B2 bounds plus B3 direct operation/block/pending/records/retained-approval limits VERIFIED; account/mixed budgets MB-02 |
-| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | B1/B2 narrow codecs pass; B4/MB-03/04 full cases pending |
-| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | B3 in-memory tombstone/capacity/withdrawal behavior VERIFIED; restart and encoded replay B4/MB-03 |
+| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3 immutable staging plus B4 late replay rejection/retry and serialized-state equality VERIFIED COMPONENTS; mixed ledger MB-02 |
+| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1/B2/B3 bounds and B4 direct/decoded group, snapshot/log and cumulative work budgets VERIFIED COMPONENTS; account/mixed budgets MB-02 |
+| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | B1/B2 narrow codecs and B4 MPS2/MPH2 huge-count/length/byte bounds VERIFIED COMPONENTS; disk/frame/streaming cases MB-03/04 |
+| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | B3 tombstone/capacity behavior and B4 exact encoded replay reservations/indexes VERIFIED COMPONENTS; durable restart MB-03 |
 | T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02 PLANNED |
 | T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02 PLANNED |
 | T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02 PLANNED |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | MB-02/03 PLANNED |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | B4 membership-only replay matches full state and trusted expectations; actual combined-ledger/canonical recovery MB-02/03 |
 | T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | MB-02 PLANNED |
-| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | MB-02/03 PLANNED |
+| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | B4 trusted synthetic config/genesis/height/tip/root expectations reject old logs; real MRB2 pinning and durable latestness MB-02/03 |
 | T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | MB-03 PLANNED |
 | T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | MB-03/04 PLANNED |
 | T31/R31 | `network_versions_do_not_fallback`: MIR2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | MB-03/04 PLANNED |
 | T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | MB-04 PLANNED |
-| T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4/MB-08/09 PLANNED; fixed B2 fields not a privacy proof |
+| T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 has only fixed signed references, no archive/URL schema; real custody/canary/privacy acceptance MB-08/09, fixed fields not a privacy proof |
 | T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3 no money API/no seed monetary privilege; actual integrated mint/grant rejection MB-02/07 |
 | T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02/06/07 PLANNED |
 
@@ -166,9 +170,41 @@ retained approvals at most configured max_records. They never evict history or l
 quorum at capacity; a full archive can stop further admission. This is boundedness
 evidence, not a guarantee of fair admission or production availability.
 
-**Next B4:** implement the frozen MPS2 canonical codec/root and grouped-block MPH2
-replay with independent preimages/vectors and adversarial decoding/replay cases.
-Empty blocks, expiry, canonical inclusion positions and original operation order
-must survive replay. Snapshot validity needs trusted replay/root association, not
-only internal accounting or individual signatures. No V2 root/replay, live ledger,
-monetary integration, device readiness or complete 35-row acceptance is claimed.
+At the historical B3 checkpoint B4 remained next. Section 6 records its later
+component coverage. Live ledger/money/device integration and the full 35-row
+acceptance remain unfinished.
+
+
+## 6. B4 commitment, cache and grouped-replay component coverage
+
+The implementation adds `src/v2/state_codec.rs` as a private child of the state
+module and `src/v2/replay.rs`. Actual verification source/CI belongs in
+CURRENT_STATUS.md; this map identifies executable cases and their exact scope.
+The new integration suites contain 26 snapshot + 10 vector + 31 replay cases,
+plus two private replay-work arithmetic cases. The compile-fail documentation
+case verifies that an untrusted decoded snapshot cannot be converted into a
+runtime registry. Release reruns are not additional unique tests.
+
+| Case/subcase | Actual tests / files | Verified component scope and remainder |
+|---|---|---|
+| T16/T17 fixed commitments | `state_vectors_v2.rs`: `bootstrap_with_height_zero_activation_matches_independent_commitment`, `pending_records_with_absent_activation_match_independent_commitment`, `activation_and_pending_withdrawal_match_independent_commitment`, `empty_block_expiry_with_retained_approval_matches_independent_commitment`, `active_withdrawals_and_persistent_high_water_match_independent_commitment` | Five independently constructed MPS2 state preimages/roots, including all statuses, approvals, sequences, absent/present activation and high-water; actual block/combined ledger roots MB-02 |
+| T17 deterministic layout | `state_codec_v2.rs`: `seed_encoding_matches_fixed_prefix_size_and_domain_contract`, `records_must_be_strictly_sorted_and_distinct`, `approvals_must_be_strictly_sorted_and_distinct`, `activation_none_is_distinct_from_zero_and_positive_seed_activation`, `tip_hash_does_not_enter_state_commitment` | Exact 90-byte prefix, raw-ID/key ordering, option tags and external tip exclusion; no circular block hash inside membership root |
+| T17 cache consistency | `all_derived_counters_are_checked`, `seed_origin_id_descriptor_and_inclusion_are_bound`, `pending_and_seed_sequences_cannot_be_invented`, `repeated_outgoing_sequence_across_different_requests_rejects`, `inclusion_index_and_approval_acceptance_height_are_consistent`, `expired_pending_and_active_metadata_cannot_be_interchanged` in `state_codec_v2.rs` | Derived indexes/counters, origins, sequence conservation and lifecycle metadata checked; internally coherent cache still does not prove canonical history |
+| T05/T06 cache evidence | `corrupted_enrollment_and_approval_signatures_are_rejected`, `changed_approval_kind_or_target_is_not_a_valid_cache`, `validly_signed_origin_cannot_reuse_a_retained_key_or_evidence`, `validly_signed_origin_with_wrong_profile_or_window_rejects` | Strict signature checks and retained reference consistency, not biological deduplication |
+| T21 snapshot input budgets | `snapshot_bound_is_independent_of_diagnostic_log_limit`, both `every_*_truncation_rejects` cases, `trailing_bytes_and_oversized_input_reject`, `unknown_magic_version_and_all_tags_reject`, `declared_record_count_cannot_reserve_unbacked_input`, `declared_approval_counts_are_bounded_before_entries` | Separate MPS2 state-size and configured history/approval caps, actual-byte checks and exact tags before allocating claimed counts; disk/frame reads remain MB-03/04 |
+| T26 cache authority | `internally_consistent_cache_never_establishes_current_state`; `state_vectors_v2.rs::independent_snapshots_decode_but_match_only_the_exact_trusted_state`; compile-fail documentation test | Untrusted wrapper has no runtime conversion; cache verification requires equality with independently trusted reconstructed state, not just signatures or internal accounting |
+| T11/T16/T17/T22 full replay | `replay_v2.rs`: `replay_recovers_full_lifecycle_records_indexes_sequences_and_counters`, `replay_restores_tombstone_duplicate_protection_and_remains_executable`, `empty_groups_preserve_inclusive_expiry_and_are_not_omitted` | Full state/index/approval/ordinal/high-water equality and executable duplicate protection after replay, preserving empty block expiry; no durable restart or real-chain reorg claim |
+| T13 exact diagnostic operations | `exact_group_commitment_binds_context_height_count_order_and_signed_bytes`, `reordered_commuting_approvals_reject_even_when_membership_root_is_identical`, `alternate_valid_withdrawal_bytes_cannot_replace_the_canonical_operation` | State roots alone cannot distinguish all histories; separate trusted group commitment binds exact operation bytes/order; future MRB2 Merkle root remains MB-02 |
+| T09/T26/T28 trusted provenance | `genesis_hash_root_and_empty_group_commitment_are_independently_required`, `missing_trusted_metadata_rejects_genesis_intermediate_or_final_height`, `each_trusted_intermediate_hash_root_and_exact_group_are_checked`, `explicit_expected_context_height_tip_and_root_are_all_required`, `an_older_valid_prefix_cannot_satisfy_the_current_trusted_expectation` | Synthetic independently executed per-height metadata and externally selected final C/height/tip/root mandatory; provider is a trusted caller boundary, not implemented live consensus or durable latestness discovery |
+| T05/T07/T09/T14 execution during replay | `invalid_signature_fails_even_when_group_metadata_matches_the_bad_bytes`, `wrong_sequence_cannot_be_authorized_by_a_matching_group_commitment`, `signed_wrong_anchor_and_wrong_context_fail_despite_matching_group_metadata`, `merging_blocks_does_not_let_a_new_member_review_in_its_activation_block` | Exact relevant error assertions confirm B2/B3 re-execution cannot be bypassed with metadata matching invalid bytes |
+| T19 immutable rejection | `late_failure_publishes_no_registry_and_preserves_inputs_for_retry`, `construction_copies_inputs_and_decoding_never_establishes_replay_authority` | Late mismatch returns no final registry; bootstrap/transcript/existing state unchanged and successful retry possible; combined money/membership and durable publication remain MB-02/03 |
+| T20/T21 log/group bounds | `every_log_truncation_and_trailing_byte_is_rejected`, `huge_claimed_counts_and_lengths_fail_without_claimed_allocation`, `incorrect_operation_lengths_versions_and_kinds_are_rejected`, `zero_skipped_duplicate_reordered_and_maximum_heights_are_rejected`, `exact_log_byte_limit_passes_and_one_byte_under_rejects`, `replay_group_budget_is_4096_including_empty_groups`, direct count and 168-byte block-budget cases | MPH2 strict 74/44-byte containers; configured byte/count limits and explicit 4,096 diagnostic groups; no truncation or history eviction at exhaustion |
+| T20 work and view limits | `impossible_expected_height_rejects_before_any_trusted_history_lookup`, `replay_caches_each_trusted_height_once_before_execution`, `replay_work_budget_charges_configuration_copies_even_for_empty_groups`; private `work_budget_accepts_exact_limit_and_rejects_next_item_without_mutation`, `work_budget_never_wraps_or_consumes_a_rejected_charge` | Aggregate 1,048,576 record/review/configuration-item proxy, including 65,536 zero-value allocations copied per state; metadata cached once, no loop to arbitrary expected height; not a wall-clock or global availability guarantee |
+| Independent grouped reference | `state_vectors_v2.rs::replay_encoding_and_group_commitments_match_independent_vectors`, `replay_reconstructs_state_against_independently_pinned_roots_and_groups`; `tools/reference_state_v2.py --check` | Standard-library Python builds exact MPS2/MPH2/group preimages/hashes independently; Rust reproduces the complete fixture, preserving earlier B1/B2 vectors |
+
+The MPH2 membership-only format must not silently drop transfers from future mixed
+blocks: that would change inclusion operation indices and combined state semantics.
+MB-02 must explicitly integrate/version full blocks and exact operation positions.
+No B4 test establishes actual MRB2 consensus, canonical fork choice, durable latest
+state, real-human matching, private credentials, grants, fees or device readiness.
+Neither Gate A nor Gate B is completed by this component coverage.

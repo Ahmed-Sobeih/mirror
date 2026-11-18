@@ -26,6 +26,8 @@ jobs:
         run: python3 tools/reference_config_v2.py --check
       - name: Independent V2 operation vectors
         run: python3 tools/reference_operations_v2.py --check
+      - name: Independent V2 state and replay vectors
+        run: python3 tools/reference_state_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
@@ -36,7 +38,7 @@ jobs:
         run: cargo +1.98.0 run -p mirror-personhood --example registry_demo --locked
       - name: V2 signed authorization demonstration
         run: cargo +1.98.0 run -p mirror-personhood --example operation_v2_demo --locked
-      - name: V2 staged membership demonstration
+      - name: V2 membership commitment and replay demonstration
         run: cargo +1.98.0 run -p mirror-personhood --example state_v2_demo --locked
       - name: Allocation and runtime-data audit
         shell: bash

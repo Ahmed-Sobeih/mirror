@@ -1,9 +1,11 @@
-//! Synthetic B3 transitions only: no block production, devices, files or currency.
+//! Synthetic B3 transitions and B4 commitments/replay. No real blocks or currency.
 use mirror_crypto::{Hash256, Keypair};
 use mirror_personhood::v2::{
     BootstrapDescriptor, ConfigParameters, ConfigV2, LimitsV2, MembershipActionV2,
-    MembershipRegistryV2, MembershipStatusV2, OperationHeaderV2, ParentChainViewV2,
-    SignedMembershipOperationV2,
+    MembershipRegistryV2, MembershipReplayV2, MembershipStatusV2, OperationHeaderV2,
+    ParentChainViewV2, ReplayChainViewV2, ReplayExpectationV2, ReplayGroupV2,
+    SignedMembershipOperationV2, TrustedReplayBlockV2, UntrustedMembershipSnapshotV2,
+    replay_group_commitment_v2,
 };
 
 fn hash(byte: u8) -> Hash256 {
@@ -24,6 +26,42 @@ impl ParentChainViewV2 for SyntheticParent {
     fn canonical_hash_at(&self, height: u64) -> Option<Hash256> {
         (height <= self.height).then(|| hash(100 + height as u8))
     }
+}
+
+// Captured from a separate direct execution of THIS SYNTHETIC fixture, never
+// constructed by trusting the decoded log. MB-02/03 must provide actual locally
+// validated chain metadata and a durable expected checkpoint in a real node.
+struct SyntheticHistory {
+    context: Hash256,
+    blocks: Vec<TrustedReplayBlockV2>,
+}
+impl ReplayChainViewV2 for SyntheticHistory {
+    fn config_hash(&self) -> Hash256 {
+        self.context
+    }
+    fn block_at(&self, height: u64) -> Option<TrustedReplayBlockV2> {
+        self.blocks.get(usize::try_from(height).ok()?).copied()
+    }
+}
+
+fn advance(
+    registry: &MembershipRegistryV2,
+    parent: &SyntheticParent,
+    operations: &[SignedMembershipOperationV2],
+    groups: &mut Vec<ReplayGroupV2>,
+    history: &mut SyntheticHistory,
+) -> Result<MembershipRegistryV2, Box<dyn std::error::Error>> {
+    let staged = registry.stage_block(parent, operations)?;
+    let height = staged.state().height();
+    let block_hash = hash(100 + u8::try_from(height)?);
+    let group = ReplayGroupV2::new(registry.state().config(), height, block_hash, operations)?;
+    history.blocks.push(TrustedReplayBlockV2 {
+        block_hash,
+        group_commitment: group.commitment(history.context)?,
+        membership_root: staged.state().root()?,
+    });
+    groups.push(group);
+    Ok(staged.bind_to_validated_block(block_hash))
 }
 
 fn sign(
@@ -48,7 +86,7 @@ fn sign(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("B3 SYNTHETIC MEMBERSHIP DEMO — no real people, biometrics or MRY");
+    println!("B4 SYNTHETIC MEMBERSHIP DEMO — no real people, biometrics or MRY");
     let first = Keypair::from_secret_bytes([1; 32]);
     let second = Keypair::from_secret_bytes([2; 32]);
     let third = Keypair::from_secret_bytes([3; 32]);
@@ -83,6 +121,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // These are labeled synthetic ancestry tags, NOT hashes of real valid blocks.
     let mut registry =
         MembershipRegistryV2::bootstrap(&bootstrap)?.bind_to_validated_block(hash(100));
+    let mut groups = Vec::new();
+    let mut history = SyntheticHistory {
+        context: config.context(),
+        blocks: vec![TrustedReplayBlockV2 {
+            block_hash: hash(100),
+            group_commitment: replay_group_commitment_v2(&config, 0, &[])?,
+            membership_root: registry.state().root()?,
+        }],
+    };
     let mut parent = SyntheticParent {
         context: config.context(),
         height: 0,
@@ -101,16 +148,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let approval = MembershipActionV2::Approve {
         target_enrollment_id: third_id,
     };
-    registry = registry
-        .stage_block(
-            &parent,
-            &[
-                enroll,
-                sign(&config, &first, 0, approval)?,
-                sign(&config, &second, 0, approval)?,
-            ],
-        )?
-        .bind_to_validated_block(hash(101));
+    registry = advance(
+        &registry,
+        &parent,
+        &[
+            enroll,
+            sign(&config, &first, 0, approval)?,
+            sign(&config, &second, 0, approval)?,
+        ],
+        &mut groups,
+        &mut history,
+    )?;
     assert_eq!(registry.state().active_count(), 3);
     println!("Height 1: two distinct approvals activate applicant; active=3, ordinal=3");
 
@@ -129,24 +177,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let approval = MembershipActionV2::Approve {
         target_enrollment_id: fourth_id,
     };
-    registry = registry
-        .stage_block(
-            &parent,
-            &[
-                enroll,
-                sign(&config, &first, 1, approval)?,
-                sign(&config, &third, 1, approval)?,
-                sign(
-                    &config,
-                    &first,
-                    2,
-                    MembershipActionV2::Withdraw {
-                        own_member_id: config.seed_id(0)?,
-                    },
-                )?,
-            ],
-        )?
-        .bind_to_validated_block(hash(102));
+    registry = advance(
+        &registry,
+        &parent,
+        &[
+            enroll,
+            sign(&config, &first, 1, approval)?,
+            sign(&config, &third, 1, approval)?,
+            sign(
+                &config,
+                &first,
+                2,
+                MembershipActionV2::Withdraw {
+                    own_member_id: config.seed_id(0)?,
+                },
+            )?,
+        ],
+        &mut groups,
+        &mut history,
+    )?;
     assert_eq!(
         registry
             .state()
@@ -179,15 +228,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "Invalid final operation: entire candidate rejected; original state and sequences unchanged"
     );
-    registry = registry
-        .stage_block(&parent, &[good])?
-        .bind_to_validated_block(hash(103));
+    registry = advance(&registry, &parent, &[good], &mut groups, &mut history)?;
     assert_eq!(registry.state().active_count(), 3);
     assert_eq!(registry.state().total_activations(), 4);
     assert_eq!(registry.state().active_high_water(), 3);
     println!(
         "Height 3 retry: ordinary surviving reviewer activates applicant; active=3, total first activations=4"
     );
+    parent.height = 3;
+    registry = advance(&registry, &parent, &[], &mut groups, &mut history)?;
+    println!("Height 4: empty block retained; registry height is part of its commitment");
+    let expected = ReplayExpectationV2 {
+        config_hash: config.context(),
+        height: registry.state().height(),
+        tip_hash: registry.tip_hash(),
+        membership_root: registry.state().root()?,
+    };
+    let log = MembershipReplayV2::new(&config, hash(100), &groups)?;
+    let bytes = log.encode()?;
+    let recovered =
+        MembershipReplayV2::decode(&config, &bytes)?.replay(&bootstrap, &history, expected)?;
+    assert_eq!(recovered, registry);
+    let cache_bytes = registry.state().encode()?;
+    let cache = UntrustedMembershipSnapshotV2::decode(&config, &cache_bytes)?;
+    cache.verify_against(recovered.state())?;
+    println!("MPH2 replay: all 4 groups and complete state match direct execution");
+    println!("Membership root: {}", recovered.state().root()?);
+    println!("MPS2 cache: matches reconstructed state; decoding alone grants no rights");
+    let old = MembershipReplayV2::new(&config, hash(100), &groups[..3])?;
+    assert!(old.replay(&bootstrap, &history, expected).is_err());
+    let mut tampered = bytes.clone();
+    tampered[82] ^= 1; // First group's claimed block hash, not a signature field.
+    assert!(
+        MembershipReplayV2::decode(&config, &tampered)?
+            .replay(&bootstrap, &history, expected)
+            .is_err()
+    );
+    println!("Old valid prefix and altered history: rejected against trusted checkpoint");
     println!(
         "No founder override, grants, minting, biometric matching or accepted chain block claimed."
     );
