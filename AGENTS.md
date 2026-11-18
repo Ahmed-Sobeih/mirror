@@ -24,7 +24,7 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-personhood tests, both independent reference checks and all three membership examples.
+personhood tests, all three independent reference checks and all three membership examples.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -32,11 +32,13 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B4.
-MB-01A design, B1 configuration/bootstrap, B2 messages and B3 staged execution are verified.
-B4 registry roots/codecs/replay and actual ledger integration remain unfinished.
+NEXT_SESSION.md points to the next unfinished task: currently MB-02A.
+MB-01A design and MB-01B/B1–B4 components are verified. B4 canonical MPS2 commitments,
+untrusted snapshot codecs and trusted grouped MPH2 replay are implemented.
+Next: TransferV2/unified operations/BlockV2 codecs and commitments with independent
+vectors. Actual atomic ledger/chain integration and durable recovery remain unfinished.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
-docs/OPERATIONS_V2_ENCODING.md, docs/MEMBERSHIP_STATE_V2.md,
+docs/OPERATIONS_V2_ENCODING.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
@@ -47,8 +49,19 @@ trusted provenance; it does not verify a real header/root/PoW/genesis. MB-02 mus
 establish that association. Keep tip hash outside committed state to avoid cycles.
 Preserve B3 expiry/tombstone/sequence/parent-set/end-block timing and explicit approval
 budgets (64 per record; aggregate retained <= configured max_records). Never evict
-history to recover capacity. B4 replay must retain block grouping and empty blocks;
+history to recover capacity. B4 replay retains block grouping and empty blocks;
 a flat event list or structurally coherent snapshot is not trusted canonical history.
+MPS2 decode returns an untrusted wrapper without runtime conversion. MPH2 requires
+trusted stable per-height hashes/exact group digests/roots and expected C/height/tip/root;
+do not derive this authority from the log or peer. Diagnostic group commitments are
+not MRB2 operation roots. Preserve the 4,096-group/1,048,576-state-item replay budgets,
+including configuration-copy charges, until a documented versioned replacement.
+
+MB-02 mixed blocks must preserve original full-block operation positions, including
+transfers. Do not filter transfers into membership-only stage_block or MPH2 and
+silently change inclusion indices/activation order. Specify indexed/full-block staging
+and replay before integrating accounts; preserve frozen prior bytes. Avoid a core/
+personhood dependency cycle. MB-02A codecs are not actual ledger/block acceptance.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

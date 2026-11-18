@@ -8,8 +8,10 @@ Mirror is a Rust development blockchain exploring human-based participation.
 [MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
 membership register to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
-criteria. **B1/B2/B3 are verified; next is MB-01B/B4**, canonical V2 registry
-commitments, bounded codecs and block-grouped replay. Live ledger integration follows.
+criteria. **MB-01B is verified as a standalone component, including B1–B4.**
+Next is **MB-02A: TransferV2, the unified operation envelope, and BlockV2 codecs
+and commitments with independent vectors**. Combined-ledger execution and actual
+block authority follow in MB-02B/C; durable integration follows in MB-03.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -49,9 +51,20 @@ The experimental `mirror-personhood` crate preserves its V1 registry, state root
 and bounded event-log replay. Its separate V2 modules now implement configuration-
 bound signed messages and staged membership execution: exact sequences, expiry,
 permanent identity-reference reservations, parent eligibility, end-of-block
-activation and bounded approval history. [B3 state rules](docs/MEMBERSHIP_STATE_V2.md)
-describe the trusted integration boundary. V2 roots/codecs/replay are the next task;
-live block validation, peer messages, balances and rewards remain later integration.
+activation and bounded approval history. B4 adds canonical MPS2 state commitments,
+bounded decoding into an untrusted cache, and MPH2 replay preserving block groups
+and empty blocks. Replay reuses the same executor and checks independently trusted
+configuration, hashes, exact operation groups, intermediate roots and the requested
+final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.md)
+and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
+authority; a caller-supplied hash is not proof of actual block validity. Live V2
+block validation, peer messages, unified balances and rewards remain later work.
+
+Verified B4 source: [`21e2272`](https://github.com/Ahmed-Sobeih/mirror/commit/21e2272b5ac92c00e840d7aaa26a99570a5ec24f).
+[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
+passed 323 workspace tests, 216 personhood release reruns, one compile-fail
+documentation test, three independent references and all three examples.
+Release reruns are not additional unique tests. PR #1 remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
 same human presenting a different key and new evidence. Human review and private
@@ -78,6 +91,7 @@ cargo test --workspace --doc --locked
 cargo test -p mirror-personhood --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
+python3 tools/reference_state_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked

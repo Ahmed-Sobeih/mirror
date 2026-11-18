@@ -1,23 +1,25 @@
 # Mirror master plan — blockchain to biometric enrollment readiness
 
-Roadmap: **MIRROR-PLAN-001** (2026-11-18).
+Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-19).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB01B-B3-001 — staged membership execution VERIFIED**.
-B1 configuration, B2 message validation and B3 bounded state transitions exist.
-V2 state codecs/roots/replay, ledger blocks and human consensus remain unfinished.
-MB-01B overall is IN_PROGRESS.
+Latest implementation: **MIRROR-MB01B-B4-001 — membership codec/root/replay VERIFIED**.
+MB-01B is **VERIFIED_COMPONENT**: B1 configuration, B2 messages, B3 bounded execution,
+B4 canonical state commitment, untrusted snapshots and trusted grouped replay.
+V2 ledger/blocks, durable membership synchronization and human consensus remain unfinished.
 
 ## Start here: current position and next action
 
-**Next task: MB-01B/B4 — canonical MPS2 codec/root, grouped-block MPH2 replay,
-independent vectors and adversarial boundary regression. Status: READY.**
+**Next task: MB-02A — TransferV2, unified operation envelope, BlockV2 codec and
+commitments with independent vectors. Status: READY.**
 
-B3 published source: `b6f1233d038901aa0a13c8ddac9afbc34418e846`.
-Local Rust 1.98.0 validation: 254 workspace tests; 147 personhood release reruns;
-doc command (zero cases), two references, three synthetic demos and audit PASS.
-Published tree matches the locally tested source. Exact-head push CI 44317174000
-passed with job 134846238261 full logs inspected; PR CI 44317184524 passed too.
-See section 13 for scoped evidence. B3 does not complete MB-01B or either Gate A/B.
+B4 published source: `21e2272b5ac92c00e840d7aaa26a99570a5ec24f`.
+Source tree: `31dfafa463935c640cd5cb31b88588575fc06d4b`.
+Local Rust 1.98.0 validation: 323 workspace tests; 216 personhood release reruns;
+one compile-fail doctest; three references, three synthetic demos and audit PASS.
+Published tree matches the locally tested source. Exact-source push CI 44404337870
+passed with job 135155424668 full logs inspected; PR CI 44404351436 passed too.
+See section 14 for scoped evidence. Neither Gate A/B nor MB-02 is complete.
+Checkpoint documentation follows that source; check its later exact-head CI separately.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -28,8 +30,9 @@ from an older copied prompt.
 Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
 [source threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
 [configuration encoding](docs/CONFIG_V2_ENCODING.md),
-[signed operations](docs/OPERATIONS_V2_ENCODING.md), and
-[state/execution layout](docs/MEMBERSHIP_STATE_V2.md).
+[signed operations](docs/OPERATIONS_V2_ENCODING.md),
+[state/execution layout](docs/MEMBERSHIP_STATE_V2.md), and
+[grouped replay](docs/REPLAY_V2.md).
 
 The original request established this plan and a maintained continuation pointer,
 not a mainnet launch, hardware purchase, real biometric collection, or a change to
@@ -91,12 +94,11 @@ PR: https://github.com/Ahmed-Sobeih/mirror/pull/1
 Pre-plan baseline CI: run 44186275709 — SUCCESS.
 Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
 that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
-passed run 44194994506. B1/B2/B3 evidence is in sections 11/12/13.
+passed run 44194994506. B1/B2/B3/B4 evidence is in sections 11/12/13/14.
 
 Historical suite: 133 workspace tests. B1 added 31 (164 total), B2 added 39 (203),
-and B3 added 51 (254).
-Release reruns are NOT additional unique tests. The documentation-test command
-passes with zero doctest cases. Both device-readiness gates remain UNMET.
+B3 added 51 (254), and B4 added 69 (323). B4 also adds one compile-fail doctest.
+Release reruns are NOT additional unique tests. Both device-readiness gates remain UNMET.
 
 Already demonstrated: development signed transfers, account state, fixed easy
 PoW, persisted blocks, restart, TCP synchronization and competing-branch reorg.
@@ -107,8 +109,9 @@ bounded event-log replay. See [library scope](docs/PERSONHOOD_V0_1.md).
 B1 adds validated configuration/proof-checked bootstrap. B2 adds signed fixed-size
 membership messages and contextual authorization checks against a trusted view.
 B3 adds bounded immutable V2 execution, private indexes/tombstones, exact sequences,
-expiry, parent-eligible approvals, end-of-block activation and counters. V2 roots/
-replay remain B4; these components are not yet live blockchain membership.
+expiry, parent-eligible approvals, end-of-block activation and counters. B4 adds
+canonical V2 roots, an untrusted snapshot wrapper and bounded replay against trusted
+per-height/checkpoint expectations. These components are not yet live V2 blockchain membership.
 
 NOT implemented: biological deduplication, live membership-bearing blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -151,12 +154,15 @@ For design-only work this means design acceptance, NOT runtime implementation.
 |---|---|---|---|
 | MB-00 | Existing chain and standalone personhood baseline | VERIFIED_COMPONENT | Integration remains open |
 | MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | Section 10 |
-| MB-01B | Harden registry foundation | IN_PROGRESS — B1/B2/B3 VERIFIED; NEXT B4 | B4 remains |
+| MB-01B | Harden registry foundation | VERIFIED_COMPONENT — B1/B2/B3/B4 | Live ledger integration remains MB-02 |
 | MB-01B/B1 | Canonical config, seed proofs and bounded rules | VERIFIED | 809661b, CI 44201393943, section 11 |
 | MB-01B/B2 | Signed membership messages, codecs, ancestry/windows | VERIFIED — MESSAGE LAYER | af1dd66, CI 44205064789, section 12 |
 | MB-01B/B3 | Bounded staged execution, sequences, expiry, eligibility/activation | VERIFIED — IN MEMORY | b6f1233, local suite and CI 44317174000 PASS, section 13 |
-| MB-01B/B4 | Full registry codec/root/replay and adversarial regression | READY — NEXT | B3; frozen state layout, no V2 codec/root/replay yet |
-| MB-02 | Versioned membership operations in block execution | TODO | MB-01A/B |
+| MB-01B/B4 | Full registry codec/root/replay and adversarial regression | VERIFIED — COMPONENT | 21e2272, CI 44404337870, section 14 |
+| MB-02 | Versioned membership operations in block execution | READY — NEXT MB-02A | MB-01A/B complete; integration not yet implemented |
+| MB-02A | TransferV2, unified envelope, BlockV2 codecs/commitments | READY — NEXT | Independent byte/hash vectors; preserve prior encodings |
+| MB-02B | Atomic accounts + membership with full mixed-operation indices | TODO | MB-02A; no-fee/no-mint development semantics |
+| MB-02C | Pinned V2 genesis, actual block acceptance and replay | TODO | MB-02B; trusted ancestry/root/PoW binding |
 | MB-03 | Durable state, synchronization and membership reorg/replay | TODO | MB-02 |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
 | MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
@@ -194,8 +200,8 @@ claims. Design evidence is in section 10.
 
 **Deliver:** targeted fixes and regression tests in versioned `mirror-personhood`
 modules, with biological deduplication explicitly external. B1 configuration/seed
-binding, B2 signed messages/windows and B3 staged execution are VERIFIED.
-B4 is NEXT: registry commitments, codecs, grouped-block replay and regression evidence.
+binding, B2 signed messages/windows, B3 staged execution and B4 commitments/codecs/
+grouped-block replay are VERIFIED within component scope. See sections 11–14.
 Preserve V1 APIs/vectors and MCF2/B2 signed bytes; any semantic/encoding change
 requires an explicit revision and independently recomputed vectors.
 
@@ -212,19 +218,40 @@ a staged immutable candidate; rejection or success never mutates the parent.
 There is no public unbounded event-application bypass. B2 context-valid unknown
 targets/exhausted sequences are rejected by this stateful boundary.
 
-B4 must preserve the [frozen state layout](docs/MEMBERSHIP_STATE_V2.md), reconstruct
-indexes through verified replay, bound all decoding and encoding before allocation,
-and test independent state-root vectors. MPH2 replay must preserve block boundaries,
-including empty blocks/expiry and original operation indices, with trusted context/
-ancestry. A structural invariant check or a valid set of signatures cannot establish
-a snapshot's canonical history or freshness. Block-hash provenance remains outside
-canonical membership bytes. MB-02 supplies real validated block/root association.
+B4 preserves the [frozen state layout](docs/MEMBERSHIP_STATE_V2.md), bounds snapshot
+encoding/decoding, and reproduces independent state vectors. Its untrusted cache has
+no runtime conversion. MPH2 replay retains membership-only block boundaries/indices,
+including empty blocks, and verifies trusted per-height hashes, exact-operation group
+digests and roots plus an expected final checkpoint. It never infers authority or
+freshness from a self-consistent log/snapshot. Block-hash provenance remains outside
+canonical state. MB-02 supplies actual validated block/root association and full
+mixed-operation positions. The diagnostic digest is not the future MRB2 Merkle root.
 
 ### MB-02 — membership becomes blockchain state
 
 **Deliver:** versioned membership and transfer operations, canonical codecs, atomic
 accounts+membership execution, and one commitment to all consensus state/counters.
 Connect core/state/chain without a second authoritative side membership database.
+
+Implement in three bounded slices:
+
+- **MB-02A (NEXT):** TransferV2 kind 0 (243 signed bytes), unified operation envelope,
+  160-byte header, bounded MRB2 codec (168-byte empty block), domain-separated block
+  hash/count-bound Merkle operation commitment and independent reference vectors.
+  Preserve membership signed bytes; avoid a core/personhood dependency cycle.
+- **MB-02B:** stage accounts and membership together, preserve original full-block
+  operation indices including transfers, checked positive zero-fee/no-mint transfers,
+  separate account/member sequences and canonical combined roots. Test whole-ledger
+  rollback after a late failure and conservation of initial synthetic supply.
+- **MB-02C:** explicit manifest and pinned exact genesis, actual block/header/root/
+  parent/configuration/PoW validation, stable candidate ancestry and accepted-block
+  replay. Only validated blocks may bind staged membership provenance.
+
+B3/MPH2 currently accept membership operations only. Filtering transfers out of
+mixed blocks would change inclusion metadata and potentially activation order.
+Specify indexed/full-block staging and version/extend diagnostic replay explicitly,
+or replay complete validated MRB2 blocks. Do not reinterpret existing MPH2 bytes.
+Structural codecs do not establish ledger validity or canonical-chain authority.
 
 Validation must not rerun floating-point biometrics, query a central matcher, or
 decrypt an archive. Validate authorized versioned evidence with explicit issuer
@@ -426,10 +453,9 @@ Refresh the-prompt for every Mirror response, including discussion-only changes.
 Do not count documentation publication as runtime evidence or chase self-referential
 checkpoint SHAs. No background-work promise; disclose failed publication.
 
-**Immediate next:** B4 canonical state/root and grouped-block replay. Reuse tested
-B1/B2/B3 and the frozen MPS2 layout; add bounded codecs, independent byte/root
-vectors and adversarial replay/snapshot tests. MB-02 then integrates accounts/
-blocks; MB-03 adds durable multi-node state. No minting or hardware work now.
+**Immediate next:** MB-02A TransferV2/unified operations/BlockV2 codecs and commitments
+with independent vectors. Reuse verified B1–B4; MB-02B/C then integrate accounts and
+actual block authority, MB-03 durable multi-node state. No minting or hardware work now.
 
 ## 8. Engineering references, not user policy
 
@@ -510,7 +536,7 @@ is trusted input, not proof of real ancestry. Neither Gate A/B nor MB-01B overal
 is complete. No V1 encoding/config vector, monetary rule, node or local data changed.
 
 
-## 13. B3 acceptance — MIRROR-MB01B-B3-001
+## 13. Historical B3 acceptance — MIRROR-MB01B-B3-001
 
 Published implementation: `b6f1233d038901aa0a13c8ddac9afbc34418e846`.
 Published tree: `e98daf435335e31440e6c0bf14f28f5928f556c7`, matching the locally
@@ -552,9 +578,66 @@ T06/T07/T09 and T11–T20/T22 behavior. Private fault injection covers otherwise
 unreachable sequence/height/ordinal exhaustion and damaged accounting indexes;
 there is no production mutation API for constructing those corrupt states.
 
-B4 codec/root/replay is NOT implemented. State field ordering/tags and capacity
+At the B3 checkpoint, B4 codec/root/replay was NOT implemented. State field ordering/tags and capacity
 arithmetic are frozen in [MEMBERSHIP_STATE_V2.md](docs/MEMBERSHIP_STATE_V2.md),
 without claiming independent root vectors or snapshot trust yet. Live ledger
 blocks, mixed money/membership atomicity, durable branch recovery, private matching,
 human-round consensus, fee/grant policy and device readiness remain later tasks.
 Legacy bytes/data, founder policy and all unresolved economic choices are preserved.
+
+
+## 14. B4 acceptance — MIRROR-MB01B-B4-001
+
+Published implementation: `21e2272b5ac92c00e840d7aaa26a99570a5ec24f`.
+Published tree: `31dfafa463935c640cd5cb31b88588575fc06d4b`, matching the locally
+tested source. Exact-source push CI:
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870 — **SUCCESS**.
+Job 135155424668 full logs and exact checkout inspected. PR CI
+https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404351436 also passed.
+
+Implemented `v2/state_codec.rs` canonical MPS2 bytes/root and bounded untrusted
+snapshot decoding, plus `v2/replay.rs` MPH2 grouped replay through the B3 executor.
+The snapshot wrapper exposes no runtime-state conversion. Structural invariants
+and retained signatures cannot prove historical withdrawals or canonical authority;
+`verify_against` compares the entire cache with independently trusted executed state.
+
+Replay binds verified bootstrap, every group's height/hash/exact signed-operation
+commitment/intermediate membership root and a trusted expected C/height/tip/root.
+Empty blocks retain expiry semantics. Stable metadata is fetched once per height.
+Different histories that yield the same state are still rejected by the group digest.
+Incorrect final executed state returns no partial registry. No disk writes occur.
+Actual validated blocks and canonical-tip authority remain MB-02/03.
+
+MPH2 enforces configured log/operation/block limits, plus 4,096 block groups and
+1,048,576 state items charged before initialization/staging. Accounting includes
+copied seed descriptors and synthetic allocations as well as records/approvals/new
+record work. Checked arithmetic rejects overflow. The default 41,484,378-byte MPS2
+snapshot bound is separate from the 4-MiB diagnostic log limit. Capacity rejection
+never evicts history or weakens eligibility; these are finite development budgets.
+
+`tools/reference_state_v2.py` independently computes five canonical snapshots/roots,
+a four-group log and five group digests including genesis. Nine fixed signatures
+were separately generated and verified with Python cryptography; the committed
+checker requires only the standard library. Rust independently signs and executes.
+All expected bytes/roots matched on first run. No failed Rust output became a vector.
+
+**69 new B4 tests:** 26 snapshot, 10 independent-vector, 31 replay and 2 private
+work-arithmetic cases. Actual local and exact-source CI results:
+
+- **323 workspace/all-target tests = 254 retained + 69 B4, all passed.**
+- **216 personhood release unit/integration reruns**, all passed.
+- **1 compile-fail doctest** passed in the workspace doc command and again in release.
+- All **3 independent references**, all **3 synthetic examples**, allocation/runtime
+  audit and locked dependency checks passed. Changed Rust formatting and preservation
+  audit passed locally; no legacy/dependency/MCF2/B2 byte or vector changes.
+
+The state demo now verifies complete replay/cache agreement and rejects an old
+prefix and altered history against trusted expectations. Review corrected omitted
+configuration-copy work charges and strengthened the late-failure regression to
+reach height 4 execution. This review is not an external security audit.
+
+MB-01B is complete as a verified component foundation. No actual MRB2 ledger,
+private deduplication, human-round consensus, anonymity, monetary grants/fees or
+hardware support was enabled. Policy and Alice's historical fixture are preserved.
+**Next: MB-02A**, followed by atomic mixed-state execution and actual block authority.
+Gate A/B remain UNMET. [NEXT_SESSION.md](NEXT_SESSION.md) contains the exact next slice.

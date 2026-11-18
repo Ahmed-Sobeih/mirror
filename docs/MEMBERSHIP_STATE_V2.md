@@ -11,7 +11,8 @@ and [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md).
 No runtime membership transition proves biological uniqueness. Fingerprint/ECG
 capture and private duplicate matching remain external, later work. Only synthetic
 commitments/public development keys belong in examples. There is no monetary API,
-grant, founder privilege, anonymous credential or live V2 block network in B3.
+grant, founder privilege, anonymous credential or live V2 block network in this
+component. B4 completes MB-01B; actual ledger/block integration is still ahead.
 
 ## 1. State and trusted chain association
 
@@ -219,12 +220,13 @@ job 134846238261; full logs and checkout inspected. The same source tree also pa
 locally. There are 51 new B3 tests (45 integration + 6 internal arithmetic/invariant),
 254 workspace tests total, and 147 personhood release reruns. Both existing independent
 references, all three demos, documentation command (zero cases), and preservation
-audits pass. This document's MPS2 layout remains a B4 byte contract, not a tested
-state codec/root. See CURRENT_STATUS.md and the test matrix for scoped evidence.
+audits passed. At that checkpoint this document's MPS2 layout was a B4 byte contract,
+not a tested state codec/root. B4 acceptance is recorded in section 8 below.
 
 Relevant verified B3 cases are the runtime portions of T03/T06/T07/T11–T20/T22.
-B4 root/codec/replay evidence, mixed-ledger execution, actual network reorgs, device
-readiness and Gate A/B remain pending. Tests/review are not a security certification.
+B4 root/codec/replay evidence was still pending then. Mixed-ledger execution,
+actual network reorgs, device readiness and Gate A/B remain pending today.
+Tests/review are not a security certification.
 
 The preceding evidence describes the B3 checkpoint. B4 adds the implementation
 below; historical B3 counts are not current totals.
@@ -275,3 +277,35 @@ Acceptance tests are in `tests/state_codec_v2.rs`, `tests/state_vectors_v2.rs` a
 All data are synthetic; no device capture, uniqueness decision, money, new consensus
 or real chain genesis is produced. Inclusion indices here are membership-only;
 MB-02 must preserve full mixed-block positions when adding transfers.
+
+## 8. B4 acceptance and next integration
+
+Published implementation: `21e2272b5ac92c00e840d7aaa26a99570a5ec24f`.
+Source tree: `31dfafa463935c640cd5cb31b88588575fc06d4b`.
+Exact-source [push CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
+passed; job 135155424668 full logs and exact checkout were inspected.
+[PR CI 44404351436](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404351436)
+also passed. The same source tree passed locally with Rust 1.98.0 and locked
+dependencies before publication.
+
+- **69 new B4 tests:** 26 codec, 10 independent-vector, 31 replay and two private
+  work-budget arithmetic cases.
+- **323 workspace tests passed:** 254 retained + 69 B4.
+- **216 personhood release tests passed again.** These are reruns, not new tests.
+- **One compile-fail documentation test passed**, protecting the cache's private
+  runtime state boundary.
+- All three independent references, all three synthetic examples, changed-file
+  formatting and allocation/runtime-data/preservation checks passed.
+
+MPH2 replay also enforces 4,096 groups and 1,048,576 cumulative state items, including
+configuration clone entries, under its separate default 4-MiB log limit. The default
+MPS2 maximum remains 41,484,378 bytes. Full details and trust assumptions are in
+[REPLAY_V2.md](REPLAY_V2.md); reaching a limit rejects without erasing retained history.
+
+This completes the **MB-01B membership component**. Next **MB-02A** implements
+TransferV2, a unified operation envelope and BlockV2 codecs/commitments with independent
+vectors. Full accounts-plus-membership execution and actual validated block/root
+association remain MB-02B/C; durable canonical recovery and reorg integration remain
+MB-03. Diagnostic group commitments are not MRB2 operation roots, and membership-only
+indices must never be substituted for original positions in future mixed blocks.
+No currency, biological uniqueness, privacy or final human consensus is enabled here.

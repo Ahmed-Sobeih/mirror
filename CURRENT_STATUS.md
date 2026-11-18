@@ -1,93 +1,115 @@
 # Current status
 
 Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md), MIRROR-PLAN-001.
-Latest implementation: **MIRROR-MB01B-B3-001 — staged membership execution VERIFIED**.
-MB-01A design complete; MB-01B **IN_PROGRESS**, B1/B2/B3 verified, B4 pending.
-**Next: MB-01B/B4 — canonical V2 registry commitment, bounded codecs and replay. READY.**
+Checkpoint: **MIRROR-MB01B-B4-001 — V2 membership codec, commitment and replay VERIFIED**.
+Updated: **2026-11-19**. MB-01A design and MB-01B/B1–B4 components are complete.
+MB-01B is **VERIFIED_COMPONENT**; live V2 ledger integration remains unfinished.
+**Next: MB-02A — TransferV2, unified operation envelope and BlockV2 codecs/commitments. READY.**
 
 ## Exact source, publication and verification
 
-Active branch `work/personhood-register-v0.1`; PR #1 open/unmerged:
-https://github.com/Ahmed-Sobeih/mirror/pull/1
-Main preserved at ad7ffd120fb451fe44cf59cb909176785b33bf8f.
-B3 implementation: `b6f1233d038901aa0a13c8ddac9afbc34418e846`.
-Source tree: `e98daf435335e31440e6c0bf14f28f5928f556c7`.
-Exact-source push CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44317174000 — SUCCESS.
-Job 134846238261 full logs inspected, including checkout of the exact implementation
-SHA, all test results, reference checks, three demos and allocation/runtime audit.
-PR CI 44317184524 also passed. Rust 1.98.0, committed locked dependencies.
+Active branch: `work/personhood-register-v0.1`; [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1)
+remains open and unmerged. Main preserved at `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+B4 implementation: `21e2272b5ac92c00e840d7aaa26a99570a5ec24f`.
+Source tree: `31dfafa463935c640cd5cb31b88588575fc06d4b`.
+[Exact-source push CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870): **SUCCESS**.
+Job `135155424668` full logs inspected: exact checkout, tests, references, examples
+and allocation/runtime-data audit. [PR CI 44404351436](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404351436)
+also passed. Rust 1.98.0 with committed locked dependencies.
 
-The same complete source tree passed local checks before publication. No local Rust
-limitations remain for this turn. These checkpoint documents follow the tested
-implementation; inspect their later exact-head CI separately. Never reset newer work.
+The identical complete source tree passed local validation before publication.
+These checkpoint documents follow that implementation; inspect their later exact-head
+CI separately. Do not reset newer work or confuse a documentation commit with the
+implementation commit whose evidence is recorded here.
 
-## Completed B3
+## What B4 completes
 
-`v2/state.rs` adds immutable MembershipStateV2, bounded staged block execution,
-Pending/Active/Revoked/Expired records, exact current sequences, permanent used-key/
-evidence/ID reservations, approvals, original inclusion positions and activation
-height/ordinals. Bootstrap requires VerifiedBootstrap and gives seeds ordinary
-runtime rights. There is no forced withdrawal, founder override or monetary API.
+**Canonical membership state:** `v2/state_codec.rs` implements the frozen MPS2 bytes
+and `MIRROR_MEMBERSHIP_STATE_V2` commitment. It includes configuration, height,
+records, sequences, inclusion positions, activation metadata, retained signed
+approvals and counters. Records/reviewers have canonical ordering. Derived indexes
+and external block-hash provenance are excluded, avoiding a block/root hash cycle.
 
-Every candidate checks direct-input operation/count/byte budgets and parent context,
-height and exact tip association, then rechecks B2 signatures/ancestry/windows.
-Expiry runs on empty blocks too. Approvals need an existing Pending target, exact
-request expiry, correct current sequence and an eligible distinct reviewer.
-Withdrawal affects only the signer's own Pending/Active membership.
+**Untrusted snapshots:** decoding checks bounded lengths/counts, tags, ordering,
+indexes, accounting, sequences and retained signatures. It returns only
+`UntrustedMembershipSnapshotV2`, with no conversion to runtime membership state.
+`verify_against` compares it against an independently trusted executed state.
+A coherent cache cannot prove historical withdrawals, ancestry or freshness.
+A compile-fail doctest enforces the wrapper's private state boundary.
 
-All activation waits until block end. Reviewers must be Active in the parent and
-survive all operations. A newly activated member cannot approve within that block;
-a withdrawn reviewer's earlier approval cannot cause a new activation. Previously
-Active targets are not cascade-revoked. Activation order follows original canonical
-inclusion position, and high-water uses final Active count only. Failed candidates
-leave the ENTIRE original registry unchanged, including expiry and sequences.
+**Grouped replay:** `v2/replay.rs` implements bounded MPH2 logs retaining every block,
+including empty blocks. Replay uses verified bootstrap and the B3 executor. A trusted,
+stable chain view supplies configuration, block hashes, exact-operation group
+commitments and intermediate membership roots. The caller also supplies the expected
+configuration/height/tip/root checkpoint. All must match before a registry is returned.
+A failure at the final executed block publishes no partial registry.
 
-New explicit synthetic-profile budgets: at most 64 retained approvals per record,
-and at most configured max_records retained approvals across the whole registry.
-These are separate capacities, not deducted from record count. No history eviction
-or relaxed quorum at capacity. Exhaustion can stop admissions; withdrawal/expiry
-remain available. This bounds development storage, not global scalability or DoS.
+Exact group commitments detect different signed histories that can produce the same
+membership state, including reordered independent approvals and alternate valid
+withdrawal windows. They are diagnostic commitments, **not MRB2 operation roots**.
+Trusted chain metadata must come from independently validated history, never from
+the replay log or a peer's advertised values. B4 tests use synthetic trusted views;
+MB-02/03 must supply actual block authority and durable canonical-tip recovery.
 
-`docs/MEMBERSHIP_STATE_V2.md` freezes the state/optional-tag ordering for B4.
-No V2 state root or replay codec is implemented yet. Stored tip hash is external
-provenance, excluded from future canonical state bytes to prevent a hash cycle.
-`bind_to_validated_block` is an explicit TRUSTED caller boundary: it does not
-validate a real block, PoW, root, genesis manifest or finality. MB-02 must do that.
+**Bounded work:** the default MPS2 snapshot bound is 41,484,378 bytes. The configured
+diagnostic log limit is separately 4 MiB. MPH2 additionally permits at most 4,096
+block groups and 1,048,576 accounted state items across initialization/staging,
+including copied configuration descriptors and allocations. Checked charging occurs
+before state cloning. These diagnostic limits do not promise global scalability.
 
-## Actual tests
+**Independent fixtures:** a Python standard-library reference computes five full
+snapshots/roots, four replay groups and all five group commitments including genesis.
+Nine signatures were separately generated/verified with Python cryptography using
+public test keys; the committed checker needs only the standard library. Rust
+independently signs, executes and reproduces all expectations. No Rust failure was
+copied into an expected vector. The existing state demo now verifies full replay,
+cache agreement and rejection of an old prefix and altered history.
 
-- **254 workspace tests passed = 203 retained + 51 new B3 tests.**
-- New B3 tests: **45 public integration tests + 6 private arithmetic/invariant tests**.
-- **147 personhood tests passed again in release = 26 V1 + 31 B1 + 39 B2 + 51 B3**.
-  Release reruns are not additional unique tests.
-- Both independent configuration/operation Python references pass. Frozen B1/B2
-  bytes and vectors are unchanged; B3 claims no new state-hash vector yet.
-- All three demos pass: registry_demo, operation_v2_demo and new state_v2_demo.
-  B3 demo shows activation, withdrawal removing approval weight, whole-candidate
-  rejection and successful retry. It issues no currency or accepted network block.
-- Documentation-test command passes with zero doctest cases. New source/test/demo
-  formatting passed locally. Allocation/runtime-data audit passes; Cargo.lock unchanged.
-- Independent implementation/test review found no blocking defect; an existing
-  stale-sequence test was strengthened to avoid a duplicate-approval false positive.
-  This review and these tests are not an external security audit.
+## Actual acceptance evidence
 
-Matrix rows are scoped: B3 covers runtime portions of T03/T06/T07/T11–T20/T22.
-Root/codec/replay, mixed balances, actual canonical reorg and monetary qualification
-portions remain B4/MB-02/03 or later. Do not count all 35 rows as complete.
+| Check | Observed result |
+|---|---|
+| Workspace/all-target tests | **323 passed = 254 retained + 69 B4** |
+| B4 tests | **26 snapshot + 10 independent-vector + 31 replay + 2 private arithmetic** |
+| Workspace documentation tests | **1 compile-fail case passed** |
+| Personhood release reruns | **216 unit/integration tests + the same 1 doctest passed** |
+| Independent Python references | **All 3 passed**: config, operations, state/replay |
+| Synthetic examples | **All 3 passed**: registry, operation_v2, state_v2 |
+| Changed Rust formatting and diff checks | **Passed locally** |
+| Preservation/allocation/runtime audit | **Passed**; no dependency or Cargo.lock changes |
 
-## Preserved policy and remaining boundaries
+Release reruns are not additional unique tests. Personhood total 216 consists of
+26 V1 + 31 B1 + 39 B2 + 51 B3 + 69 B4 cases. Review caught and fixed configuration-copy
+work accounting and strengthened a late-failure test to reach execution at height 4.
+This implementation review is not an external security audit.
 
-Legacy V1, B1/B2 source/encodings/vectors, existing node/genesis, monetary helpers,
-dependencies and local runtime data remain unchanged. Alice's public 100-MRY fixture
-is development-only, not founder funds. No extra founder/marketing allocation.
-First 1,000 qualifying humans, including founder, have identical 10-MRY bootstrap
-allocations; ordinary allowance is 0.2 MRY per qualifying historical maximum.
-1 MRY = 10,000,000 Nusa. D-01 bootstrap floor/additive and D-04 fees/rewards remain
-undecided; B3 activates synthetic membership only and pays nothing.
+[The test matrix](docs/MEMBERSHIP_TEST_MATRIX.md) records scoped membership
+commitment, cache and replay coverage; block/network integration rows remain open.
+Mixed balances/membership, actual block validation, durable replacement and monetary
+qualification portions remain MB-02/03 or later; all 35 rows are not complete.
 
-No live V2 membership-bearing blocks/P2P, final human-round consensus, real
-biometric capture/matching, anonymous credentials, grants/fees or device adapters
-are enabled. Fresh keys and fresh evidence from one person still require private
-external deduplication. Public keys/review links remain linkable. Gate A/B UNMET.
+## Preserved execution, policy and remaining boundaries
 
-Continue NEXT_SESSION.md: B4 commitments/codecs/replay, then MB-02 unified ledger.
+B3 transition rules remain unchanged: exact actor sequences, permanent key/evidence/
+ID reservations, expiry on empty blocks, self-only withdrawal, parent eligibility,
+end-of-block activation in original inclusion order and final-count high-water.
+Retained approval budgets remain 64 per record and configured max_records in total.
+No history eviction, forced withdrawal or founder override was introduced.
+
+Legacy V1, MCF2/B2 bytes and vectors, node/genesis, monetary helpers, dependencies and
+runtime data are preserved. Alice's public 100-MRY fixture is development data.
+No extra founder allocation or privileged marketing reserve. First 1,000 qualifying
+humans, including founder, have the same agreed 10-MRY bootstrap grant (not yet issued);
+ordinary allowance is 0.2 MRY per qualifying historical population maximum.
+1 MRY = 10,000,000 Nusa. D-01 combined bootstrap treatment and D-04 fees/rewards
+remain unresolved. These components activate synthetic membership and pay nothing.
+
+No live V2 membership blocks/P2P, human-round consensus, real biometric capture/
+matching, anonymous credentials, grants/fees or device adapters are enabled.
+Fresh keys and fresh evidence from one person require future private deduplication;
+public member/review links remain linkable. Gate A and Gate B remain **UNMET**.
+
+Follow [NEXT_SESSION.md](NEXT_SESSION.md): MB-02A types/codecs first, then MB-02B
+atomic accounts + membership and MB-02C pinned genesis/chain validation. Preserve
+original full-block operation indices when adding transfers; do not filter mixed
+blocks into the membership-only MPH2 format and silently change their meaning.

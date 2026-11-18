@@ -4,11 +4,17 @@ Checkpoint: **MIRROR-MB01A-001**. Task: MB-01A.
 Status: **DESIGN DELIVERABLE, not implemented consensus**.
 Audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
 
-Current implementation update: B1/B2/B3 are verified standalone components; B4 is
-next. [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution details,
-explicit retained-approval budgets and the frozen MPS2 field layout for B4. The
-historical design-status statements below describe the original MB-01A checkpoint.
-Actual source/test evidence is in CURRENT_STATUS.md and the acceptance matrix.
+Current implementation update: **MB-01B/B1–B4 are verified standalone components**.
+[MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
+retained-approval budgets and the implemented MPS2 commitment/cache boundary.
+[REPLAY_V2.md](REPLAY_V2.md) specifies bounded MPH2 grouped replay. Source
+`21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
+[CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870).
+**Next is MB-02A: TransferV2, the unified operation envelope and BlockV2
+encoding/commitments with independent vectors.** MB-02B/C then implement mixed
+ledger execution and actual block authority. The historical design-status
+statements below describe the original MB-01A checkpoint; source/test evidence is
+in CURRENT_STATUS.md and the acceptance matrix.
 
 This specifies the next development implementation, not mainnet rules. `V1` in
 this document's filename means design revision 1. The proposed wire formats are
@@ -231,6 +237,15 @@ growth without changing MCF2 fields. Expired/revoked/active records retain their
 approvals, and full capacity still permits withdrawal/expiry. These explicit
 synthetic-profile budgets can halt new admissions; they do not guarantee progress.
 
+B4 refinement: MPS2 snapshot bytes have a separate checked cap of
+`90 + max_records * (366 + 267)`, default 41,484,378 bytes. MPH2 keeps the configured
+4-MiB default log limit and adds diagnostic limits of 4,096 groups and 1,048,576
+cumulative state items. The latter includes configuration descriptors/allocations
+cloned at bootstrap and each staged block, retained records/approvals and prospective
+record/approval additions. Exceeding a budget rejects; it does not evict history,
+truncate a replay or lower an admission threshold. These are diagnostic work
+limits, not final network size, throughput or monetary decisions.
+
 Enforce limits on decoding, encoding, direct executor input, disk reads and peer
 messages, before reservations/clones or expensive signature batches. An error
 leaves accounts, membership, roots, counters and sequences unchanged.
@@ -264,14 +279,21 @@ check sum(account balances)==initial_test_supply under the zero-fee/no-mint prof
 `ledger_root = H("MIRROR_LEDGER_STATE_V2" || C || height:u64 || accounts_root ||
                  membership_root || economics_root)`.
 
-MB-01B must freeze full field ordering/optional encodings for its V2 module and
-publish independent fixed vectors before changing signed/root bytes. MB-02 must
-do the same for full block/ledger bytes. Domains listed here are exact ASCII, no
+MB-01B has frozen and independently verified full field ordering/optional encodings
+for its V2 membership module. MB-02 must do the same for full block/ledger bytes.
+Domains listed here are exact ASCII, no
 terminating NUL. Any revision is explicit and updates the design and vectors.
 
 Block creation, reception, replay, and competing-chain validation use the SAME
 executor. Never update a side membership database independently of block acceptance.
 Invalid late membership operations must roll back earlier transfers, and vice versa.
+
+B4 MPH2 has a separate exact group digest because state roots alone do not commit
+to every operation history. It is **not** the MRB2 Merkle operation root specified
+above. Do not filter transfers out of a mixed block to feed B3/MPH2: membership
+inclusion indices must remain positions in the original complete block. MB-02
+must explicitly integrate or version the executor/replay interface for mixed input
+while preserving all existing membership-only bytes and transition tests.
 
 ## 8. Persistence, transport and dependency boundaries (R28–R32)
 
@@ -318,13 +340,16 @@ No founder premine, marketing reserve, bootstrap payout, population mint, fee
 redistribution or reward is enabled by V2 integration. Keep the separate agreed
 monetary components; D-01/D-04 still block a combined executable monetary policy.
 
-## 10. Implementation handoff and acceptance
+## 10. Historical implementation handoff and current acceptance
 
 [Test matrix](MEMBERSHIP_TEST_MATRIX.md) maps R01–R35 to named planned assertions.
-All V2 runtime cases are NOT_IMPLEMENTED at this checkpoint. Static design review
-is not a security audit or evidence that these behaviors already exist.
+At the original MB-01A checkpoint, all V2 runtime cases were NOT_IMPLEMENTED.
+Static design review was not evidence that those behaviors existed. The historical
+slice plan below has now been completed for the standalone membership component;
+actual MB-02 ledger/block integration is still pending.
 
-Next MB-01B slices:
+Original MB-01B slices:
+
 - B1: new versioned module, canonical configuration/seed context and bounded rules;
   preserve V1 vectors. Reject different seed lists/order/config with the same signatures.
 - B2: signed typed membership operations, sequences, anchors and height windows.
@@ -336,3 +361,9 @@ Then MB-02 adds TransferV2, BlockV2 and the unified ledger executor with mixed-b
 atomicity and exact genesis validation. MB-03 adds durable multi-node integration.
 Do not combine these milestones into an unreviewed rewrite or alter real policy
 merely to make a test pass.
+
+Current B4 acceptance: 323 workspace tests (254 retained + 69 B4), 216 personhood
+release reruns, one compile-fail documentation test, three independent references
+and three synthetic examples pass. These scoped results complete MB-01B, not this
+entire 35-rule integration design. The precise next slice is MB-02A as stated above;
+full combined state/blocks and durable authority remain MB-02B/C and MB-03.

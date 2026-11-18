@@ -102,6 +102,42 @@ block validation. MB-02 must validate actual blocks/roots/genesis before that bi
 The runtime nonce is a signed request salt, not a global biometric identity; exact
 ID/key/evidence checks remain the defined synthetic duplicate boundary.
 
-MPS2 state bytes are specified in MEMBERSHIP_STATE_V2.md for B4; the codec/root/replay
-still require implementation and independent vectors. No unresolved user economic,
-real-admission, privacy, recovery or human-consensus decision was selected by B3.
+At the B3 checkpoint, MPS2 state bytes were specified in MEMBERSHIP_STATE_V2.md;
+the codec/root/replay and independent vectors remained B4 work. No unresolved user
+economic, real-admission, privacy, recovery or human-consensus decision was selected
+by B3.
+
+## B4 engineering choices — MIRROR-MB01B-B4-001
+
+B4 implements the frozen MPS2 encoding and commitment, a bounded untrusted cache,
+and block-grouped MPH2 diagnostic replay. Source
+`21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
+[exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870).
+The MB-01B component is complete; it does not establish live V2 ledger authority.
+
+MPH2 has an explicit diagnostic cap of 4,096 groups, including empty blocks, and
+1,048,576 cumulative state items during replay. The work charge includes retained
+records/approvals, prospective additions, and configuration descriptors/allocations
+copied by immutable staging. These are bounded engineering work limits, not new
+economic rules or production population limits. Exhaustion rejects the transcript;
+it never deletes history, weakens quorum, or publishes a partial result.
+
+The configured log limit remains 4,194,304 bytes by default. MPS2 has its separate
+checked state bound, `90 + max_records * (366 + 267)`, or 41,484,378 bytes with
+default limits. MCF2/B2 and legacy encodings remain unchanged.
+
+A state root alone does not identify every operation history. Replay therefore
+requires an independently trusted digest of each exact ordered operation group,
+its block hash and its resulting membership root, plus an external final
+configuration/height/tip/root expectation. The group digest is a diagnostic
+membership-only commitment, not the future MRB2 operation Merkle root. Future
+mixed blocks must preserve original operation positions; dropping transfers to
+reuse a membership-only transcript would change semantics.
+
+Decoded snapshots have no conversion into runtime membership state or a registry.
+Verified replay still depends on a trusted caller supplying actual history; B4
+does not implement the chain, durable tip or consensus that establishes that trust.
+Next MB-02A adds typed transfers/unified operation and block encodings; MB-02B/C
+then integrate the ledger and real block validation, followed by MB-03 persistence.
+No grant, fee, monetary exception formula, private matching, anonymity, real
+admission policy or final human-consensus decision was selected by B4.

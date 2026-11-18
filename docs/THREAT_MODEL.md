@@ -10,11 +10,12 @@ Read with [the proposed integration specification](LEDGER_MEMBERSHIP_V1.md) and
 merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
-The preceding sentence describes the original design checkpoint. Current B1/B2/B3
-evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md; the section below
-records the scoped B3 update without rewriting historical findings.
+The preceding sentence describes the original design checkpoint. Current B1–B4
+evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md. The updates below
+record component-level mitigations without rewriting historical findings or
+claiming that live ledger, consensus or storage integration already exists.
 
-## B3 implementation update
+## Historical B3 implementation update
 
 Source `b6f1233d038901aa0a13c8ddac9afbc34418e846`, exact-source push CI44317174000
 and PR CI44317184524 passed. B3 addresses F02/F04/F05 for the separate V2 in-memory
@@ -27,9 +28,50 @@ Legacy V1 is preserved, not retrospectively relabeled hardened.
 The supplied parent view and bind_to_validated_block remain trusted integration
 boundaries, not proofs of actual chain validity. Finite approval/history budgets
 can halt admissions and do not solve availability. A valid old log/snapshot is not
-authoritative latest state. B4 roots/replay, MB-02 ledger authority, MB-03 durable
-reorgs, human consensus and real private biological matching remain unfinished.
+authoritative latest state. At that checkpoint, B4 roots/replay, MB-02 ledger
+authority, MB-03 durable reorgs, human consensus and real private biological
+matching remained unfinished. B4 component progress is recorded next.
 No finding is declared globally closed or externally audited from these tests.
+
+## B4 implementation update
+
+Source `21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
+[push CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
+and [PR CI 44404351436](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404351436).
+The exact push checkout and full logs were inspected. There are 69 new B4 tests
+(26 codec, 10 independent vector, 31 replay and two private arithmetic cases),
+323 workspace tests total, 216 personhood release reruns and one compile-fail
+documentation test. Three references, three examples and preservation checks pass.
+
+Canonical MPS2 commits the complete membership records and counters while excluding
+external tip-hash provenance. The decoder bounds input, reconstructs indexes,
+checks metadata/accounting and verifies retained signatures. Its untrusted wrapper
+cannot expose a runtime state or registry. Internally coherent tampered withdrawal
+status can still pass structural decoding; only comparison against independently
+trusted state or full verified replay establishes the intended history.
+
+MPH2 retains empty blocks and exact group boundaries. Replay re-executes B3 and
+requires independently trusted block hashes, exact ordered-group digests and every
+intermediate membership root, plus an external final C/height/tip/root expectation.
+Tests include commuting approvals and alternate valid withdrawal bytes that yield
+the same state root: they still reject against the trusted group digest. A valid
+old prefix does not satisfy a newer expected checkpoint. The provider of these
+trusted values remains an explicit caller boundary, not a deployed chain validator.
+
+The default log cap is 4 MiB, distinct from the default 41,484,378-byte snapshot
+bound. Diagnostic replay additionally caps groups at 4,096 and cumulative state
+items at 1,048,576, including configuration clones and empty-block scans. Bounds
+are checked before input-sized copies or repeated state execution; failures return
+no final registry. This constrains work but does not guarantee honest admission,
+continued availability, fixed execution time or unbounded whole-chain replay.
+
+F06/F07 actual block/ledger authority, F08 durable publication, F09 network session
+limits and F10 private biological matching remain unresolved in their stated
+scope. The exact diagnostic group digest is not the future MRB2 operation root.
+Future mixed blocks must retain transfers and original inclusion positions; they
+cannot be replayed by filtering operations into the current membership-only log.
+No biometric uniqueness, anonymity, currency issuance or human consensus follows
+from these passing component tests. MB-01B is complete only in that bounded scope.
 
 ## 1. Assets and trust boundaries
 
@@ -162,7 +204,9 @@ permissionless security until the specified handoff and fault model are tested.
 
 MB-01A design deliverables identify integration blockers, choose a compatibility
 path, and map defenses to tests. They did not close F01–F11. The original next task
-was MB-01B/B1. B1/B2/B3 are now verified standalone components; **current next:
-MB-01B/B4**, canonical state commitments/codecs and grouped-block replay.
+was MB-01B/B1. B1–B4 are now verified standalone components; **current next:
+MB-02A**, TransferV2/unified operation and BlockV2 codecs, commitments and independent
+vectors. Combined-ledger execution and actual chain authority remain MB-02B/C;
+durable recovery and multi-node membership reorgs remain MB-03.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.

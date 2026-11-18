@@ -11,6 +11,11 @@ documentation test separately protects the snapshot-to-authority boundary. Count
 represent completed roadmap rows. Exact source/test/CI acceptance is recorded in
 CURRENT_STATUS.md. Release executions are reruns, not new unique tests.
 
+**B4 and the MB-01B standalone component are VERIFIED.** Next is MB-02A:
+TransferV2/unified operations and BlockV2 encoding, commitments and independent
+vectors. Combined-ledger execution, actual block authority and durable integration
+remain MB-02B/C and MB-03. Section 6 records exact B4 source and acceptance evidence.
+
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
 Exact byte contracts: [CONFIG_V2_ENCODING.md](CONFIG_V2_ENCODING.md) and
@@ -124,9 +129,10 @@ locally independently of Rust and checked against Rust in GitHub Actions.
 At the B2 checkpoint, B3 still needed to reject wrong/exhausted sequences, unknown/
 nonpending targets, unauthorized withdrawals, duplicate approvals and same-block new
 reviewers. B2 success alone remains insufficient transition authorization. Section 5
-records the later B3 stateful evidence; B4, MB-02/03 and Gate A/B remain open.
+records the later B3 stateful evidence and section 6 records B4. At that historical
+B2 checkpoint these tasks remained open; MB-02/03 and Gate A/B are still unfinished.
 
-## 5. B3 exact implementation evidence and remaining coverage
+## 5. Historical B3 exact implementation evidence and coverage
 
 Published source: `b6f1233d038901aa0a13c8ddac9afbc34418e846`.
 Tree `e98daf435335e31440e6c0bf14f28f5928f556c7` matches the locally tested source.
@@ -178,12 +184,22 @@ acceptance remain unfinished.
 ## 6. B4 commitment, cache and grouped-replay component coverage
 
 The implementation adds `src/v2/state_codec.rs` as a private child of the state
-module and `src/v2/replay.rs`. Actual verification source/CI belongs in
-CURRENT_STATUS.md; this map identifies executable cases and their exact scope.
+module and `src/v2/replay.rs`. Verified published source is
+`21e2272b5ac92c00e840d7aaa26a99570a5ec24f`, tree
+`31dfafa463935c640cd5cb31b88588575fc06d4b`.
+Exact-source [push CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
+passed with job 135155424668 full logs and checkout inspected.
+[PR CI 44404351436](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404351436)
+also passed. The same source tree passed local Rust 1.98.0 checks. This map
+identifies executable cases and their exact component scope.
 The new integration suites contain 26 snapshot + 10 vector + 31 replay cases,
 plus two private replay-work arithmetic cases. The compile-fail documentation
-case verifies that an untrusted decoded snapshot cannot be converted into a
-runtime registry. Release reruns are not additional unique tests.
+case protects private snapshot-state access; the reviewed public API exposes no
+conversion into a runtime registry. **69 new B4 tests bring the workspace total to 323** (254 + 69).
+**216 personhood tests passed again in release**, and the documentation command
+passed its one compile-fail case. All three independent references, all three
+synthetic examples, changed-file formatting and preservation/allocation/runtime-data
+checks passed. Release reruns are not additional unique tests.
 
 | Case/subcase | Actual tests / files | Verified component scope and remainder |
 |---|---|---|
@@ -208,3 +224,8 @@ MB-02 must explicitly integrate/version full blocks and exact operation position
 No B4 test establishes actual MRB2 consensus, canonical fork choice, durable latest
 state, real-human matching, private credentials, grants, fees or device readiness.
 Neither Gate A nor Gate B is completed by this component coverage.
+
+MB-01B is complete in this scope. Next MB-02A covers the unified operation and
+BlockV2 bytes/commitments, with independently calculated vectors. Full T23–T28
+ledger/chain authority and mixed execution remain MB-02B/C or MB-03 as applicable;
+passing the 69 B4 cases does not mark all acceptance rows complete.
