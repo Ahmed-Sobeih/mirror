@@ -2,19 +2,20 @@
 
 Roadmap: **MIRROR-PLAN-001** (2026-11-18).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB01B-B1-001 — V2 configuration/bootstrap verified**.
-The V2 ledger, runtime membership and human consensus are not implemented yet.
+Latest implementation: **MIRROR-MB01B-B2-001 — signed authorizations VERIFIED**.
+B1 configuration and B2 message validation exist; V2 state execution, ledger blocks
+and human consensus remain unimplemented. MB-01B overall is IN_PROGRESS.
 
 ## Start here: current position and next action
 
-**Next task: MB-01B/B2 — signed V2 membership operations, canonical codecs,
-ancestry anchors and authorization windows. Status: READY.**
+**Next task: MB-01B/B3 — bounded staged membership execution, sequence enforcement,
+pending expiry, parent eligibility and block-end activation. Status: READY.**
 
-B1 source: `809661b5e6a9338d65c15c45e540289df24fcc99`.
-CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943 — SUCCESS.
-164 workspace tests; 57 personhood tests rerun in release; independent Python
-configuration vectors, legacy synthetic demo and allocation audit passed.
-See section 11 for exact scope. B1 completion does not complete MB-01B as a whole.
+B2 source: `af1dd66c4fb8811d8eab54a1c88a8bddae2ae80e`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44205064789 — SUCCESS.
+203 workspace tests; 96 personhood tests rerun in release; both independent Python
+references, legacy enrollment/replay demo, new V2 authorization demo and audit pass.
+See section 12 for scoped evidence. B2 completion does not complete MB-01B or Gate A.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -24,13 +25,14 @@ from an older copied prompt.
 
 Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
 [source threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
-and [implemented B1 encoding](docs/CONFIG_V2_ENCODING.md).
+[configuration encoding](docs/CONFIG_V2_ENCODING.md), and
+[signed operations](docs/OPERATIONS_V2_ENCODING.md).
 
 The original request established this plan and a maintained continuation pointer,
 not a mainnet launch, hardware purchase, real biometric collection, or a change to
-unresolved monetary policy. The work packages below are proposed engineering
-steps implementing the accepted direction. Their technical choices still require
-review, tests and, where identified, a user decision.
+unresolved monetary policy. The work packages below are engineering steps toward
+the accepted direction. Technical choices require review/tests and, where marked,
+a user decision. No proposed default silently becomes production policy.
 
 ## 1. What completion means
 
@@ -86,11 +88,11 @@ PR: https://github.com/Ahmed-Sobeih/mirror/pull/1
 Pre-plan baseline CI: run 44186275709 — SUCCESS.
 Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
 that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
-passed run 44194994506. B1's actual new runtime evidence is in section 11.
+passed run 44194994506. B1/B2 runtime evidence is in sections 11/12.
 
-The historical suite had 133 workspace tests (26 personhood and 5 monetary-policy
-included). B1 adds 31 tests, bringing the workspace to 164. Release reruns are NOT
-additional unique tests. Documentation-test command passes with zero doctest cases.
+Historical suite: 133 workspace tests. B1 added 31 (164 total); B2 adds 39 (203).
+Release reruns are NOT additional unique tests. The documentation-test command
+passes with zero doctest cases. Both device-readiness gates remain UNMET.
 
 Already demonstrated: development signed transfers, account state, fixed easy
 PoW, persisted blocks, restart, TCP synchronization and competing-branch reorg.
@@ -98,12 +100,14 @@ Already implemented separately: signed pending/active/voluntarily-revoked
 membership, distinct active approvals, exact request/key/evidence-reuse rejection,
 atomic event batches, population/activation counters, a deterministic root, and
 bounded event-log replay. See [library scope](docs/PERSONHOOD_V0_1.md).
-B1 adds validated configuration and proof-checked bootstrap in separate V2 modules.
+B1 adds validated configuration/proof-checked bootstrap. B2 adds signed fixed-size
+membership messages and contextual authorization checks against a trusted view.
+Those are not yet a V2 registry executor or live blockchain membership.
 
 NOT implemented: biological deduplication, live membership-bearing blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
 anonymous membership proofs, biometric intake, or real-device integration.
-The current prototype's public keys and approval relationships are linkable.
+The prototype's public keys and approval relationships are linkable.
 
 Preserve the historical public-key Alice 100-MRY development fixture and local
 `mirror-data`. It is NOT a founder allocation. New network versions use separate
@@ -111,439 +115,382 @@ explicit configuration and data directories; no silent genesis reset or migratio
 
 ## 3. Fixed direction and decisions still needed
 
-Accepted direction comes from [DECISIONS.md](docs/DECISIONS.md), not from an
-implementation convenience: no extra founder allocation or privileged marketing
-reserve; first 1,000 qualifying humans receive 10 MRY each including the founder;
-0.2 MRY ordinary allowance per qualifying historical population maximum;
-1 MRY = 10,000,000 Nusa; founder-led initial verification with no permanent special
-powers; offline Ant Kiss with fingerprint/ECG inputs; hardware-independent
-interfaces; human-limited participation with easy PoW subordinate to it.
+Accepted direction comes from [DECISIONS.md](docs/DECISIONS.md), not implementation
+convenience: no extra founder allocation or privileged marketing reserve; first
+1,000 qualifying humans receive 10 MRY each including founder; 0.2 MRY ordinary
+allowance per qualifying historical population maximum; 1 MRY = 10,000,000 Nusa;
+founder-led initial verification with no permanent special powers; offline Ant Kiss
+with fingerprint/ECG inputs; interchangeable hardware; human-limited participation
+with easy PoW subordinate to it.
 
 | Gate | Unresolved choice | Blocks which work? |
 |---|---|---|
-| D-01 | Bootstrap exception as additive allowance versus temporary floor; maturation and qualifying population; false-admission correction | Enabling mint/grant accounting in MB-07, not membership integration |
-| D-02 | Approval/review threshold and assignment; founder-led startup transition; appeals, recovery, suspension and revocation authority | Real admission in MB-05/MB-10; synthetic configurations remain explicitly experimental |
-| D-03 | Consensus fault assumptions, participant set/selection, quorum/locking protocol, epoch changes and easy-PoW cost | Claiming human-based finality in MB-06 |
-| D-04 | Reward eligibility/amounts, fees, commission calculation, funding when issuance capacity is exhausted | Paying protocol rewards in MB-07 |
-| D-05 | Evidence custody, authorized search, private matching design, retention, deletion, consent and recovery | Processing real biometrics in MB-09/MB-12 |
-| D-06 | Supported capture profiles, matching algorithms/versions, minimum quality, error thresholds, exceptions | Actual uniqueness acceptance in MB-12 |
+| D-01 | Bootstrap exception additive versus temporary floor; maturation and qualifying population; false-admission correction | Mint/grant accounting in MB-07, not membership integration |
+| D-02 | Approval/review threshold and assignment; founder-led startup transition; appeals, recovery, suspension and revocation authority | Real admission in MB-05/MB-10; synthetic profiles remain experimental |
+| D-03 | Consensus fault assumptions, participant set/selection, quorum/locking, epoch changes and easy-PoW cost | Human-based finality in MB-06 |
+| D-04 | Reward eligibility/amounts, fees, commissions and funding after issuance exhaustion | Protocol rewards in MB-07 |
+| D-05 | Evidence custody, authorized search, private matching, retention/deletion, consent and recovery | Real biometrics in MB-09/MB-12 |
+| D-06 | Capture profiles, matching algorithms/versions, quality/error thresholds, exceptions | Uniqueness acceptance in MB-12 |
 
-Prepare concrete options when the relevant task is reached. Do not ask the user
-to settle all of these before membership integration. Do not treat proposed defaults
-as accepted policy or use permissive fallback behavior to pass a gate.
+Prepare options when each task is reached; do not require all policy choices before
+membership integration. Do not use permissive fallback to pass a blocked gate.
 
 ## 4. Progress tracker
 
 Statuses: VERIFIED_COMPONENT, READY, TODO, IN_PROGRESS, BLOCKED, VERIFIED.
 Only mark VERIFIED with deliverables, acceptance evidence and publication refs.
-For a design-only task this means design acceptance, NOT runtime implementation.
-A passing old suite is not proof that a newly planned task is implemented.
+For design-only work this means design acceptance, NOT runtime implementation.
 
 | ID | Work package | Status | Dependencies / exit gate |
 |---|---|---|---|
-| MB-00 | Existing chain and standalone personhood baseline | VERIFIED_COMPONENT | Evidence above; integration remains open |
-| MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | MIRROR-MB01A-001, section 10 |
-| MB-01B | Harden the standalone registry against the agreed model | IN_PROGRESS — B1 VERIFIED; NEXT B2 | B2–B4 remain |
-| MB-01B/B1 | Canonical config, seed context/proofs and bounded rules | VERIFIED | 809661b, CI 44201393943, section 11 |
-| MB-01B/B2 | Signed membership operations, sequences, anchors/windows | READY — NEXT | B1; stateful sequence enforcement completes in B3 |
-| MB-01B/B3 | Bounded staged execution, expiry, parent eligibility/activation | TODO | B2 |
+| MB-00 | Existing chain and standalone personhood baseline | VERIFIED_COMPONENT | Integration remains open |
+| MB-01A | Integration design, threat review and test specification | VERIFIED — DESIGN ONLY | Section 10 |
+| MB-01B | Harden registry foundation | IN_PROGRESS — B1/B2 VERIFIED; NEXT B3 | B3/B4 remain |
+| MB-01B/B1 | Canonical config, seed proofs and bounded rules | VERIFIED | 809661b, CI 44201393943, section 11 |
+| MB-01B/B2 | Signed membership messages, codecs, ancestry/windows | VERIFIED — MESSAGE LAYER | af1dd66, CI 44205064789, section 12 |
+| MB-01B/B3 | Bounded staged execution, sequences, expiry, eligibility/activation | READY — NEXT | B2; no V2 state execution yet |
 | MB-01B/B4 | Full registry codec/root/replay and adversarial regression | TODO | B3 |
 | MB-02 | Versioned membership operations in block execution | TODO | MB-01A/B |
 | MB-03 | Durable state, synchronization and membership reorg/replay | TODO | MB-02 |
-| MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; some interface work can run earlier |
-| MB-05 | Ant Kiss enrollment lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
+| MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
+| MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
 | MB-06 | Human-limited rounds, certificates and easy-PoW participation | TODO | MB-03/04/05; D-03 |
 | MB-07 | Bootstrap grants, population allowance, rewards and fees | TODO — POLICY-GATED | MB-05/06; D-01/D-04 |
-| MB-08 | Device-neutral input contract and capture adapters | TODO | Draft contract exists; implementation can start after MB-01A |
-| MB-09 | Protected evidence storage and duplicate-checking pipeline | TODO — PRIVACY-GATED | MB-05/08; D-05 |
+| MB-08 | Device-neutral inputs and adapters | TODO | Draft contract exists; can start after MB-01A |
+| MB-09 | Protected storage and private duplicate-checking pipeline | TODO — PRIVACY-GATED | MB-05/08; D-05 |
 | MB-10 | End-to-end verifier/application workflow | TODO | MB-04/05/08/09 |
-| MB-11 | Hardening, deployment and Gate A acceptance | TODO | All MB-01 through MB-10 gates satisfied |
-| MB-12 | Real device integration and controlled pilot | TODO — DEVICE-GATED | Gate A, compatible devices, D-05/D-06 |
+| MB-11 | Hardening, deployment and Gate A acceptance | TODO | MB-01 through MB-10 gates |
+| MB-12 | Actual devices and controlled pilot | TODO — DEVICE-GATED | Gate A, compatible devices, D-05/D-06 |
 
-Default execution order is MB-01A, MB-01B, MB-02 onward. MB-08 interface work can
-be brought forward so device compatibility is known before purchases. If a policy
-decision blocks one package, record it and continue another dependency-ready task.
-Do not purchase devices or introduce live biometric collection merely to unblock CI.
+Default order is MB-01A, MB-01B, MB-02 onward. MB-08 interfaces can be brought
+forward to establish compatibility before purchases. When policy blocks one
+package, record the blocker and continue dependency-ready work. No procurement
+or live biometric collection merely to unblock CI.
 
 ## 5. Work packages and acceptance tests
 
-### MB-01A — specify the integration before changing consensus
+### MB-01A — specify integration before changing consensus
 
-**Delivered:** [docs/LEDGER_MEMBERSHIP_V1.md](docs/LEDGER_MEMBERSHIP_V1.md),
-[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), and
-[docs/MEMBERSHIP_TEST_MATRIX.md](docs/MEMBERSHIP_TEST_MATRIX.md).
-These are specifications, not deployed implementations.
+**Delivered:** [ledger specification](docs/LEDGER_MEMBERSHIP_V1.md),
+[threat model](docs/THREAT_MODEL.md), and [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md).
+Inspect actual personhood, core encodings, account execution, chain acceptance,
+networking/storage and PR comments. Specify network/genesis/configuration binding,
+typed signatures, ordering, replay scope, commitments, bounds and eligibility timing.
+Review spam, stale evidence, cross-configuration reuse and rollback assumptions.
+Choose explicit versioned integration preserving MRB1/local data; never convert
+known test keys into real founder credentials. Keep biometric formats off-chain.
 
-Inspect current personhood, core encodings, account execution, chain acceptance,
-network transport and storage, including outstanding PR #1 comments. Specify:
-network/genesis/configuration binding; typed operations and signatures; ordering;
-applicant/verifier nonces and replay scopes; exact block/state commitments;
-resource bounds; bootstrap seed commitment; and when membership changes become
-eligible for consensus or monetary accounting. Review pending-request spam,
-stale evidence, cross-configuration approval reuse, withdrawal ordering and
-replay assumptions. Reference the separate device-input draft rather than putting
-biometric formats into the block body.
-
-Choose a documented, versioned development-network integration path that preserves
-the old MRB1 history. No automatic conversion of known test keys into real founder
-credentials. Identify required policy choices without inventing them.
-
-**Pass:** old/new version compatibility table, transition table, failure-atomicity
-requirements and adversarial test cases reviewed against actual APIs. Every open
-security assumption is listed; no implementation claim is made from the document.
+**Pass:** compatibility/transition tables, atomicity requirements and adversarial
+assertions reviewed against actual APIs. List open assumptions, not implementation
+claims. Design evidence is in section 10.
 
 ### MB-01B — harden the registry foundation
 
-**Deliver:** targeted fixes and regression tests from MB-01A in `mirror-personhood`.
-Keep fresh-evidence biological deduplication explicitly external. Add resource
-limits for application/pending state, bounded batch execution, approved evidence
-freshness/context rules and deterministic errors. Any changes to signed bytes or
-roots require a version and test-vector update, not silent reinterpretation.
+**Deliver:** targeted fixes and regression tests in versioned `mirror-personhood`
+modules, with biological deduplication explicitly external. B1 configuration/seed
+binding and B2 signed messages/windows are VERIFIED; B3 staged execution is NEXT;
+B4 finishes registry commitments, codecs/replay and regression evidence.
+Preserve V1 APIs/vectors and MCF2/B2 signed bytes; any semantic/encoding change
+requires an explicit revision and independently recomputed vectors.
 
-Slices: B1 configuration/seed binding and bounded rules (VERIFIED); B2 signed
-sequences/anchors/windows (NEXT); B3 staged expiry/activation and execution limits;
-B4 canonical registry vectors, regression tests, replay/demo and debug/release checks.
-Preserve the V1 implementation while introducing explicitly versioned V2 modules.
+**Pass:** forged/replayed/stale/out-of-order events, wrong context, invalid
+withdrawals, overflow and excessive input fail without mutating state. Pending,
+total records and block budgets apply at every execution path. Activation/counters
+are deterministic. Recovery behavior is tested only after it is specified; no
+invented recovery or economic right may be added to complete the milestone.
 
-**Pass:** duplicate/forged/stale/out-of-order approvals, mismatched networks or seed
-contexts, invalid withdrawals, overflow and oversized inputs fail without state
-mutation. Activation and counters are deterministic; cancellation/recovery cannot
-create a second grant opportunity. Recovery behavior is tested only once specified.
+B3 must not mistake B2 signature/context success for admission. Enforce actor
+eligibility, target status, exact sequence consumption and checked increments;
+request/approval window alignment; history reuse protection; expiry; parent-set
+reviewer eligibility; and block-end activation/counters. No direct unbounded
+mutation API may bypass staged block validation. B2's test for a context-valid
+unknown target/exhausted sequence documents the need for these B3 checks.
 
 ### MB-02 — membership becomes blockchain state
 
-**Deliver:** versioned enrollment/approval/lifecycle transactions; canonical codecs;
-atomic execution over account state plus membership state; a block commitment to
-all consensus-relevant state and counters. Connect through core/state/chain,
-without a second independent authoritative membership database.
+**Deliver:** versioned membership and transfer operations, canonical codecs, atomic
+accounts+membership execution, and one commitment to all consensus state/counters.
+Connect core/state/chain without a second authoritative side membership database.
 
-Validation must not require a node to rerun floating-point biometric matching,
-contact a central server, or decrypt an archive. It validates authorized,
-versioned review evidence under the chosen admission rules. A matching receipt is
-not a magical proof: its issuer set and trust model must be explicit.
+Validation must not rerun floating-point biometrics, query a central matcher, or
+decrypt an archive. Validate authorized versioned evidence with explicit issuer
+trust rules; a receipt is not mathematical proof of a true biometric claim.
 
-**Pass:** a block carrying enrollment is accepted by two independent validators;
-changing an approval, state root, issuer policy, counter, order or network context
-is rejected. Failed mixed batches change neither money nor membership. Full replay
-from the trusted genesis/configuration reproduces all roots. Legacy data is intact.
+**Pass:** two independent validators accept the same membership-bearing block;
+changed approvals, roots, policies, counters, order or context reject. Invalid
+mixed batches change neither money nor membership. Replay reproduces roots;
+legacy history remains intact. Freeze block/ledger vectors independently.
 
 ### MB-03 — persistence, synchronization and reorganizations
 
-**Deliver:** one coherent durable commit/recovery boundary for blocks, accounts,
-membership, counter indexes and eventual grant history; single-writer locking;
-versioned migrations; corruption detection; bounded block/snapshot reads. Resolve
-ambiguous I/O failures before continuing to write. Existing directory-swap tests
-are a starting point, not evidence of universal crash safety.
+**Deliver:** coherent durable commit/recovery for blocks/accounts/membership,
+counter indexes and eventual grant history; writer locking; explicit migrations;
+corruption detection; bounded block/snapshot reads. Reconcile ambiguous I/O before
+writing again. Current directory-swap tests are not universal crash-safety proof.
 
-**Pass:** kill/restart at each publication boundary yields an identifiable complete
-old or new state, never mixed accounts/membership. A second writer is rejected.
-A fresh peer downloads membership history and independently reconstructs it.
-Test forks containing DIFFERENT enrollments/withdrawals, not only timestamps.
-Orphaned approvals and population peaks do not survive as canonical state.
+**Pass:** fault injection at every publication boundary yields identifiable complete
+old/new state or explicit failure, never mixed accounts/membership. Reject a second
+writer. A fresh peer independently reconstructs membership history. Forks must
+contain DIFFERENT admissions/withdrawals, not only timestamps. Orphaned approvals
+and population peaks do not survive as canonical state.
 
-The population record is derived from canonical history; it cannot be raised by
-any fork ever observed. Normal membership decline does not reduce it. Later,
-MB-06 finality must prohibit reorganization of finalized history; legacy PoW reorg
-support must not bypass finality certificates.
+High-water population is derived from canonical history, not every observed fork.
+Ordinary membership decline does not reduce it. After MB-06, no legacy PoW reorg
+path may override finalized certificates/history.
 
-### MB-04 — usable, persistent network and wallet operations
+### MB-04 — usable persistent network and wallet
 
-**Deliver:** long-running node service; separate explicit initialize/status/run
-operations; bounded transaction pool; reconnect/multi-peer synchronization; small
-operator CLI/API for enrollment submission, status, transfers and diagnostics.
-Use fresh random wallet keys, protected local storage, backup/recovery procedures
-and distinct signer/transport/member roles. Development keys stay confined to demos.
+**Deliver:** long-running node; explicit init/status/run; bounded pool; reconnect
+and multi-peer sync; operator CLI/API for enrollment, transfers and diagnostics.
+Fresh random wallet keys, protected storage and backup/recovery; separate signer,
+transport/member roles. Known development keys remain demos only.
 
-**Pass:** at least three separate processes/directories share accepted transactions
-and membership updates; restart/rejoin converges; duplicate transactions and
-overspending do not enter canonical state. Read-only status does not mine or modify
-the chain. Malformed frames, slow partial messages, oversized allocations, peer
-floods and connection loss stay within documented bounds. Use complete-message
-resource/deadline limits, not just a per-read timeout. Sensitive APIs are protected
-and not publicly exposed by default; logs contain no secrets or biometric payloads.
+**Pass:** at least three independent processes/directories share accepted events;
+restart/rejoin converges; duplicate transactions/overspending never become canonical.
+Read-only status neither mines nor initializes. Malformed frames, slow fragments,
+peer floods and connection loss stay within complete-message/session byte/time
+bounds, not merely per-read timeouts. Protect sensitive APIs; no secrets/biometrics
+in diagnostics. Never trust advertised heights/roots/populations without replay.
 
 ### MB-05 — Ant Kiss admission and bootstrap lifecycle
 
-**Deliver:** versioned enrollment sessions, applicant consent/key possession,
-verifier eligibility/assignment, signed decisions tied to the exact session,
-matching evidence and registry snapshot, and resumable provisional/review/active
-outcomes. Implement a bounded review/appeal route and specified lifecycle changes;
-unspecified death/inheritance or emergency powers remain disabled, not guessed.
+**Deliver:** versioned sessions, consent/key possession, eligible assigned verifiers,
+signed decisions tied to session/evidence/matching-population snapshot, provisional
+and review outcomes, bounded appeals and specified lifecycle changes. Unspecified
+death/inheritance/emergency powers stay disabled.
 
-Specify the first founder-led seed process and transition to ordinary distributed
-review. The founder has no enduring bypass. Possessing a scanner does not buy more
-votes. Define consistent finger positions and required modalities in a versioned
-capture profile; no silent fingerprint-only approval when ECG is required.
+Define founder-led seeding and handoff to ordinary distributed review without
+enduring founder bypass. Scanner ownership buys no extra votes. Capture profiles
+specify consistent fingers and required modalities; no silent removal of ECG.
 
-**Pass:** applicant cannot pick all reviewers or reroll assignments freely; repeated
-approvals have no extra weight; incomplete/unusable evidence never auto-activates.
-Assignment retries do not create permanent gatekeeping. Simultaneous enrollments
-using the same underlying person/evidence are serialized or rechecked against an
-updated matching population before activation; two stale "no match" results are
-not both blindly accepted. Colluding reviewers and fraudulent evidence are
-explicit adversaries in the threat model, not assumed impossible.
+**Pass:** applicants cannot select all reviewers or reroll freely; repeated approvals
+have no extra weight; unusable/incomplete evidence never auto-activates. Retries
+avoid permanent gatekeeping. Concurrent enrollments of the same person are
+serialized/rechecked against updated population so two stale no-match receipts
+cannot blindly create two memberships. Colluding reviewers remain explicit threats.
 
-### MB-06 — human-based consensus, not a fast-hardware race
+### MB-06 — human-based consensus, not a hardware race
 
-**Deliver:** a specified and reviewed round-based consensus profile with an
-explicit fault/network model, membership snapshot, proposer/validator eligibility,
-locked votes, quorum certificates, safe timeouts, membership-set transitions and
-restart protection against double-signing. Evaluate established BFT designs before
-implementing a new variant [R2]. Equal eligible identities carry equal weight.
+**Deliver:** reviewed round-based profile with explicit fault/network assumptions,
+membership snapshot, eligibility, locking/voting, quorum certificates, safe timeouts,
+set transitions and restart double-sign protection. Evaluate established BFT designs
+before inventing a variant [R2]. Equal eligible humans carry equal weight.
 
-An initial bounded pilot may use the whole small active set; rotating committees
-are a separately tested scaling change. Do not invent randomness as just a
-miner-selectable previous hash. Specify anti-grinding selection, key-enrollment
-cutoffs and committee-capture assumptions before enabling randomized committees.
+A bounded initial pilot may use the full small active set. Committee scaling needs
+anti-grinding randomness, key cutoffs and capture assumptions; do not use a
+miner-selected previous hash as an unexplained fair lottery. Bind small PoW to
+identity/challenge/height/round/purpose; extra nonces/devices buy no votes/rewards.
+Benchmark ordinary hardware; no zero-latency claim. Easy PoW does not rescue
+admission after an attacker obtains many accepted identities.
 
-Bind any easy PoW to identity, challenge, height/round and purpose; additional
-nonces or devices do not create votes or rewards. Benchmark the cost on intended
-ordinary hardware; never promise literal zero latency. State honestly that easy
-work cannot rescue admission security after an attacker controls many identities.
+**Pass:** equivocation, partitions, offline proposers, delayed/reordered messages,
+clock changes, restarts and membership changes preserve the stated safety bound.
+Missing quorum stalls/changes round; timeout NEVER lowers quorum. Sync verifies
+finalized checkpoints. Founder-only startup makes no decentralization claim.
 
-**Pass:** simulations cover equivocation, stale votes, partitions, offline proposers,
-delayed/reordered messages, clock disturbances, restarts and membership changes.
-No conflicting finality under the stated fault bound. Missing quorum stalls or
-changes round; a timeout NEVER permits a reduced safety quorum. Ordinary devices
-can participate under measured timing assumptions. Finalized checkpoints are
-verified by syncing nodes. A founder-only bootstrap has no decentralization claim.
+### MB-07 — issuance and compensation
 
-### MB-07 — issuance and payment for useful participation
+**Deliver:** after D-01/D-04, integer-Nusa testnet accounting with no founder path
+or marketing premine. Specify combined exception/ordinary ceiling, first-1,000
+eligibility, qualifying population, pacing, unique claims, fees/roles and exhaustion.
+Separate issued money, permitted unissued capacity and transferred fees. Population
+allowance is not a payout every block. Do not reward merely approving applicants
+or creating self-transfers; admission errors must not silently unlock real issuance.
 
-**Deliver:** after D-01/D-04, deterministic testnet monetary execution using integer
-Nusa, no founder-specific path and no marketing premine. Specify the combined
-bootstrap/ordinary ceiling, first-1,000 eligibility, qualifying population timing,
-issuance pacing, grant claim uniqueness, fees, reward roles and budget exhaustion.
+**Pass:** founder/member 1,000 share 10-MRY eligibility; member 1,001 gets no bootstrap
+grant. Replay/recovery/key rotation/revocation/forks cannot double-claim. Ordinary
+allowance for 1M -> 900k -> 2M is 200k -> 200k -> 400k MRY, plus exactly the separately
+approved bootstrap treatment. No reserve pre-spending, overflow, budget overspend
+or fee double count. Test exhausted issuance and zero-fee behavior explicitly.
+Real grants remain gated on admission/maturity. Monetary blockers do not stop
+independent membership/adapter work.
 
-Keep money already issued, remaining authorized issuance and transferred fees
-separate. A fixed proportion is an allowance, not a payout every block. Network
-adoption and successful service are different inputs. Do not pay merely for
-approving applicants or for generating self-transfers. Enrollment errors must not
-silently unlock permanent monetary rights before qualification.
-
-**Pass:** founder and member 1,000 have identical 10-MRY grant rules; member 1,001
-gets no bootstrap grant; replays, recovered/rotated keys, revoked identities and
-forks cannot double-claim. Population 1M -> 900k -> 2M produces ordinary allowance
-200k -> 200k -> 400k MRY, with the separately approved exception applied exactly.
-No premature reserve spending, counter overflow, reward above budget or fee double
-counting. Exhausted issuance and zero-fee blocks have explicitly tested behavior.
-
-No real grants are enabled until admission and qualifying-population gates pass.
-Policy-blocked monetary work must not stop unrelated membership or adapter tests.
-
-### MB-08 — device-neutral capture contract and adapters
+### MB-08 — device-neutral capture and adapters
 
 **Deliver:** stabilize [DEVICE_INPUT_CONTRACT.md](docs/DEVICE_INPUT_CONTRACT.md);
-implement a local adapter SDK/interface, capability negotiation, synthetic capture
-source, documented file importer and adapter conformance tests. Isolate vendor
-SDKs/parsers from consensus. No arbitrary "universal device" support claim.
+local SDK/interface, capability negotiation, synthetic source, documented importer
+and conformance suite. Isolate vendor parsers/SDKs from consensus. No universal
+hardware compatibility promise or implicit vendor selection.
 
-Inputs must carry the fingerprint positions/format/quality metadata and ECG
-waveform/timing/calibration metadata required by the capture profile. Do not treat
-heart-rate numbers or a local fingerprint-unlock boolean as enrollment evidence.
-The draft describes requirements, not a chosen manufacturer or guaranteed API.
-
-**Pass:** at least two independently encoded synthetic sources normalize correctly;
-wrong units, swapped modalities, truncated/oversized samples, unsupported profiles,
-NaN/invalid readings and unplug/retry fail explicitly. File import is labelled
-imported, not evidence of a witnessed live capture. Later real adapters can change
-without changing monetary or block consensus code.
+Require specified finger positions/format/quality and actual ECG waveform, timing,
+units/calibration metadata. Heart rate and fingerprint-unlock booleans are not
+substitutes. **Pass:** two differently encoded synthetic sources normalize;
+wrong units/modalities, malformed/truncated/oversized input, NaNs, unsupported
+profiles, disconnects/cancellation/retry fail explicitly. Imported files are not
+labelled witnessed live capture. Adapters can change without monetary/block changes.
 
 ### MB-09 — protected evidence and private duplicate checking
 
-**Deliver:** an off-chain enrollment service with protected local intake,
-authenticated transport, encryption at rest, scoped access, key backup/rotation,
-minimal retention and auditable deletion. Define authorized matching operators,
-query abuse controls, availability, matching-population synchronization and the
-on-chain evidence boundary. Never store archives or decrypting keys on public nodes.
+**Deliver:** protected off-chain intake, authenticated transfer, encrypted storage,
+scoped access, key rotation/backup, minimal retention and auditable deletion.
+Specify authorized operators, query abuse, availability, snapshot synchronization
+and public evidence boundaries. No archives/decrypting keys on public nodes.
 
-Implement a matching-provider interface with versioned algorithms/capture profiles
-and distinct results: NO_MATCH_WITHIN_TESTED_RULES, POSSIBLE_DUPLICATE,
-INCONCLUSIVE, ERROR. No exact fingerprint hash masquerading as biometric matching.
-Human review is required for uncertain matches [R1]. Specify what joint
-fingerprint/ECG results mean; do not assume adding modalities proves uniqueness.
+Versioned matcher outcomes: NO_MATCH_WITHIN_TESTED_RULES, POSSIBLE_DUPLICATE,
+INCONCLUSIVE, ERROR. Hash equality is not biometric matching. Review uncertain
+matches [R1]; specify joint modality interpretation, not guaranteed uniqueness.
+A trusted matcher is only a labelled development harness, not decentralized private
+matching. D-05 must identify access/collusion assumptions and replacement operators;
+evaluate reviewed threshold/MPC approaches without inventing cryptography or hiding
+a universal decryption service.
 
-A trusted matcher may exist only as an explicitly labelled development harness.
-It does not satisfy decentralized private matching. Before real admission, D-05
-must identify who can inspect/compare data, their collusion threshold, and how
-another operator can replace them. Evaluate threshold/MPC or other reviewed
-approaches; do not invent new cryptography or hide a universal decrypting service.
+**Pass:** wrong/revoked credentials cannot retrieve evidence; replay/substitution
+fails session binding; outages cannot approve. Bind receipts to model/policy,
+evidence, population snapshot and freshness. Concurrent duplicate tests pass.
+Canary recordings stay out of blocks, peer messages, logs, crash reports and CI.
+Document deletion/backup limits and permanent public membership metadata.
 
-**Pass:** wrong/revoked credentials cannot retrieve records; replayed or substituted
-capture evidence fails session binding; matcher outage cannot produce approval;
-receipts bind model/policy, evidence, registry population snapshot and freshness.
-Concurrent duplicate tests pass. Canary payloads do not appear in blocks, public
-peer traffic, logs, crash reports or CI artifacts. Deletion/backup tests document
-what remains as a public membership record and what cannot be erased there.
+### MB-10 — complete operator/applicant workflow
 
-### MB-10 — complete operator and applicant workflow
+**Deliver:** minimal CLI/local UI showing capture quality/retries, assigned reviews,
+signed decisions and activation; resumable sessions and clear errors without manual
+database edits. Read-only status and transfers/claims only when MB-07 authorizes.
 
-**Deliver:** a minimal enrollment interface (CLI or local UI first) showing capture
-quality, retry/review status, assigned reviewers, signed decisions and membership
-activation. Nodes receive only permitted typed records. Support clean disconnect,
-resume and error reporting without manual database editing. Add read-only ledger
-and membership status plus transfer/claim operations once authorized by MB-07.
+**Pass:** synthetic application -> both readings -> private comparison -> required
+approvals -> on-chain activation -> independent peer sync -> eligible participation
+-> authorized test payment -> restart with identical state. Duplicate/inconclusive/
+failed capture changes neither membership nor issuance. Keys never derive from
+biometrics. Lost-key recovery cannot create another person or grant.
 
-**Pass:** scripted end-to-end flow using synthetic input: new application -> both
-readings -> protected comparison -> required approvals -> on-chain activation ->
-independent peer sync -> eligible participation -> authorized test payment ->
-restart with identical state. Duplicate, inconclusive and failed-capture scenarios
-leave membership and issuance unchanged. Wallet keys are never derived from ECG or
-fingerprint data. Lost-key recovery cannot create another person or grant.
+### MB-11 — hardening, deployment and Gate A
 
-### MB-11 — hardening, packaging and Gate A release candidate
+**Deliver:** fuzz/property/load tests, dependency/build and threat review,
+deterministic multi-node harness, reproducible builds/artifacts, setup/backup/
+recovery and device-integration guides, exact-commit acceptance report with risks.
+Initially Linux/WSL; test other targets before advertising support.
 
-**Deliver:** bounded-load/fuzz/property tests; dependency/build review; threat-model
-review; deterministic multi-node test harness; reproducible build instructions and
-release artifacts; operator setup/backup/recovery guides; device integration guide;
-a signed-off acceptance report listing residual risks and exact tested profiles.
-Target Linux/WSL initially; test any additional target before advertising support.
+**Pass:** all prior software criteria/policy gates complete; exact-release full and
+release-mode suites and integrated scenarios pass. Exercise malformed peers/input,
+storage interruption, network partitions, accounting and data-leak checks. Measure
+capacity/latency/availability; no invented throughput. Independent review is required
+before public-value deployment, not replaced by a test count. Keep devnet isolated.
 
-**Pass:** all preceding software criteria and policy gates complete; full suite,
-release-mode tests and integrated scenarios pass at the exact release commit.
-Exercise bad peers, malformed enrollment input, storage interruption, network
-partition/recovery, full issuance accounting and leaked-evidence checks. Set and
-measure capacity/latency/availability targets; do not fabricate throughput claims.
-Independent review is required before public-value deployment; unmet review is
-recorded, not replaced by a test count. Keep devnet isolated from real assets.
-
-Gate A report must state what real hardware and biometric recognition have NOT
-been tested. If private matching or human consensus is still a stub, label the
-result partial/integration-scaffold, not software-ready completed.
+Gate A discloses untested real hardware/recognition. Stub matching or consensus
+means partial scaffold, not completed software readiness.
 
 ### MB-12 — actual devices and controlled pilot
 
-**Deliver:** adapter per selected model/firmware/SDK, verified export permissions,
-calibration/profile validation, supported-device matrix and approved pilot report.
-The user supplies device choices; this plan does not authorize purchases or uploads
-of real recordings into this chat/GitHub. Use the compatibility checklist first.
+**Deliver:** adapter per supplied model/firmware/SDK, export permissions, calibration/
+profile validation, support matrix and approved pilot report. No procurement or
+uploading real recordings into chat/GitHub is authorized by this plan.
 
-**Pass:** real captures traverse the same pipeline without consensus changes;
-repeat enrollment across sessions and devices is tested. Measure false accepts,
-false duplicate flags, failure-to-acquire and acquisition time under specified
-conditions and population sizes. Include changed recordings, attempted replay,
-operator error, new keys/new sessions and cross-device matching. Publish aggregate
-results only, not recordings or participant identities. Small-pilot success does
-not prove billion-user reliability. Unusable data goes to retry/review, never an
-invented unique-human certificate. Any recognition claims remain conditional on
-measured D-06 acceptance criteria and human review.
+**Pass:** real captures use the same pipeline without consensus edits. Measure
+repeat enrollment, false accepts/duplicate flags, acquisition failure/time under
+stated conditions/population. Test replay, operator error, new keys/sessions and
+cross-device matching. Publish aggregates, not recordings/identities. Small-pilot
+success is not billion-user reliability. Unusable data means retry/review, never
+an invented uniqueness certificate. Claims require measured D-06 criteria.
 
 ## 6. Final demonstration checklist
 
-Do not mark Gate A/B complete with screenshots alone. Retain reproducible test
-commands, machine-readable results and exact build hashes without private data.
+Retain reproducible commands, machine-readable results and exact build hashes,
+not screenshots alone. No private data in acceptance evidence.
 
-- Separate nodes agree on accounts, membership root, activation order, supply and
-  eligible participant set after enrollment, transfer, restart and synchronization.
-- No approval, transaction, vote or reward can be counted twice for one entitlement.
-- The enrollment workflow consumes both required modalities; no hardware is an
-  admission authority and no single founder key can bypass mature-network rules.
-- Concurrent duplicate attempts and stale matcher results cannot silently activate
-  two memberships; errors/uncertainty are visible and reviewable.
-- Easy PoW never increases voting/reward weight for faster devices.
-- Partition tests preserve specified finality; finalized history is not replaced by
-  the legacy longest-chain path. Unfinalized rollback is consistent across state.
-- First-1,000 grants and ordinary allowance match the explicitly approved combined
-  formula; fees are transfers, not extra supply; there is no hidden owner treasury.
-- Biometric archives never enter public blocks, GitHub or logs; intake/matching
-  access, retention/deletion and privacy limits are documented and tested.
-- Devices satisfy the input contract and supported-device matrix; unsupported
-  outputs fail clearly. Gate A uses synthetic inputs; Gate B records real tests.
+- Separate nodes agree on money, membership, activation order, supply and eligible
+  set after enrollment, transfer, restart and synchronization.
+- One entitlement cannot count twice as an approval, transaction, vote or reward.
+- Required modalities are present; hardware/founder cannot bypass mature rules.
+- Concurrent duplicates, stale receipts and uncertainty do not silently activate.
+- Faster hashing buys no extra human voting/reward weight.
+- Partitions preserve specified finality; legacy reorg cannot replace finalized
+  history; unfinalized rollback is consistent across all components.
+- Grants/allowance follow the approved combined formula; fees transfer money and
+  create no supply; no hidden owner treasury.
+- Biometric archives stay out of public blocks/Git/logs; custody/access/retention
+  and deletion are documented/tested.
+- Device support matches the tested profiles; unsupported inputs fail clearly.
+  Gate A uses synthetic input; Gate B has real-device evidence.
 
-## 7. Working method and continuation rules
+## 7. Working method and continuation
 
-Use small reviewable changes with tests; do not replace whole source files merely
-to insert imports. Keep the active branch/PR explicit. Do not merge PR #1 simply
-to publish design documents. Verify its state before the next task and preserve
-any newer work. Follow pinned CI; add milestone-specific suites as needed.
+Small reviewable changes with exact tested commits. Do not merge merely to publish
+records, replace source wholesale to add imports, reset main or overwrite runtime
+data. Check live refs/comments before changing files and preserve concurrent work.
+For each milestone record deliverables, tests, source/CI refs, defects and next task.
+Keep CURRENT_STATUS, NEXT_SESSION, the-prompt, tracker and acceptance matrix coherent.
+Refresh the-prompt for every Mirror response, including discussion-only changes.
+Do not count documentation publication as runtime evidence or chase self-referential
+checkpoint SHAs. No background-work promise; disclose failed publication.
 
-For each task update this table with: state, acceptance evidence, implementation
-commit, CI run, remaining defects, and next exact subtask. Maintain
-CURRENT_STATUS.md, NEXT_SESSION.md and the-prompt together at each handoff. Every
-Mirror-related reply refreshes the-prompt as requested; discussion-only turns do
-not invent implementation progress. Store no secrets, biometric files or runtime
-wallet data in repository records. Record failures honestly.
+**Immediate next:** B3 staged state execution. Reuse tested B1/B2, freeze the new
+state representation, enforce sequences/reuse/expiry/eligibility, then test bounded
+atomic batches and block-end activation. B4 completes roots/replay, MB-02 integrates
+accounts/blocks, MB-03 adds durable multi-node state. No minting or hardware work now.
 
-**Immediate next session:** MB-01B/B2, implement signed V2 membership envelopes,
-canonical decoding, anchors and windows. Do not repeat B1 or MB-01A. Do not start
-reward minting, change legacy genesis or purchase hardware.
+## 8. Engineering references, not user policy
 
-## 8. Engineering references, not extra user decisions
+Repository facts use exact local checkpoint refs. Proposed engineering acceptance
+requirements are not capabilities supplied by references. Reverify APIs at use.
 
-Repository facts above come from the cited local checkpoint files and exact GitHub
-refs. The task sequencing and acceptance requirements are proposed engineering
-work, not capabilities supplied by these references. Reverify version-specific
-APIs when implementation begins.
-
-- [R1] NIST SP 800-63A-4, Identity Proofing Requirements:
-  https://pages.nist.gov/800-63-4/sp800-63a/ial-general/
-  Reference for protection/retention of enrollment evidence and human review of
-  one-to-many biometric matches; not a claim of NIST certification or a decision
-  to require government identity documents in Mirror.
-- [R2] CometBFT consensus specification (primary project source):
-  https://github.com/cometbft/cometbft/blob/main/spec/consensus/consensus.md
-  Reference for reviewing round/vote/locking/commit and timeout distinctions;
-  no library or protocol adoption is decided by this plan.
-- [R3] WFDB signal-header specification:
-  https://wfdb.io/spec/header-files.html
-  Reference for explicit waveform sampling, units and calibration metadata;
-  WFDB is a candidate import format, not mandatory device hardware or a biometric
-  uniqueness algorithm. Mirror must not silently guess absent calibration.
+- [R1] NIST SP 800-63A-4: https://pages.nist.gov/800-63-4/sp800-63a/ial-general/
+  Evidence protection/retention and human match review; no NIST certification or
+  government-document requirement is implied.
+- [R2] CometBFT specification: https://github.com/cometbft/cometbft/blob/main/spec/consensus/consensus.md
+  Round/vote/locking/timeout reference, not decided protocol adoption.
+- [R3] WFDB: https://wfdb.io/spec/header-files.html
+  Sampling/units/calibration metadata reference, not mandatory equipment or a
+  uniqueness algorithm. Never silently guess missing calibration.
 
 ## 9. Deferred beyond this endpoint
 
-Social media/messenger/dApp execution, manufacturing a custom watch, mainnet value
-launch, inheritance automation, full anonymity, global committee scalability and
-post-quantum migration are not prerequisites for the first supported-device pilot.
-Their hooks/privacy implications must not be ignored, but they must not expand the
-current milestone without a recorded scope decision. Full anonymity remains a
-goal, not a property of this linkable pilot register. Public operation requires
-additional security, privacy and applicable legal review before real enrollment.
+Social/messaging/dApps, custom-watch manufacture, public-value mainnet, inheritance,
+full anonymity, global committees and post-quantum migration are outside this
+first pilot endpoint. Do not ignore their hooks but do not silently expand scope.
+Linkable pilot membership is not anonymity. Public real enrollment needs additional
+security, privacy and applicable legal review.
 
 ## 10. Historical MB-01A acceptance — MIRROR-MB01A-001
 
-Source inspection at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` covered the
-personhood implementation/tests/codec, transaction and block formats, account
-executor, chain acceptance, storage, network transport and protocol, plus PR #1
-comments. Threat findings F01–F11 distinguished observed code from proposed remedies.
-Delivered compatibility/transition tables, config/seed design, signed layouts,
-sequences/anchors/expiry, parent eligibility/block-end activation, resource budgets,
-combined commitments and atomic replay requirements. T01–T35 were planned then.
+Source `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` and PR comments were inspected:
+personhood/crypto/state, wire formats, chain, storage and network. Delivered
+compatibility/transition/commitment design, source findings F01–F11 and T01–T35
+planned assertions. Arithmetic checked 131-byte prefix, 160-byte header, 168-byte
+empty block and signed lengths 243/291/227/227. No Rust/economic change occurred.
+VERIFIED meant design deliverables, not security certification or implementation.
 
-Independent arithmetic checked prefix 131, header 160, empty block 168 and operation
-lengths 243/291/227/227. No Rust or economic change was made in that design turn.
-MB-01A VERIFIED means design deliverables, not implementation or security certification.
+## 11. Historical B1 acceptance — MIRROR-MB01B-B1-001
 
-## 11. B1 acceptance — MIRROR-MB01B-B1-001
+Source `809661b5e6a9338d65c15c45e540289df24fcc99`, CI 44201393943, job 134456099484.
+Implemented immutable validated ConfigV2, checked LimitsV2, bounded MCF2 codec,
+ordered seed descriptors/proofs/IDs and checked sorted synthetic allocations.
+Context binds every field before seed signing, without a hash cycle. All seed
+proofs are required; first seed has no exception. Valid config is not verified
+bootstrap or authoritative peer-provided network data.
 
-Source: `809661b5e6a9338d65c15c45e540289df24fcc99`.
-CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943
-Actual log inspected: job 134456099484. All steps passed on Rust 1.98.0.
+31 tests plus independent hashlib/struct vectors passed. Workspace 164; release
+personhood 57 reruns; legacy demo/docs command/audit passed. T02 config/proof binding
+verified; T03 construction and T20 config bounds partial rows only. V1 unchanged.
+No node, monetary/dependency/lockfile/runtime data changed or real admission enabled.
 
-Implemented `crates/mirror-personhood/src/v2/{config,encoding,limits}.rs` and
-31 public-API tests in `crates/mirror-personhood/tests/config_v2.rs`. Canonical MCF2
-unsigned configuration binds network, versions, PoW/timestamp, threshold, evidence
-profile, all 12 limits, ordered seed descriptors and strictly sorted synthetic
-allocations. Checked sums reject overflow and duplicate zero-balance addresses.
-Context precedes seed signatures/IDs; every seed proof is strictly checked.
-ConfigV2 is not a VerifiedBootstrap until all proofs pass; no founder bypass.
+## 12. B2 acceptance — MIRROR-MB01B-B2-001
 
-Independent standard-library Python reference generates full bytes/context/seed
-hashes and IDs, compared to committed vectors and Rust results. Decoders enforce
-count/byte caps before input-sized allocation, reject malformed/truncated/trailing
-inputs, and rerun constructor checks. Max-count and one-beyond cases pass.
+Source `af1dd66c4fb8811d8eab54a1c88a8bddae2ae80e`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44205064789 — SUCCESS.
+Job 134468771581 full logs inspected. Rust 1.98.0 with committed Cargo.lock.
 
-Results: 164 workspace tests (133 retained + 31 new); 57 personhood tests in release
-(26 V1 + 31 B1); reference-vector check; legacy synthetic enrollment/replay demo;
-documentation command with zero cases; allocation/runtime-data audit. Rust tests
-ran in actual GitHub Actions, not in the local chat container (no Rust toolchain).
+Implemented `v2/operation.rs`: immutable signed Enroll/Approve/Withdraw, exact
+131-byte prefix and 291/227/227 signed sizes; bounded membership-only decoder;
+strict signatures; complete-request enrollment IDs and signed operation IDs;
+configuration binding; checked height/window/ancestor-age rules and a documented
+trusted parent-chain resolver. Transfer=0 rejects. No state or money mutation API.
 
-Matrix coverage: T02 verified for configuration/bootstrap binding; T03 construction/
-proof parts and T20 configuration/count parts verified. Runtime membership privilege,
-state execution/resource enforcement, operation expiry and block integration remain
-B2/B3/MB-02. Do not report all 35 cases as passed. F01 is addressed only at the V2
-config/bootstrap boundary; legacy V1 behavior and remaining findings are unchanged.
+39 tests in `tests/operations_v2.rs` include bytewise message/signature tampering,
+all truncations, size/kind/version edges, changed-seed contexts, weak keys,
+seed/V1 signature separation, orphan/future/unknown anchors, inclusive windows,
+u64 overflow and independent vectors. Standard-library reference computes bytes/
+hashes/IDs; signature constants were generated separately with Python cryptography
+and matched/strictly verified by Rust. No local Rust compiler was available.
 
-No node, genesis, wallet, monetary-policy source, Cargo dependencies/lockfile or
-local runtime data changed. No real enrollment, grants or biometrics. PR remains
-unmerged. Next B2, then B3/B4, then MB-02. Gate A and Gate B remain UNMET.
+Results: **203 workspace tests = 164 retained + 39 B2**. **96 personhood release
+reruns = 26 V1 + 31 B1 + 39 B2**, not new unique tests. Both Python references,
+legacy demo, new authorization/expiry demo, doc command (zero cases) and allocation/
+runtime-data audit pass. The B2 demo accepts the synthetic message at height 1 and
+rejects it at height 9 as expired, without activating membership or issuing money.
+
+T04 membership portions, T05 membership signature binding, T06 target binding and
+T09 synthetic-parent checks are verified subcases; T10 window checks verified at
+the message layer. Transfer/stateful reuse/real-ancestry integration remain later.
+Sequence fields are signed, not consumed. Unknown target or exhausted approval
+sequence can pass contextual checks; B3 MUST reject against state. Parent resolver
+is trusted input, not proof of real ancestry. Neither Gate A/B nor MB-01B overall
+is complete. No V1 encoding/config vector, monetary rule, node or local data changed.

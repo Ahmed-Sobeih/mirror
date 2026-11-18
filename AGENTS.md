@@ -24,20 +24,24 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-personhood tests, independent reference checks and the membership demo. Pin CI
-toolchain/dependencies; do not print secrets. Distinguish written code, actual
-passing tests, published branch, PR and merge status. Release reruns are not new tests.
+personhood tests, both independent reference checks and both membership examples.
+Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
+actual passing tests, published branch, PR and merge status. Release reruns are
+not new tests. Verify exact source commits, not just an older green check.
 
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B2.
-MB-01A is complete as a DESIGN task. MB-01B/B1 configuration/bootstrap is implemented
-and verified; B2–B4 and ledger integration remain. Read docs/LEDGER_MEMBERSHIP_V1.md,
-docs/CONFIG_V2_ENCODING.md, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
-Matrix coverage is scoped: T02 config binding verified; T03/T20 partial; remaining
-rows planned. Do not claim all 35 acceptance rows from 31 B1 test functions.
-Preserve V1 APIs/encodings and frozen MCF2 vectors. New signed/root byte semantics
+NEXT_SESSION.md points to the next unfinished task: currently MB-01B/B3.
+MB-01A design, B1 configuration/bootstrap and B2 signed message checks are verified.
+B3 stateful execution, B4 registry roots/replay and actual ledger integration remain.
+Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
+docs/OPERATIONS_V2_ENCODING.md, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
+Coverage is scoped: B2 context/signature success does not establish reviewer rights,
+target ownership/status or current sequences. Never use it alone to activate a
+membership. The trusted parent view must come from locally validated stable ancestry.
+
+Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.
 Use docs/DEVICE_INPUT_CONTRACT.md for the private capture interface, not as a claim
 of existing hardware support. Later tasks remain planned.
@@ -49,40 +53,27 @@ software readiness with synthetic inputs; Gate B additionally requires actual
 device/capture/matching evidence. Neither is a mainnet security guarantee.
 
 User policy decisions in docs/DECISIONS.md override proposed technical defaults.
-D-01 through D-06 in the plan are scoped decision gates, not reasons to stall all
-work. Continue dependency-ready work when one package is blocked. Do not select a
-monetary exception formula or collect real biometrics merely to pass a test.
+D-01 through D-06 are scoped decision gates, not reasons to stall all work.
+Continue dependency-ready work when a package is blocked. Do not choose a monetary
+exception formula or collect real biometrics merely to pass a test.
 
 ## Living continuation prompt — explicit user requirement
 
-The root file `the-prompt` is the user's copy-and-paste handoff into a fresh
-conversation when this conversation fills up. Keep it standalone and current;
-maintain it during the conversation, not only at a final handoff.
-
-Before the final response to EACH Mirror-related user message, refresh
-`the-prompt` on the verified active development branch. Include new decisions,
-actual completed work, observed test results, publication/PR state, unresolved
-questions, and the exact next unfinished action. Distinguish user decisions from
-proposals. When a turn changes no implementation state, explicitly preserve the
+The root `the-prompt` is the user's copy/paste handoff into a fresh conversation.
+Keep it standalone and current during the conversation, not only at final handoff.
+Before the final response to EACH Mirror-related message, refresh it on the verified
+active branch. Include decisions, actual completed work, observed test results,
+publication/PR state, unresolved questions and the exact next unfinished action.
+Distinguish user decisions from proposals. On discussion-only turns preserve the
 last verified checkpoint and next task rather than inventing progress.
 
-Read the current file before changing it; reconcile newer work and use the
-current content SHA. Verify the saved file after writing. Keep MASTER_PLAN.md,
-CURRENT_STATUS.md, NEXT_SESSION.md and decision records consistent when relevant.
-Do not include secrets, biometric data or unrelated personal/project information.
-
-A copied prompt can be stale. A new session must verify live repository metadata,
-branches, PRs and CI before continuing. If the feature PR is unmerged, read its
-checkpoint files on the active branch rather than assuming main contains them.
-After a merge or branch change, refresh the prompt's branch/path accordingly;
-never reset newer work to a copied snapshot or merge only to publish the prompt.
-
-Record the last verified source/CI commit separately from documentation updates.
-Do not label an untested new head as tested, and do not chase a self-referential
-commit SHA for the prompt itself. Updates happen within the active conversation,
-not as promised background work. If GitHub access or publication fails, state
-that clearly and provide the current continuation text in the response instead
-of claiming the repository file was refreshed.
-
-At handoff, provide a direct link to the current branch's `the-prompt` so the user
-can copy its entire contents into the next conversation.
+Read current files before editing, reconcile newer work and use current content
+SHAs/expected-head guards. Verify publication. Keep master/status/next/decisions
+consistent. Include no secrets, biometrics or unrelated personal/project details.
+A stale prompt never overrides newer live branches/PRs/CI. If unmerged, read feature
+branch records, not main. After a merge/branch change update links; never reset newer
+work or merge only to publish the handoff. Record tested source separately from
+documentation updates; do not label an untested head tested or chase self-referential
+SHAs. Work occurs in the current conversation, not promised background execution.
+If publication fails, state that and provide the continuation text instead.
+At session switch provide the direct live file link for copying its full contents.

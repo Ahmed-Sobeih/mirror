@@ -1,90 +1,84 @@
 # Current status
 
-Roadmap: MIRROR-PLAN-001, [MASTER_PLAN.md](MASTER_PLAN.md).
-Latest implementation: **MIRROR-MB01B-B1-001 — configuration/bootstrap VERIFIED**.
-MB-01A design is complete. MB-01B is **IN_PROGRESS**: B1 complete; B2–B4 remain.
-**Next: MB-01B/B2 — signed V2 membership operations, codecs, anchors and windows.**
-Status of next slice: READY, not implemented.
+Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md), MIRROR-PLAN-001.
+Latest implementation: **MIRROR-MB01B-B2-001 — signed authorizations VERIFIED**.
+MB-01A design complete; MB-01B **IN_PROGRESS**, B1/B2 verified, B3/B4 pending.
+**Next: MB-01B/B3 — bounded staged V2 membership execution. READY.**
 
-## Publication and exact evidence
+## Exact source, publication and verification
 
-Active branch: `work/personhood-register-v0.1`.
-PR #1: https://github.com/Ahmed-Sobeih/mirror/pull/1 — open, not merged.
-Observed main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
-B1 implementation/tested commit: `809661b5e6a9338d65c15c45e540289df24fcc99`.
-CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44201393943 — SUCCESS.
-Job 134456099484 summaries and full logs were inspected. These checkpoint documents
-follow the tested source; inspect the latest exact-head CI separately. Recheck live
-refs before continuing; newer verified work overrides copied prompts.
+Active branch `work/personhood-register-v0.1`; PR #1 open/unmerged:
+https://github.com/Ahmed-Sobeih/mirror/pull/1
+Main preserved at ad7ffd120fb451fe44cf59cb909176785b33bf8f.
+B2 implementation: `af1dd66c4fb8811d8eab54a1c88a8bddae2ae80e`.
+CI: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44205064789 — SUCCESS.
+Job 134468771581 full logs and step outcomes inspected. Rust 1.98.0, locked Cargo.
+These checkpoint documents follow the tested source; inspect later exact-head CI
+separately. Verify live refs/comments before continuing, never reset newer work.
 
-## Completed in B1
+## Completed B2
 
-Added separate `crates/mirror-personhood/src/v2/` modules: config, limits and
-canonical unsigned MCF2 encoding. The V1 library and its encodings are unchanged.
+Added `crates/mirror-personhood/src/v2/operation.rs` and public exports, typed
+Enroll/Approve/Withdraw, immutable signed messages, strict signature verification,
+complete-request enrollment IDs and signed operation IDs. Exact prefix131 and
+signed lengths291/227/227 are fixed in docs/OPERATIONS_V2_ENCODING.md.
+Decoder enforces cap/version/membership kind/exact size before fixed-size copying.
+Transfer=0 and legacy formats reject; no generic variable payload is introduced.
 
-ConfigV2 validates versions, network/evidence domains, representable PoW target,
-approval threshold, all development limits, ordered seed descriptors, strictly
-sorted synthetic account allocations and checked initial test-supply sum. Context
-binds every field, including seed order/contents and zero-balance allocation entries.
-Counts and byte limits are checked before input-sized cloning/allocation. Decoding
-rejects malformed/truncated/trailing input and repeats constructor validation.
+Context checks bind ConfigV2, trusted parent-view context, parent+1 candidate height,
+recent exact canonical ancestor and inclusive authorization window using checked
+arithmetic. Enrollment requires nonzero nonce/evidence, expected evidence profile
+and sequence0. ParentChainViewV2 is a documented TRUSTED stable local view, not a
+peer oracle. Tests use synthetic views; no actual chain resolver exists yet.
 
-Context is computed BEFORE seed signatures/IDs, avoiding circular genesis hashing.
-All ordered seed proofs are required, using the existing strict Ed25519 verifier.
-A structurally valid ConfigV2 is not a VerifiedBootstrap until all proofs pass.
-The first seed has no shortcut. Immutable public APIs do not accept a caller's
-claimed context hash. A verified bootstrap establishes key possession only, not
-biological uniqueness, authority of an untrusted peer's configuration, or live
-membership. There is no V2 runtime membership mutation or currency API yet.
+B1 remains intact: validated immutable configuration, bounded MCF2, all-seed proof
+verification, noncircular context, independent fixed vectors. V1 types/encodings,
+old chain/node, test balances, monetary helpers and dependencies are unchanged.
 
-Full wire format: [CONFIG_V2_ENCODING.md](docs/CONFIG_V2_ENCODING.md).
-Independent reference: `tools/reference_config_v2.py`; it uses Python hashlib and
-struct, not Mirror Rust code. Full bytes/context/seed hashes/IDs are committed in
-`crates/mirror-personhood/tests/vectors/config_v2.txt` and checked by Rust tests.
+## Actual tests
 
-## Actual test results
+- **203 workspace tests passed =164 retained +39 new B2 tests.**
+- **96 personhood tests passed again in release =26 V1+31 B1+39 B2.** Reruns are not
+  extra unique tests.
+- Both independent Python reference checks pass. B2 byte/hash/ID calculation uses
+  hashlib/struct; signature constants were independently generated locally with
+  Python cryptography Ed25519 and matched/verified by Rust tests in Actions.
+- Legacy enrollment/replay demo and new `operation_v2_demo` both execute. The latter
+  accepts its synthetic authorization at candidate height1 and rejects it at9
+  as expired. It performs no registry mutation and issues no MRY.
+- Documentation-test command passes with zero doctest cases; allocation/runtime-
+  data audit passes and Cargo.lock is unchanged.
 
-- **164 workspace/all-target tests passed**: all 133 previous tests plus 31 new B1
-  tests in `crates/mirror-personhood/tests/config_v2.rs`.
-- **57 personhood tests passed in release mode**: 26 V1 + 31 B1. These are reruns,
-  not additional unique tests.
-- Independent Python configuration/seed reference-vector check passed.
-- Legacy synthetic enrollment/replay example executed successfully; no MRY issued.
-- Documentation-test command passed, currently zero doctest cases.
-- Allocation/runtime-data audit passed; Cargo.lock was not rewritten.
+Rust execution was in actual GitHub Actions; no local Rust compiler was available.
+No new package dependency was added to Rust or CI Python. See test matrix section4.
 
-Rust compile/runtime claims come from actual GitHub Actions with pinned Rust 1.98.0
-and the lockfile, not local Rust execution. The local environment had no Rust
-compiler. The independent Python reference was also executed locally.
+## Important scope boundaries
 
-## Acceptance scope and remaining gaps
+B2 verifies signed/contextual messages, NOT valid registry transitions. It does not
+consume/check current Approve/Withdraw sequences, establish target status/ownership,
+check reviewer eligibility, enforce approval-to-request expiry alignment, detect
+history reuse, expire records or activate members. A context-valid approval may
+still be invalid against state; the test suite explicitly demonstrates this.
+B3 must enforce those conditions atomically against the correct parent snapshot.
 
-T02 configuration/bootstrap signature binding is VERIFIED. T03 construction/proof
-checks and T20 configuration/count bounds are VERIFIED SUBCASES only: their runtime
-membership privileges/execution limits remain B3/MB-02. Other matrix rows remain
-planned. See [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md), section 4.
+Matrix: T04 membership-only codecs, T05 membership binding, T06 target signatures
+and T09 synthetic ancestry are verified subcases; T10 message windows verified.
+Stateful T07/T11 and B3+ requirements remain pending. Do not mark all 35 cases PASS.
+F01/F03 defenses are present in V2 context/message layer, not a deployed fix to the
+legacy chain. Full genesis pinning/live ancestry, durable sync and replay are later.
 
-F01 from the historical threat review is addressed at the V2 configuration/seed
-boundary, not retroactively fixed in V1. Runtime operations must use this context
-in B2; full genesis/network pinning is MB-02/03. The historical F01–F11 table records
-the earlier source, not a claim that B1 solves all its findings. Remaining expiry,
-parent eligibility, block-end activation, resource enforcement, combined ledger,
-storage/transport and real-admission issues remain on the roadmap.
+No V2 membership executor, live blocks, human-round consensus, biometric matching,
+anonymity, real enrollments, grants/rewards/fees or device adapters are enabled.
+Gate A/B remain UNMET. Fresh keys/evidence from one person need external private
+deduplication; public member/reviewer relationships remain linkable.
 
-## Preserved boundaries
+## Accepted policy and preserved data
 
-No node source, historical genesis, wallet balance, monetary-policy source,
-dependency or lockfile changed. The V1 personhood source only exports the new V2
-module; its old tests/vectors remain intact. No local mirror-data was touched.
-Alice's known 100-MRY development fixture is NOT a founder entitlement.
+No founder bonus or privileged marketing reserve. First1,000 qualifying humans
+including founder have identical10-MRY bootstrap allocations; ordinary allowance
+is0.2 MRY per qualifying historical population maximum; 1 MRY=10,000,000 Nusa.
+Bootstrap-floor/additive D-01 and fee/reward D-04 remain undecided; no minting API.
+No local mirror-data, genesis or wallet balance was touched. Known Alice100-MRY
+fixture is development-only, NOT founder funds. No biometric archives/secrets in Git.
 
-No real enrollment, biometric matching, anonymous credentials, live membership
-blocks, human-round consensus, grants/rewards/fees or device adapters are enabled.
-Gate A and Gate B remain UNMET. Public member/reviewer relationships remain linkable.
-
-No founder bonus or privileged marketing reserve. First 1,000 qualifying humans,
-including founder, have the same 10-MRY bootstrap allocation; ordinary allowance
-is 0.2 MRY per qualifying historical population maximum. D-01 combined-ceiling
-and D-04 reward/fee choices remain unresolved. B1 does not decide them.
-
-Continue NEXT_SESSION.md: B2, then B3/B4, then MB-02 ledger integration.
+Continue NEXT_SESSION.md: B3 execution, B4 roots/replay, then MB-02 mixed ledger.
