@@ -26,3 +26,6 @@ pub mod codec;
 pub use codec::{
     BLOCK_ENCODING_MAGIC, CodecError, MIN_ENCODED_BLOCK_LEN, decode_block, encode_block,
 };
+
+/// Explicit V2 formats; legacy consensus types remain available unchanged.
+pub mod v2;

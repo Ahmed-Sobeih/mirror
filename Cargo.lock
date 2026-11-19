@@ -156,6 +156,7 @@ name = "mirror-core"
 version = "0.1.0"
 dependencies = [
  "mirror-crypto",
+ "mirror-personhood",
 ]
 
 [[package]]
