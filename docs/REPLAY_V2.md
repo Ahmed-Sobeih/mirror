@@ -9,7 +9,9 @@ human uniqueness. Read with [membership execution and MPS2](MEMBERSHIP_STATE_V2.
 MB-02B now implements the separate [atomic mixed ledger](LEDGER_STATE_V2.md).
 MPH2 remains membership-only: its bytes, group commitments, contiguous membership
 positions and acceptance rules are unchanged. A successful mixed ledger stage is
-not an accepted block or an MPH2 replay. MB-02C is next for actual block authority;
+not an accepted block or an MPH2 replay. MB-02C now implements the separate
+[actual-block acceptance and full MRB2 replay API](CHAIN_V2.md) for finite in-memory
+branches; it does not change MPH2 or make an MPS2 cache authoritative.
 CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
@@ -31,8 +33,10 @@ does not check signatures, grant reviewer rights, or recover authoritative state
 Do not implement the trusted view using a peer's advertised hashes/roots or the
 same diagnostic file that is under examination. A malicious view can authorize a
 malicious history; the trait is an explicit integration trust boundary. B4 uses
-synthetic independently executed fixtures. Actual MRB2 header/root/genesis
-validation remains MB-02C, and durable canonical-tip recovery remains MB-03.
+synthetic independently executed fixtures. MB-02C's separate `ChainV2` now validates
+actual MRB2 headers, roots and pinned genesis using its own accepted ancestry.
+It does not implement an automatic MPH2 `ReplayChainViewV2` adapter. Durable
+canonical-tip selection/recovery remains MB-03.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -54,9 +58,11 @@ root implemented in [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The current form
 cannot replay mixed transfer/membership blocks by simply
 dropping transfers: doing so changes membership inclusion indices and may change
 ledger execution. MB-02B supplies indexed execution within the full mixed body,
-but does not change this replay representation. Actual mixed-chain replay must use
-full validated MRB2 blocks under MB-02C/MB-03, preserving their original positions
-and combined state semantics. Do not reinterpret MPH2 as such an integration.
+but does not change this replay representation. Actual mixed-chain replay uses
+MB-02C's complete validated MRB2 histories, preserving their original positions
+and combined state semantics. That API requires independently selected C, genesis,
+height, tip and ledger root; durable publication remains MB-03. Do not reinterpret
+MPH2 as such an integration or replace its diagnostic group roots with MRB2 roots.
 
 MPS2's MB-02B structural enrollment-index bound is explicitly extended to
 `< max_operations` from `< max_membership_operations`, without changing snapshot

@@ -24,9 +24,9 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state tests, all five independent reference checks and all five
-synthetic examples (three personhood examples, core block_v2_demo and state
-ledger_v2_demo).
+core/personhood/state/consensus/chain tests, all six independent reference checks
+and all six synthetic examples (three personhood examples, core block_v2_demo,
+state ledger_v2_demo and chain chain_v2_demo).
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -34,24 +34,27 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-02C.
-MB-01A design, MB-01B/B1–B4, MB-02A formats and MB-02B atomic ledger are verified
-components. B4 supplies MPS2/untrusted caches and trusted grouped MPH2 replay.
-MB-02A supplies transfers, unified operations and bounded MRB2 codecs/roots.
-MB-02B supplies indexed membership staging, atomic accounts/membership execution
-and combined roots. Next: pinned genesis, actual block acceptance and complete
-validated MRB2 replay. Durable coherent recovery remains MB-03.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03A.
+MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
+MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
+unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
+accounts/membership execution and combined roots. MB-02C now supplies pinned MNM2
+manifests, actual block/genesis/work/root validation, private accepted ancestry and
+complete validated MRB2 replay. MB-02 is complete within its in-memory component
+scope. Next is explicit V2 storage identity, locking and recovery contract, then
+durable coherent publication/synchronization/reorganization within MB-03.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
-docs/LEDGER_STATE_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
+docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
 membership. The trusted parent view must come from locally validated stable ancestry.
 
 B3 only stages bounded immutable membership state. bind_to_validated_block attaches
-trusted provenance; it does not verify a real header/root/PoW/genesis. MB-02 must
-establish that association. Keep tip hash outside committed state to avoid cycles.
+trusted provenance; it does not verify a real header/root/PoW/genesis. ChainV2 now
+establishes that association through actual validation; lower-level binding remains
+a trusted boundary. Keep tip hash outside committed state to avoid cycles.
 Preserve B3 expiry/tombstone/sequence/parent-set/end-block timing and explicit approval
 budgets (64 per record; aggregate retained <= configured max_records). Never evict
 history to recover capacity. B4 replay retains block grouping and empty blocks;
@@ -83,9 +86,21 @@ leave both unchanged. Preserve explicit zero/spent account records and initial
 synthetic-supply conservation, positive zero-fee transfers and funded self-transfer
 sequence semantics. There is no mint/grant/reward API or new membership spending
 restriction. bind_to_validated_block is only trusted provenance attachment.
-MB-02C must validate the actual header/genesis/parent/height/time/target/work/body
-and resulting ledger root before calling it or publishing state. Full MRB2 replay
-must use accepted candidate-branch ancestry, not peer assertions or filtered MPH2.
+ChainV2 validates the actual header/genesis/parent/height/time/target/work/body and
+resulting ledger root before binding or publishing state. Full MRB2 replay uses
+its private accepted candidate-branch ancestry, never peer assertions or MPH2.
+MNM2 decode requires externally selected C/genesis and every seed proof. Complete
+replay requires external C/genesis/height/tip/ledger-root selection. These pins
+identify a branch; they do not discover latestness or supply global fork choice.
+Preserve strict child timestamp > parent and configured literal bits; no wall-clock
+ceiling exists in this synthetic profile. Preserve 4,096 blocks, 16 MiB complete
+MRB2 and 1,048,576 cumulative state/config items, including the exact charge formula
+in CHAIN_V2.md. No pruning, cap bypass or silent profile change in storage/recovery.
+MB-03 must define separate explicit initialization/open/read-only inspection,
+single-writer ownership, bounded file reads and coherent accepted-tip publication.
+Ambiguous I/O requires reconciliation before further writes. Reuse ChainV2 for
+validity; do not install cached state as authority, silently initialize legacy
+directories or mistake in-memory rollback for crash recovery.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

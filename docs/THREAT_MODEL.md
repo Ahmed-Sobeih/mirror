@@ -10,11 +10,12 @@ Read with [the proposed integration specification](LEDGER_MEMBERSHIP_V1.md) and
 merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
-The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A and MB-02B evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+The preceding sentence describes the original design checkpoint. Current B1–B4
+and MB-02A/B/C evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
-component-level mitigations without rewriting historical findings or claiming
-that actual V2 block acceptance, consensus or durable integration already exists.
+component-level mitigations without rewriting historical findings. Actual V2
+in-memory branch acceptance and externally selected complete-block replay now
+exist; global canonical selection, finality and durable integration remain open.
 
 ## Historical B3 implementation update
 
@@ -114,7 +115,7 @@ next**. Its component implementation is recorded below. No launch gate, human
 uniqueness, anonymity, currency issuance or device readiness was established by
 MB-02A.
 
-## MB-02B atomic execution implementation update
+## Historical MB-02B atomic execution implementation update
 
 Published source `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`, tree
 `6871ad0fbc178bd76262a26416a7d255d9fcbd66`, implements atomic accounts/membership
@@ -139,7 +140,8 @@ order, so an earlier invalid transfer cannot be hidden by a later membership
 error, or vice versa. Both candidates are discarded on any failure, including a
 late account invariant failure. Tests compare the complete parent and its roots,
 not only the returned error. This verifies T27's staged failure directions;
-**rejecting a wrong claimed final block root remains an MB-02C requirement**.
+**rejecting a wrong claimed final block root remained an MB-02C requirement at
+that checkpoint**.
 
 Accounts retain explicit zero allocations and exhausted balances with their
 sequences. Transfers require positive amounts, zero fees, exact account sequences
@@ -185,12 +187,103 @@ fixture under a synthetic trusted parent is not T26's canonical chain recovery.
 **F06 is partially mitigated at the staging boundary; F07 is not closed.**
 `bind_to_validated_block` attaches caller-supplied provenance and does not verify
 genesis, actual header height/parent/configuration/timestamp/target/work, body
-commitment, claimed ledger root or finality. **Next is MB-02C**, which must validate
-those real block inputs and replay accepted MRB2 history before binding state.
+commitment, claimed ledger root or finality. **At the MB-02B checkpoint,
+next was MB-02C**, to validate those real block inputs and replay accepted MRB2
+history before binding state. Its implementation is recorded below.
 F08 durable recovery and reorg publication remain MB-03; F09 network sessions,
 F10 biological uniqueness/privacy and the final human consensus/economy remain
 their later gates. No launch, mainnet, device readiness or sensitive-data processing
 is authorized or established by these component tests.
+
+## MB-02C actual block acceptance implementation update
+
+Published source `db2cb58ba5a9a828ec949debd1b52b5915a66f3b`, tree
+`3fa1d3b44abb885898cc256f9525355025649a0a`, matches the locally tested source.
+The contract is [CHAIN_V2.md](CHAIN_V2.md). Local acceptance passed **523 workspace
+tests = 462 retained + 61 new**: 15 work, 14 manifest, 20 public chain, three
+private budget and nine independent-vector cases. The same three compile-fail
+documentation tests passed. Release reruns passed core 121, personhood 234 plus
+the same three documentation cases, state 49, consensus 23 and chain 57. All six
+independent reference checks, six synthetic examples, changed-file formatting
+and preservation/allocation audits passed. Reruns are not additional unique tests.
+
+[Exact-source push CI 44623282448](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623282448)
+**passed**. Job `135910328823` full logs and the exact
+`db2cb58ba5a9a828ec949debd1b52b5915a66f3b` checkout were inspected; all listed test,
+reference, example and audit gates passed in CI too.
+[PR CI 44623296178](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623296178)
+also **passed**. Evidence was verified on 2026-11-20. Later documentation-head
+checks remain separate from this source evidence and are tracked in
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and test-matrix section 9.
+
+The new `MNM2` manifest requires an independently selected configuration hash and
+exact genesis hash, and verifies every ordered seed proof. Its decoder preflights
+complete framing/count/size limits before configuration/proof allocations and
+signature work. A manifest chooses a network; it does not itself validate genesis
+or establish the biological uniqueness of its seeds. A peer cannot replace the
+local choice by supplying a different self-consistent manifest.
+
+`ChainV2` now covers F06's actual V2 in-memory block/state association. It checks
+genesis against the manifest and independently executed bootstrap, then validates
+each child against the accepted configuration, next height, exact parent hash,
+strictly increasing parent timestamp, literal configured target and actual work.
+It recomputes the ordered full signed-operation commitment, executes the complete
+mixed body and compares the resulting accounts/membership/economics root before
+binding state to that actual block. Valid work cannot excuse a wrong ledger root.
+Original per-operation order and full inclusion positions remain intact; a later
+signature failure cannot hide an earlier execution failure.
+
+Preparation returns an unaccepted proposal without changing the chain. Every
+returned acceptance error preserves the complete accepted branch, ledger, manifest
+and resource counters. Tests reach late mixed execution and a re-mined wrong final
+root, rather than stopping only at an invalid signature or hash. This completes
+T27's in-memory wrong-root subcase; process failure and disk publication are not
+covered by that atomicity claim.
+
+Only the chain's private accepted block prefix supplies ancestry to its own
+executor. It does not import a caller-bound `LedgerV2`, untrusted MPS2 cache or
+externally supplied parent oracle as accepted state. The lower-level public
+`bind_to_validated_block` helper remains a trusted staging boundary for other
+callers; its existence is not a separate chain-validation path. A different
+branch's signed anchor rejects even when the child parent, work and signatures
+otherwise pass.
+
+Typed and encoded replay rebuild complete MRB2 histories through the same actual
+acceptance path. An external expectation specifies C, exact genesis, height, tip
+and ledger root. An authentic old prefix or unintended branch does not satisfy
+that expectation. The replay method neither discovers the latest global tip nor
+protects an application that supplies its own obsolete expectation. MPH2 stays
+membership-only; MPS2 decoding still does not produce authoritative ledger state.
+F07's exact genesis/configuration and selected replay checks are now covered in
+memory, including another valid genesis nonce. Its durable reopen/latest-tip
+portion and the original V1 behavior remain unresolved.
+
+The local synthetic branch is capped at 4,096 blocks, 16 MiB of complete encoded
+history and 1,048,576 cumulative state/configuration work items. Aggregate count
+and byte checks precede replay decoding; every transition checks its state-work
+charge before staging, including empty blocks. Charges commit only on acceptance;
+overflow and exhaustion fail. These are finite profile limits, not guarantees of
+admission, availability, disk-read bounds or network-session protection. The local
+mining helper's one-million-attempt ceiling is separate from consensus validation.
+Strict parent timestamps use no local clock or future-time ceiling; accepting
+`u64::MAX` leaves no successor. This is an explicit synthetic rule, not a finished
+production time-manipulation or liveness policy.
+
+The independent Python fixture was frozen before its Rust comparison. Twenty
+signatures use public development seeds and actual mined ancestor hashes. The
+fixture reproduces five main-branch states and a genuine membership fork where
+reviewer withdrawal leaves a candidate pending despite identical final accounts.
+It also checks empty-block expiry, an alternate valid genesis, re-mined invalid
+root and foreign-branch anchors. All nine Rust vector cases matched on their
+first run; no failed Rust output became a new expectation.
+
+**MB-02A/B/C complete MB-02 as a VERIFIED_COMPONENT for bounded in-memory
+acceptance. MB-03 is READY NEXT.** MB-03A starts with a storage contract, explicit
+network identity/init, single-writer enforcement and checked reopening. Coherent
+durable publication, fault injection, synchronization and membership-aware reorgs
+follow. No global canonical choice, finality, durable recovery or live V2 daemon
+has been established. F08–F11 and later human-consensus, monetary, privacy and
+device gates retain their remaining scope; neither Gate A nor Gate B is met.
 
 ## 1. Assets and trust boundaries
 
@@ -325,11 +418,14 @@ MB-01A design deliverables identify integration blockers, choose a compatibility
 path, and map defenses to tests. They did not close F01–F11. The original next task
 was MB-01B/B1. B1–B4 and MB-02A's Transfer/unified operation and BlockV2 codecs,
 commitments and independent vectors are verified components. MB-02B adds atomic
-ledger staging and combined commitments verified locally and in exact-source CI,
-with the scoped evidence above. **Current next: MB-02C**, actual V2 block acceptance
-and validated replay.
-MB-02 overall remains IN_PROGRESS and Gate A/Gate B remain unmet. Durable recovery
-and multi-node membership reorgs remain MB-03. Exact-source CI and final checkpoint
-acceptance are recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md).
+ledger staging and combined commitments; MB-02C connects them to actual validated
+genesis, blocks and complete externally selected replay. **MB-02 is a
+VERIFIED_COMPONENT within that bounded in-memory scope.** Local and inspected
+exact-source CI evidence is recorded above; later documentation checkpoints are
+tracked separately in [CURRENT_STATUS.md](../CURRENT_STATUS.md).
+**Current next: MB-03A**, storage contract, explicit identity/init, writer locking
+and checked reopening, followed by coherent publication/recovery and multi-node
+membership reorgs. Global canonical selection, finality, a live V2 daemon and
+Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.

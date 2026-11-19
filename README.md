@@ -5,12 +5,13 @@ Mirror is a Rust development blockchain exploring human-based participation.
 
 ## Roadmap and continuation
 
-[MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
-membership register to an integrated blockchain/enrollment stack ready for
+[MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the Rust development chain
+to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
-criteria. **MB-01B, MB-02A formats and MB-02B atomic ledger execution are verified
-components.** Next is **MB-02C: pinned V2 genesis, actual block acceptance and replay**.
-Durable coherent multi-node integration follows in MB-03.
+criteria. **MB-01B and MB-02A/B/C are verified components:** configuration, membership,
+atomic ledger execution and actual V2 block acceptance/replay. Next is **MB-03A:
+explicit V2 storage identity, locking and recovery contract**, followed by durable
+publication, synchronization and membership reorganization within MB-03.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -56,8 +57,9 @@ and empty blocks. Replay reuses the same executor and checks independently trust
 configuration, hashes, exact operation groups, intermediate roots and the requested
 final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.md)
 and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
-authority; a caller-supplied hash is not proof of actual block validity. Live V2
-block validation, peer messages and rewards remain later work.
+authority; a caller-supplied hash alone is not proof of actual block validity.
+Actual V2 validation now exists in the separate chain layer below. V2 peer messages,
+durable publication and rewards remain later work.
 
 `mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
 MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
@@ -69,13 +71,22 @@ mixed-operation positions, executes checked zero-fee transfers and commits the
 combined state. Late transfer or membership failure leaves both parent components
 unchanged. Explicit zero accounts and independent sequences are retained. The
 [ledger contract](docs/LEDGER_STATE_V2.md) specifies canonical bytes and boundaries.
-Actual block/root/genesis/work acceptance remains MB-02C.
 
-Latest source: [`420d711`](https://github.com/Ahmed-Sobeih/mirror/commit/420d7114ddf782469a6ace6ba0a2c4076fb93aaf).
-[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619155972)
-passed **462 workspace tests**, **3 compile-fail doctests**, release core **121**,
-personhood **234** plus the same **3** doctests, state **49**, all **five independent
-references** and all **five examples**. Release reruns are not new tests.
+`mirror_chain::v2` now accepts actual complete blocks from an exact selected genesis.
+Its MNM2 manifest requires all seed proofs and independently selected configuration/
+genesis pins. Block acceptance checks work, real ancestry, original signed bodies
+and the executed combined root before installing state. Complete MRB2 replay uses
+the same validator and an external expected checkpoint. A false final root with
+valid mining work is rejected without changing the chain. The
+[chain contract](docs/CHAIN_V2.md) records exact rules, resource caps and trust.
+
+Latest source: [`db2cb58`](https://github.com/Ahmed-Sobeih/mirror/commit/db2cb58ba5a9a828ec949debd1b52b5915a66f3b).
+[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623282448)
+passed **523 workspace tests**, **3 compile-fail doctests**, release core **121**,
+personhood **234** plus the same **3** doctests, state **49**, consensus **23** and
+chain **57**, all **six independent references** and all **six examples**. Release
+reruns are not new tests. The new demonstration uses two separate in-memory
+validators; persistent multi-process V2 networking remains MB-03/04.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -103,16 +114,19 @@ cargo test --workspace --doc --locked
 cargo test -p mirror-personhood --release --locked
 cargo test -p mirror-core --release --locked
 cargo test -p mirror-state --release --locked
+cargo test -p mirror-consensus -p mirror-chain --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
 python3 tools/reference_state_v2.py --check
 python3 tools/reference_blocks_v2.py --check
 python3 tools/reference_ledger_v2.py --check
+python3 tools/reference_chain_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
 cargo run -p mirror-core --example block_v2_demo --locked
 cargo run -p mirror-state --example ledger_v2_demo --locked
+cargo run -p mirror-chain --example chain_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

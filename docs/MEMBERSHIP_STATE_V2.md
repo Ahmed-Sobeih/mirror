@@ -15,9 +15,11 @@ grant, founder privilege, anonymous credential or live V2 block network in this
 component. B4 completes MB-01B; MB-02A supplies the transfer/block formats in
 [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). MB-02B now implements indexed membership
 staging and atomic combined execution in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
-The next slice, MB-02C, establishes actual block authority. Membership-only behavior
-and MPS2 bytes/domains are preserved; section 5 documents the explicit extension
-of MPS2's accepted inclusion-index range for mixed blocks.
+MB-02C now establishes actual finite-branch block authority and complete MRB2
+replay in [CHAIN_V2.md](CHAIN_V2.md); durable storage/network integration remains
+MB-03. Membership-only behavior and MPS2 bytes/domains are preserved; section 5
+documents the explicit extension of MPS2's accepted inclusion-index range for
+mixed blocks.
 
 ## 1. State and trusted chain association
 
@@ -52,10 +54,12 @@ is unchanged. `bind_to_validated_block` associates a staged snapshot with its bl
 hash only **after the trusted outer chain executor accepts that block**. This is a
 trusted integration boundary, not a block-validation function. It does not verify
 PoW, a header, genesis pinning or a committed state root. B3 tests use synthetic
-block hashes; MB-02C must implement the actual validated association.
+block hashes. MB-02C's separate `ChainV2` now supplies the actual validated
+association by checking complete blocks and the combined ledger root before
+binding; its acceptance path uses only its own accepted branch for ancestry.
 
 The current block hash is deliberately excluded from committed membership state:
-the future block header commits to the ledger/membership root, so including that
+the V2 block header commits to the combined ledger root, so including that
 same block hash in its root would create a circular dependency. No unbounded
 single-event mutation API or setter for state fields is provided.
 
@@ -125,7 +129,8 @@ can free a pending slot, while Approve then Enroll cannot free it before finaliz
 These are development counters, not production monetary qualification. A future
 reorg must restore the chosen branch's snapshot and counters, not the maximum over
 every branch observed. Atomic mixed execution is now MB-02B behavior; actual
-validated chain/reorg integration remains MB-02C/MB-03.
+finite-branch acceptance/replay is MB-02C behavior. Canonical branch selection,
+durable recovery and reorg integration remain MB-03.
 
 ## 4. Bounded synthetic execution
 
@@ -246,8 +251,9 @@ input counts to allocate beyond the state limits.
 Decoding internally coherent signed records does not prove their complete history,
 canonical tip or freshness. Snapshots remain disposable caches bound to a trusted
 validated block/root. B4 replay requires trusted configuration and candidate
-ancestry; MB-02C/MB-03 must supply actual block/root/storage authority. It must not accept
-a peer-supplied snapshot merely because its individual signatures verify.
+ancestry. MB-02C supplies actual block/root authority by executing full MRB2 history;
+durable storage authority remains MB-03. A peer-supplied snapshot must never gain
+authority merely because its individual signatures verify.
 
 ## 6. Historical B3 acceptance evidence
 
@@ -261,10 +267,10 @@ audits passed. At that checkpoint this document's MPS2 layout was a B4 byte cont
 not a tested state codec/root. B4 acceptance is recorded in section 8 below.
 
 Relevant verified B3 cases are the runtime portions of T03/T06/T07/T11–T20/T22.
-B4 root/codec/replay and mixed-ledger execution were still pending then. B4 and
-MB-02B subsequently implemented those components; actual validated network reorgs,
-device readiness and Gate A/B remain pending. Consult CURRENT_STATUS.md for current
-source and acceptance evidence.
+B4 root/codec/replay and mixed-ledger execution were still pending then. B4,
+MB-02B and MB-02C subsequently implemented those components and actual finite-branch
+acceptance/replay; durable network reorgs, device readiness and Gate A/B remain
+pending. Consult CURRENT_STATUS.md for current source and acceptance evidence.
 Tests/review are not a security certification.
 
 The preceding evidence describes the B3 checkpoint. B4 adds the implementation
@@ -299,7 +305,9 @@ withdrawal. A manufactured but internally coherent revoked record may pass cache
 decoding while failing comparison to the trusted state. Root/signature/internal
 consistency alone do not establish history, canonical ancestry or latestness.
 Replay uses VerifiedBootstrap and the same B3 executor with the external trust
-checks in REPLAY_V2.md. MB-02C/MB-03 still must supply actual block/root/storage authority.
+checks in REPLAY_V2.md. The separate MB-02C chain API supplies actual block/root
+authority from pinned genesis and full accepted MRB2 history. It never restores
+authoritative runtime state from this cache. Durable recovery remains MB-03.
 
 The independent standard-library reference `tools/reference_state_v2.py --check`
 constructs five complete MPS2 snapshots from explicit synthetic record fixtures:
@@ -349,10 +357,13 @@ with independent vectors. MB-02B now stages accounts and membership together und
 commitments, retained zero accounts, separate sequence spaces and zero-fee/no-mint
 conservation. Membership activation and high-water counters release no funds.
 
-The current next task is **MB-02C actual block/chain acceptance**. Durable canonical
-recovery and reorg integration remain MB-03. Diagnostic group commitments are not
-MRB2 operation roots, MPH2 remains membership-only, and filtered indices must never
-replace original mixed-block positions. Combined staging and caller-supplied hash
-binding do not establish canonical block authority. No real currency, biological
-uniqueness, privacy or final human consensus is enabled here. CURRENT_STATUS.md
-records current source and acceptance evidence.
+MB-02C now implements [actual block acceptance and complete MRB2 replay](CHAIN_V2.md)
+for a bounded in-memory branch selected by independent manifest/checkpoint pins.
+The next task is **MB-03 durable storage, synchronization and reorganization**,
+beginning with MB-03A's explicit identity/checkpoint, locking and recovery contract.
+Diagnostic group commitments are not MRB2 operation roots, MPH2 remains
+membership-only, and filtered indices must never replace original mixed-block
+positions. Combined staging and caller-supplied hash binding alone still do not
+establish actual block authority; ChainV2 performs the additional checks. No real
+currency, biological uniqueness, anonymity or final human consensus is enabled
+here. CURRENT_STATUS.md records current source and acceptance evidence.

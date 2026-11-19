@@ -1,8 +1,10 @@
 # B1: MCF2 configuration and bootstrap proof boundary
 
-Checkpoint: MIRROR-MB01B-B1-001. Implementation written; acceptance requires exact
-commit CI recorded in CURRENT_STATUS.md and the PR checkpoint. This document freezes
-B1's unsigned bytes, not a launched network or a biometric procedure.
+Original checkpoint: MIRROR-MB01B-B1-001. This document preserves B1's unsigned
+bytes and configuration/bootstrap boundary. CURRENT_STATUS.md and the PR checkpoint
+record exact source/CI evidence. The separate [MB-02C chain layer](CHAIN_V2.md) now
+checks manifest selection and actual genesis; this does not launch a network or
+establish a biometric procedure.
 
 ## Wire bytes (all integers unsigned little-endian)
 
@@ -63,8 +65,9 @@ pending quota, pending/bootstrap <= total records. Single-operation capacity is
 at least 291 bytes. Block capacity >= 168+4+max_operation_bytes; log capacity >=
 8+max_operation_bytes. Limits may be lowered consistently. These checks validate
 configuration ONLY. B2/B3 and MB-02A/B now enforce their respective message,
-membership, body and mixed-execution bounds; actual accepted-block, peer and
-storage enforcement still requires MB-02C/03/04.
+membership, body and mixed-execution bounds. MB-02C additionally enforces actual
+accepted-block and cumulative finite-branch bounds. Durable storage and peer
+enforcement remain MB-03/04; configuration construction alone supplies neither.
 
 ## Independent evidence
 
@@ -86,7 +89,11 @@ membership/body/mixed-execution bounds. No other full matrix case is claimed
 complete by B1 alone. Legacy V1 APIs, signatures, MPH1/MRB1 bytes,
 node source, ledger history and monetary policy are unchanged.
 
-Trusted deployment configuration must still pin C and exact genesis in MB-02C/03;
-valid proofs of possession do not make a peer-supplied configuration authoritative.
+MB-02C's immutable `NetworkManifestV2` verifies every seed proof and carries an
+exact selected genesis hash. Its MNM2 decoder requires independently selected C
+and genesis expectations; `ChainV2` separately validates the actual pinned genesis
+and executed bootstrap root. Valid proofs of possession still do not make a
+peer-supplied configuration authoritative. Durable identity/checkpoint storage and
+explicit directory initialization remain MB-03; no existing directory is migrated.
 No V2 membership activation, genesis initialization, real admission, biometric
 matching, new grants, fees or human consensus is enabled by B1.

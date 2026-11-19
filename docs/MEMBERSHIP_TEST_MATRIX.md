@@ -1,10 +1,11 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MIRROR-MB02B-001**.
+Current implementation checkpoint: **MIRROR-MB02C-001**.
 These 35 rows are acceptance requirements, NOT 35 passing tests. Atomic ledger
-staging is implemented; actual block acceptance and durable integration remain
-pending. B1 added 31 Rust tests, B2 added 39 and B3 added 51.
+staging, actual complete-block acceptance and externally selected replay are
+implemented in memory; durable integration remains pending. B1 added 31 Rust
+tests, B2 added 39 and B3 added 51.
 B4 adds canonical MPS2 commitments, untrusted cache decoding and bounded MPH2
 replay through the B3 executor. Its suites have 26 snapshot cases, 10 independent
 vector cases, 31 replay cases and two private work-budget cases; a compile-fail
@@ -12,15 +13,19 @@ documentation test separately protects the snapshot-to-authority boundary. Count
 represent completed roadmap rows. Exact source/test/CI acceptance is recorded in
 CURRENT_STATUS.md. Release executions are reruns, not new unique tests.
 
-**MB-01B, MB-02A and MB-02B are verified components. MB-02B completes atomic
-staging in memory; MB-02 overall remains IN_PROGRESS.** MB-02B adds
-59 tests: 18 indexed membership, 28 public ledger, five private ledger fault cases
-and eight independent-vector cases, bringing the workspace total to 462. Three
-compile-fail documentation tests run separately. **Next is MB-02C: actual V2 block
-acceptance.** Durable integration remains MB-03. Sections 6 and 7 retain historical
-B4 and MB-02A evidence; section 8 records MB-02B's component scope. Exact-source
-CI results and the current acceptance checkpoint are recorded in
-[CURRENT_STATUS.md](../CURRENT_STATUS.md).
+**MB-01B and MB-02A/B/C are verified components. MB-02 is complete as a
+VERIFIED_COMPONENT for bounded in-memory acceptance.** MB-02C adds 61 tests:
+15 work, 14 manifest, 20 public chain, three private budget and nine independent
+vector cases, bringing the local workspace total to 523. The same three
+compile-fail documentation tests run separately. **Exact-source push and PR CI
+passed**, with the push checkout and full job logs inspected as recorded in
+section 9; later documentation-head evidence remains separate.
+**Next is MB-03A:** storage contract, explicit identity/init, single-writer checks
+and reopening, followed by durable publication/recovery and multi-node integration.
+Sections 6–8 preserve historical B4, MB-02A and MB-02B evidence; section 9 records
+MB-02C's actual block acceptance. Global canonical selection, finality and the
+live V2 daemon remain unfinished. Final exact-source CI and checkpoint acceptance
+are tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
@@ -30,47 +35,48 @@ B3 execution rules: [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md).
 Grouped replay: [REPLAY_V2.md](REPLAY_V2.md). Transfer, unified operation and MRB2
 byte contracts: [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). Atomic mixed execution,
 root composition and the explicit MPS2 index extension:
-[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
+[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md). Pinned manifest, actual block acceptance
+and complete replay: [CHAIN_V2.md](CHAIN_V2.md).
 
 ## 1. Rule-to-assertion map
 
 | Case | Required assertion / proposed acceptance name | Owner and current coverage |
 |---|---|---|
-| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | B1/B2 and MB-02A operation/MRB2 decoder rejection and no-fallback subcases VERIFIED; directory/init acceptance remains MB-02C/03 |
-| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | B1 config/seed and B2 context-bound messages VERIFIED; MB-02B checks shared context during staged execution; actual chain acceptance MB-02C |
-| T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction and B3 ordinary seed runtime rights VERIFIED; production bootstrap policy remains gated |
+| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | B1/B2 and MB-02A format/no-fallback subcases plus MB-02C bounded manifest and actual MRB2 replay format checks VERIFIED; directory/init and durable reopen remain MB-03/04 |
+| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | B1 config/seed and B2 context-bound messages plus MB-02B shared execution context and MB-02C selected manifest/actual-chain configuration checks VERIFIED IN MEMORY |
+| T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction, B3 ordinary seed runtime rights and MB-02C all-proof manifest construction/decoding VERIFIED; production bootstrap/admission policy remains gated |
 | T04/R04 | `v2_operations_have_exact_lengths`: prefix131; signed Transfer243/Enroll291/Approve227/Withdraw227; reject all truncations, versions/kinds, oversized/trailing bytes before mutation. | B2 membership plus MB-02A Transfer/unified codecs VERIFIED COMPONENTS; all four lengths and preserved membership bytes covered |
 | T05/R05 | `every_signed_field_is_bound`: altered kind/context/anchor/window/key/sequence/evidence/profile/target invalidates signature; malformed keys/signatures do not panic. | B2 membership plus MB-02A Transfer authentication, domain separation and strict signatures VERIFIED COMPONENTS |
 | T06/R06 | `approval_targets_complete_request`: changed request/window changes enrollment ID; approval cannot authorize it; exact request/key/evidence reuse rejected after active/revoked/expired outcomes. | B2 complete-request ID/signatures and B3 retained ID/key/evidence reuse rejection VERIFIED; fresh biometric duplicates remain external |
-| T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership and MB-02B account/membership sequence separation, exact consumption, replay rejection and private overflow tests VERIFIED STAGING COMPONENTS |
-| T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02B positive zero-fee transfers, self-transfers, checked arithmetic, retained zero accounts and exact synthetic-supply conservation VERIFIED IN MEMORY; no mint/reward API or final economy |
-| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2/B3/B4 and MB-02A authorization plus MB-02B parent-binding/per-operation rechecks VERIFIED COMPONENTS; actual validated blocks/branch ancestry remains MB-02C/03 |
-| T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2/MB-02A message boundaries and B3/MB-02B staged per-operation rechecks VERIFIED COMPONENTS; deterministic record expiry covered in T11 |
-| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3/B4 behavior and MB-02B empty mixed-stage expiry, unchanged account component and failed-stage expiry rollback VERIFIED COMPONENTS; durable restart MB-03 |
-| T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 ownership/state and per-operation authorization VERIFIED IN MEMORY |
-| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3/B4 and MB-02A commitments plus MB-02B original mixed-order execution, receive-before-spend and first-failure precedence VERIFIED COMPONENTS |
-| T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3 and MB-02B mixed execution VERIFIED IN MEMORY; trusted synthetic parent snapshots, not deployed membership consensus |
-| T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3 retained history/no-cascade behavior and MB-02B mixed-stage reviewer withdrawal before activation VERIFIED IN MEMORY |
-| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3/B4 ordinal/overflow/vector behavior and MB-02B sparse full-body positions and activation ordering VERIFIED COMPONENTS; actual canonical selection remains MB-02C/03 |
-| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | B3 derived consistency plus B4 canonical roots, snapshot metadata/sequence/counter checks and independent vectors VERIFIED COMPONENTS; snapshot remains untrusted |
-| T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | B3 final-state high-water and decline preservation VERIFIED; actual reorg/orphan counter recovery MB-03 |
-| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3/B4 atomicity and MB-02B complete account/member equality after late failures, including expiry and final account invariant failure, VERIFIED STAGING COMPONENTS |
-| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1–B4/MB-02A bounds and MB-02B complete-body preflight, exact transfer projection byte boundary, full-index plan validation and retained-account capacity VERIFIED COMPONENTS |
-| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | B1/B2, B4 MPS2/MPH2 and MB-02A MRB2 huge-count/length/byte bounds VERIFIED COMPONENTS; disk/frame/streaming cases remain MB-03/04 |
-| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | B3 tombstone/capacity behavior and B4 exact encoded replay reservations/indexes VERIFIED COMPONENTS; durable restart MB-03 |
-| T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A structure/hash/context/body integrity VERIFIED; MB-02B derives candidate ledger roots; actual header height/parent/target/root comparison and exact genesis remain MB-02C |
-| T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment and independent empty/odd/mixed vectors VERIFIED COMPONENT; canonical acceptance remains MB-02C |
-| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02B canonical account/member/economics/combined root construction and independent vectors VERIFIED ONLY FOR STAGING; equal accounts with different membership positions produce different ledger roots; actual header-root acceptance MB-02C |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | B4 membership-only trusted replay plus MB-02B synthetic signed-fixture reexecution and untrusted-cache comparisons VERIFIED COMPONENTS; actual combined canonical replay/recovery remains MB-02C/03 |
-| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | MB-02B both mixed-operation failure directions and final account-invariant rollback VERIFIED IN MEMORY; wrong claimed final ledger-root rejection after valid execution remains MB-02C |
-| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | B4 trusted synthetic expectations and MB-02B exact parent association are component checks; real MRB2 genesis pinning/replay and durable latestness remain MB-02C/03 |
+| T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership, MB-02B account/member sequence separation and overflow checks, and MB-02C actual-block execution/replay of those rules VERIFIED IN MEMORY |
+| T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02B arithmetic/self-transfer/retained-zero rules and MB-02C actual-block conservation of explicit synthetic supply VERIFIED IN MEMORY; no mint/reward API or final economy |
+| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2/B3/B4 and MB-02A/B authorization retained; MB-02C actual accepted candidate ancestry and wrong-fork anchor rejection VERIFIED IN MEMORY; global canonical selection and durable reorgs remain MB-03/06 |
+| T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2/MB-02A height-window boundaries and B3/MB-02B execution checks retained through MB-02C acceptance; T11 covers record expiry; strict parent header timestamps are separate from operation lifetimes and use no local clock |
+| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3/B4 and MB-02B expiry/rollback retained; MB-02C actual empty-block expiry and complete replay VERIFIED IN MEMORY; durable restart remains MB-03 |
+| T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 self-only ownership/status and authorization rules retained by actual MB-02C mixed execution and membership-fork replay; no founder override, recovery or death policy is added |
+| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3/B4 and MB-02A/B ordering retained; MB-02C accepts only the exact full-body commitment and executes original mixed order with first-failure precedence VERIFIED IN MEMORY |
+| T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3/MB-02B parent-eligibility rule retained; MB-02C supplies actual accepted parent ancestry to the shared executor; no deployed human-consensus claim |
+| T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3/MB-02B reviewer-survival/no-cascade rules retained; MB-02C actual membership-fork vectors show withdrawn earlier reviewers cannot activate a pending target |
+| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3/B4 and MB-02B ordering/index rules retained; MB-02C independent actual-block/replay vectors preserve full mixed inclusion positions and activation metadata; global canonical choice/reorg publication remains MB-03/06 |
+| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | B3/B4 consistency and root checks plus MB-02C exact executed membership/combined-root comparison and independent complete-state vectors VERIFIED IN MEMORY; snapshot structure alone remains untrusted |
+| T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | B3 final-state high-water/decline behavior retained; MB-02C genuine branches replay their own distinct membership/counters; durable canonical reorg/orphan recovery remains MB-03 |
+| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3/B4 and MB-02B staging rollback retained; MB-02C complete-chain equality after late execution/root failure includes accepted prefix, ledger, manifest and resource counters; disk atomicity remains MB-03 |
+| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1–B4/MB-02A/B budgets retained; MB-02C prepare/append/replay enforce full-body preflight and finite aggregate branch count/bytes/state-work charges before staging; no unbounded history or availability guarantee |
+| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | B1/B2, B4 and MB-02A codecs retained; MB-02C manifest and complete replay count/byte limits checked before decoding/cloning; disk/frame/streaming cases remain MB-03/04 |
+| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | B3/B4 retained history and replay protection retained through MB-02C complete accepted-history reconstruction; durable restart remains MB-03 |
+| T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A bytes/hashes and MB-02B roots now joined by MB-02C exact genesis, configuration/height/parent/time/target/work/body/ledger-root acceptance VERIFIED IN MEMORY |
+| T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment retained; MB-02C recomputes it during actual acceptance and rejects wrong commitments despite valid work; global branch choice is separate |
+| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02B canonical component/combined roots plus MB-02C accepted-header root comparison and independent actual-block vectors VERIFIED IN MEMORY; genuine forks with equal accounts and different membership commit differently |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | MB-02C complete typed/encoded MRB2 replay rebuilds actual accepted branch state against external C/genesis/height/tip/root expectations; MPS2 remains untrusted; durable recovery/latestness and global canonical choice remain MB-03/06 |
+| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | MB-02B both mixed failure directions plus MB-02C late operation and independently re-mined wrong-final-root rejection VERIFIED IN MEMORY; entire chain stays unchanged; durable publication remains MB-03 |
+| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | MB-02C external manifest identity, alternate-valid-genesis rejection and all five actual-history checkpoint checks VERIFIED IN MEMORY; this restart row remains PARTIAL because durable reopen/latestness is MB-03 |
 | T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | MB-03 PLANNED |
 | T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | MB-03/04 PLANNED |
 | T31/R31 | `network_versions_do_not_fallback`: MIR2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | MB-03/04 PLANNED |
 | T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | MB-04 PLANNED |
 | T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 and MB-02A use fixed signed fields, no archive/URL schema; real custody/canary/privacy acceptance remains MB-08/09, fixed fields not a privacy proof |
-| T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3/MB-02A closed operation kinds and MB-02B explicit-only allocations, no implicit member/founder funds and conserved supply across membership changes VERIFIED COMPONENTS; live economy MB-07 |
-| T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02B staging leaves mint/reward/fee policy disabled; D-01/D-04 unresolved; real admission and finality protection remain later gates, including MB-06/07 |
+| T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3/MB-02A closed kinds and MB-02B explicit allocations/no privileges retained through MB-02C actual-block supply conservation; no mint/reward mechanism or founder/marketing bonus; live economy remains MB-07 |
+| T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02C actual acceptance retains the disabled mint/reward/fee profile; D-01/D-04 remain unresolved; real admission, human consensus and finality protection remain later gates including MB-06/07 |
 
 ## 2. Boundary and adversarial requirements
 
@@ -278,7 +284,7 @@ execution with original mixed-operation positions and no publication after late
 failures. Section 8 records that implementation. Neither Gate A nor Gate B was
 completed by MB-02A.
 
-## 8. MB-02B atomic ledger staging and combined commitments
+## 8. Historical MB-02B atomic ledger staging and combined commitments
 
 Published source: `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`, tree
 `6871ad0fbc178bd76262a26416a7d255d9fcbd66`. Local acceptance passed **462 workspace
@@ -335,9 +341,88 @@ older decoders may reject the newly possible mixed states. Decoding still return
 an untrusted wrapper. MPH2 remains membership-only and cannot reconstruct a mixed
 ledger by omitting transfers.
 
-**Next is MB-02C.** Validate actual genesis, headers, height/parent/configuration,
-timestamp/target/work, body commitments and the claimed final ledger root before
-binding or accepting staged state. T27's wrong-final-root subcase and T26's actual
-canonical replay are not completed by this milestone. MB-03 must add coherent
-durable recovery and reorg handling. MB-02 remains IN_PROGRESS; human consensus,
-issuance, biometric admission, privacy and both launch gates remain unfinished.
+**At the MB-02B checkpoint, next was MB-02C:** validate actual genesis, headers,
+height/parent/configuration, timestamp/target/work, body commitments and the claimed
+final ledger root before binding or accepting staged state. T27's wrong-final-root
+subcase and T26's actual complete-block replay were not completed by MB-02B; section
+9 records their later in-memory implementation. MB-02 remained IN_PROGRESS at
+that checkpoint. Durable recovery/reorgs, human consensus, issuance, biometric
+admission, privacy and both launch gates were not established by MB-02B.
+
+## 9. MB-02C pinned genesis, actual block acceptance and complete replay
+
+Published source: `db2cb58ba5a9a828ec949debd1b52b5915a66f3b`, tree
+`3fa1d3b44abb885898cc256f9525355025649a0a`, identical to the locally tested source.
+Local acceptance passed **523 workspace tests = 462 retained + 61 new** and the
+same **three compile-fail documentation tests**. Release reruns passed **core
+121**, **personhood 234 plus the same three documentation cases**, **state 49**,
+**consensus 23** and **chain 57**. All **six independent references**, **six
+synthetic examples**, changed-file formatting and preservation/allocation audits
+passed. Reruns and example assertions are not additional unique workspace tests.
+
+[Exact-source push CI 44623282448](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623282448)
+**passed**. Job `135910328823` full logs and the exact
+`db2cb58ba5a9a828ec949debd1b52b5915a66f3b` checkout were inspected; all workspace,
+documentation, release, reference, example and audit gates above passed.
+[PR CI 44623296178](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623296178)
+also **passed**. This evidence was verified on 2026-11-20. Later documentation-head
+CI is separate and is not inferred from the source run.
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) records those checkpoints separately.
+
+The 61 additions comprise **15 work**, **14 manifest**, **20 public chain**,
+**three private budget** and **nine independent-vector** cases. In the table,
+`manifest` means [manifest_v2.rs](../crates/mirror-chain/tests/manifest_v2.rs),
+`chain` means [chain_v2.rs](../crates/mirror-chain/tests/chain_v2.rs),
+`vectors` means [chain_vectors_v2.rs](../crates/mirror-chain/tests/chain_vectors_v2.rs),
+`work` means [pow_v2.rs](../crates/mirror-consensus/tests/pow_v2.rs), and
+`private` means [chain v2/tests.rs](../crates/mirror-chain/src/v2/tests.rs).
+The acceptance contract is [CHAIN_V2.md](CHAIN_V2.md).
+
+| Case/subcase | Actual tests | Verified component scope and remainder |
+|---|---|---|
+| T02/T03/T28 manifest authority | manifest: `caller_selected_configuration_cannot_be_replaced_by_manifest_bytes`, `caller_selected_genesis_cannot_be_replaced_by_manifest_bytes`, `every_seed_proof_is_required_by_constructor_and_decoder`, `changed_configuration_cannot_reuse_old_seed_proofs_or_identity`; vectors: `independently_encoded_manifest_and_all_seed_proofs_match` | External C/exact-genesis identity and all ordered seed proofs are mandatory; manifest bytes cannot select their own authority or prove biological uniqueness |
+| T01/T20/T21 manifest framing | manifest: `all_truncations_and_trailing_bytes_reject`, `unknown_magic_and_version_do_not_fallback`, `oversized_declared_configuration_rejects_before_allocation`, `oversized_declared_proof_count_rejects_before_signature_work`, `total_manifest_limit_is_checked_before_magic_or_configuration` | Exact bounded MNM2 framing before configuration/proof allocations; no fallback; disk init/reopen remains MB-03 |
+| T23/T28 actual genesis | chain: `genesis_is_executed_pinned_and_exposes_only_actual_ancestry`, `pinned_genesis_still_requires_exact_fields_and_executed_roots`, `genesis_cannot_execute_transactions`; vectors: `alternate_valid_genesis_nonce_cannot_replace_the_selected_identity` | A pinned genesis still requires valid exact fields, empty body, work and executed roots; a different valid nonce cannot replace the selected hash |
+| T23 fixed-target work | work: `mining_matches_independent_v2_header_vector`, `configured_bits_reject_a_valid_self_selected_easier_target`, `numerically_equal_compact_aliases_do_not_replace_configured_bits`, `work_comparison_is_big_endian_and_includes_exact_target`; chain: `exact_target_and_actual_work_are_both_required` | Full domain-separated 160-byte header, literal configured bits and raw big-endian target comparison; easy development work is not equal-human consensus |
+| T20 local work-search bounds | work: `known_solution_is_not_found_when_budget_ends_one_attempt_early`, `search_starts_at_supplied_nonce_instead_of_resetting_to_zero`, `zero_and_over_cap_budgets_are_rejected_before_work`, `failed_final_nonce_never_wraps`, `valid_final_nonce_is_accepted_without_incrementing` | Explicit local attempt budget, inclusive starting/final nonce and no wrap; helper ceiling does not limit other miners or confer block authority |
+| T23 proposal/header boundary | chain: `proposal_is_read_only_and_child_binds_only_after_full_acceptance`, `child_header_failures_are_atomic_and_timestamp_is_strict`, `timestamp_has_no_wall_clock_dependency_or_wrapping_successor` | Preparation never publishes state; accepted next height/parent/C and strict parent timestamp are required; no wall-clock/future-time policy or production liveness claim |
+| T13/T24/T27 body and atomic acceptance | chain: `valid_work_cannot_override_wrong_operation_commitment`, `earlier_execution_error_precedes_later_signature_error`, `late_operation_failure_discards_earlier_accounts_and_membership`, `wrong_final_root_with_valid_work_rolls_back_full_mixed_transition`; vectors: `independently_remined_wrong_ledger_root_is_rejected_without_partial_publication` | Full ordered commitment and original per-operation failure order; late execution/root rejection preserves complete accepted blocks, ledger, manifest and resource counters; disk publication remains MB-03 |
+| T09 actual branch ancestry | chain: `actual_fork_ancestry_controls_operation_anchors`; vectors: `valid_work_and_signatures_cannot_authorize_a_different_forks_anchor` | Only accepted candidate blocks supply operation ancestry; correct header parent/work/signatures do not authorize another branch's anchor |
+| T11/T16/T17/T25 complete state vectors | vectors: `independently_mined_genesis_and_mixed_blocks_match_complete_ledger_states`, `independently_signed_operations_and_actual_anchor_intents_match`; chain: `empty_actual_blocks_process_expiry_and_preserve_accounts` | Actual-anchor signatures, headers, complete blocks, full mixed indices, empty expiry and all component/combined roots match independent bytes |
+| T18/T25 genuine membership forks | vectors: `real_membership_fork_replays_distinct_membership_with_identical_accounts` | Reviewer withdrawal changes pending/active outcome despite equal accounts; accepted branches reproduce their own state, without choosing a global canonical branch or publishing a reorg |
+| T26/T28 complete replay/checkpoints | chain: `typed_and_encoded_replay_reproduce_complete_branch_and_counters`, `replay_requires_all_five_trusted_checkpoint_fields_and_complete_history`, `replay_rejects_invalid_intermediate_block_and_does_not_change_source`, `encoded_replay_checks_actual_format_not_snapshot_authority`; vectors: `independent_complete_block_bytes_replay_to_the_selected_checkpoint`, `authentic_old_prefix_or_wrong_expected_checkpoint_is_not_latest_tip_authority` | Complete actual MRB2 reexecutes through acceptance; external C/genesis/height/tip/root expectations reject old prefixes and unintended branches; no durable latestness discovery or snapshot authority |
+| T20/T21 aggregate resource bounds | chain: `replay_count_and_total_bytes_are_preflighted_before_decode`; private: `resource_caps_accept_exact_boundaries_and_reject_one_more`, `resource_arithmetic_never_wraps`, `replay_aggregate_bytes_are_checked_without_overflow` | Inclusive 4,096 blocks, 16 MiB complete encoded history and 1,048,576 state/configuration-item charges with checked arithmetic; local profile limits, not a maximum-sized replay benchmark or network/session guarantee |
+
+[reference_chain_v2.py](../tools/reference_chain_v2.py) independently constructs
+the public synthetic configuration, exact manifest, seed proofs, signed actual-
+ancestor operations, mined headers/blocks and complete ledger states. Twenty
+signatures were independently generated and verified before Rust; all nine vector
+tests matched on their first run. Expected values were not copied from Rust or
+changed to bless a failure. Normal `--check` uses the Python standard library;
+optional `--verify-signatures` regenerates the public test signatures with Python
+cryptography. Older fixtures remain unchanged.
+
+The fixture includes five main-branch blocks, an empty expiry block, a genuine
+membership fork with identical accounts but different membership roots, another
+valid genesis nonce, re-mined wrong ledger root and wrong-branch operation anchors.
+The synthetic `chain_v2_demo` additionally runs two separate in-memory validators
+against actual mixed blocks and complete replay. It does not run two networked
+processes or write durable state. These are implementation tests, not an external
+security audit or proof of honest human admission.
+
+`ChainV2` owns and validates its ancestry; it never accepts a caller-bound ledger,
+MPH2 transcript or MPS2 cache as an authoritative complete chain. Lower-level
+`bind_to_validated_block` remains a trusted staging interface for other callers.
+Replay requires a separately selected checkpoint; it cannot detect an application
+choosing an obsolete checkpoint or find the latest global tip itself. The bounded
+branch stops on cap exhaustion. Timestamp `u64::MAX` admits no successor under
+the deliberately finite strict-parent rule. Neither behavior is a production
+availability policy.
+
+**MB-02A/B/C complete MB-02 as a VERIFIED_COMPONENT for bounded in-memory
+acceptance. MB-03 is READY NEXT.** MB-03A begins the storage contract, explicit
+identity/init, single-writer enforcement and checked reopening. Coherent durable
+publication, fault injection, synchronization and membership-aware reorgs follow.
+T28's durable restart/latestness portion and T29–T32 remain open. Global canonical
+choice, human finality, the live V2 daemon, grants/fees/rewards, private biological
+matching, real-device support and both launch gates remain unfinished.

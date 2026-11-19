@@ -137,9 +137,9 @@ reuse a membership-only transcript would change semantics.
 Decoded snapshots have no conversion into runtime membership state or a registry.
 Verified replay still depends on a trusted caller supplying actual history; B4
 does not implement the chain, durable tip or consensus that establishes that trust.
-At the B4 checkpoint, MB-02A was next. Its subsequent implementation is recorded
-below; MB-02B/C still integrate the ledger and real block validation, followed by
-MB-03 persistence.
+At the B4 checkpoint, MB-02A was next. Its subsequent implementation and MB-02B/C's
+completed atomic ledger and actual block validation are recorded below. Durable
+persistence remains MB-03.
 No grant, fee, monetary exception formula, private matching, anonymity, real
 admission policy or final human-consensus decision was selected by B4.
 
@@ -148,8 +148,9 @@ admission policy or final human-consensus decision was selected by B4.
 
 Source `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382` implements the previously selected
 V2 transfer/unified-operation and MRB2 format contract. Exact-source CI 44428924399
-passed; CURRENT_STATUS.md records the acceptance evidence. MB-02B atomic execution
-is next. No user economic, admission, privacy or human-consensus decision changed.
+passed; MASTER_PLAN.md section 15 records the historical acceptance evidence.
+At that checkpoint MB-02B atomic execution was next. No user economic, admission,
+privacy or human-consensus decision changed.
 
 Core depends on personhood's immutable config, membership operations and parent
 view. Personhood still depends only on crypto; there is no reverse dependency.
@@ -176,9 +177,10 @@ all grant/reward implementation and real biometric/device work remain open.
 
 Source `420d7114ddf782469a6ace6ba0a2c4076fb93aaf` implements the selected atomic
 accounts/membership development ledger. Exact-source push CI 44619155972 and PR
-CI 44619172378 passed; CURRENT_STATUS.md records the inspected acceptance evidence.
-MB-02C actual block/genesis/work/root authority is next. These are implementation
-choices under the existing design, not new user economic or admission decisions.
+CI 44619172378 passed; MASTER_PLAN.md section 16 records the historical inspected
+acceptance evidence. At that checkpoint MB-02C actual block/genesis/work/root
+authority was next. These are implementation choices under the existing design,
+not new user economic or admission decisions.
 
 Full mixed-operation order is preserved through a consuming indexed membership
 builder. Every omitted transfer is charged at its frozen 243-byte signed size plus
@@ -200,3 +202,42 @@ reward formula was enabled. D-01/D-04 remain OPEN. Synthetic configured balances
 are not a new currency policy. Private matching, real admission, anonymity, device
 support and final equal-human consensus remain later gates. A staged ledger and a
 caller-supplied hash do not establish that any actual blockchain block is valid.
+
+
+## MB-02C engineering choices — MIRROR-MB02C-001
+
+Source `db2cb58ba5a9a828ec949debd1b52b5915a66f3b` implements pinned actual V2 block
+acceptance and complete bounded MRB2 replay. Exact-source push CI 44623282448 and
+PR CI 44623296178 passed; CURRENT_STATUS.md records inspected evidence. MB-02 is
+complete within its in-memory component scope; MB-03A storage identity/locking/
+recovery is next. These are compatibility and implementation choices, not new
+user economic, real-admission, privacy or human-consensus decisions.
+
+MNM2 carries canonical MCF2, all ordered seed proofs and the selected exact genesis
+hash. Decode requires an independently selected C/genesis pair; manifest bytes do
+not choose local trust. Actual genesis still must independently validate. The
+immutable accepted branch supplies operation ancestry. Full original mixed bodies
+execute atomically and the resulting ledger root must match before actual-hash
+binding/publication. Replay requires external C/genesis/height/tip/ledger-root
+expectations; no cache conversion or membership-only history substitutes for it.
+
+This finite synthetic component explicitly caps history at 4,096 blocks, 16 MiB
+complete MRB2 and 1,048,576 cumulative abstract state/configuration items. The
+exact checked charge formula is documented in CHAIN_V2.md. Exhaustion rejects;
+there is no history eviction, hidden limit increase or production capacity claim.
+Changes require reviewed profile/version semantics. These are not monetary or
+human population caps. Existing B4 diagnostic limits remain separate.
+
+Child timestamp is strictly greater than its parent, with exact configured genesis
+time and no local clock/future ceiling. Thus an accepted u64::MAX timestamp cannot
+have a successor. This is a deterministic development choice, not a final timing
+or liveness policy. Actual work uses exact configured compact bits and the existing
+V2 domain-separated header hash as a big-endian integer; accepted positive compact
+forms are not silently redefined. The mining helper's one-million-attempt cap is
+local, not a new consensus quota or equal-human reward rule.
+
+A valid finite branch is not globally canonical or final. Durable selected-tip
+publication, locking, restart/latestness authority, transport and membership-aware
+reorganization remain MB-03/04; human consensus remains MB-06. No founder/marketing
+reserve, grant/mint, nonzero fee, reward distribution, biometric archive, real device
+support or reliable biological deduplication was introduced. D-01/D-04 remain OPEN.

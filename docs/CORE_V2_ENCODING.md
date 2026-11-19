@@ -11,8 +11,9 @@ value decoding or passing body-integrity checks.
 Read with [the integration design](LEDGER_MEMBERSHIP_V1.md),
 [configuration](CONFIG_V2_ENCODING.md), [membership operations](OPERATIONS_V2_ENCODING.md),
 [membership state](MEMBERSHIP_STATE_V2.md), [diagnostic replay](REPLAY_V2.md), and
-the implemented [MB-02B atomic ledger](LEDGER_STATE_V2.md). Ledger staging now
-executes a complete mixed body; MB-02C must still establish actual block authority.
+the implemented [MB-02B atomic ledger](LEDGER_STATE_V2.md). Ledger staging executes
+a complete mixed body; the separate [MB-02C chain layer](CHAIN_V2.md) now establishes
+actual block authority within a bounded in-memory branch.
 Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
@@ -160,8 +161,9 @@ allocating a leaf list or copying an input-sized operation list.
 ## 5. Bounds and validation stages
 
 ConfigV2 is validated and immutable, but its existence alone is not proof of the
-intended network manifest. The caller chooses the locally pinned config in later
-chain integration. Enforce its max_block_bytes, max_operations,
+intended network manifest. The caller selects the network identity outside
+untrusted input; MB-02C's manifest/chain APIs enforce its configuration and exact
+genesis pin. Enforce max_block_bytes, max_operations,
 max_membership_operations, max_new_enrollments and max_operation_bytes on construction,
 encoding, decoding, commitment construction and body-integrity checking.
 
@@ -181,13 +183,15 @@ The API boundaries are deliberately separate:
 | Operation validate_for_parent | Context, signature, anchor/window; transfer's static profile | Current account/member state and acceptance |
 | Block verify_integrity | Bounds, header/operation C, operation root and signatures | Static transfer profile, ancestry, height linkage, time, target/work, ledger root, genesis and state execution |
 | LedgerV2 stage_operations (MB-02B) | Atomic account/member execution, parent association, separate sequences, balances, conservation and computed roots | Actual header/genesis/work/time validation, claimed-root comparison and canonical block/chain authority |
+| ChainV2 from_genesis/append/replay (MB-02C) | Pinned genesis, actual accepted branch ancestry, complete header/work/body/execution/root checks and atomic in-memory acceptance | Durable publication/recovery, fork choice/finality, network operation and real human admission |
 
 No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
 publishes a canonical block, mines genesis, or opens a chain database. The separate
-MB-02B state module now stages ledger execution; actual proof/header/genesis/ancestry
-and claimed-root acceptance remain MB-02C.
+MB-02B state module stages ledger execution; MB-02C's chain and consensus modules
+now validate actual work/header/genesis/ancestry and the claimed resulting root.
 A signature-valid block with a deliberately claimed ledger root can pass body
-integrity; this is an explicit tested boundary, not an accepted block.
+integrity; this remains an explicit tested boundary. `ChainV2` additionally executes
+the body and rejects a wrong claimed ledger root even when the work is valid.
 
 ## 6. Independent evidence and next work
 
@@ -207,6 +211,9 @@ without losing positions and account effects; it continues to reject Transfer=0.
 
 [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md) freezes account/economics/combined-state
 commitments and zero-fee/no-mint execution. Successful staging is not acceptance of
-a block or a supplied ledger-root field. Next, MB-02C establishes actual validated
-block/chain/manifest authority; MB-03 adds durable multi-node publication. Refer to
-CURRENT_STATUS.md for current source and acceptance evidence.
+a block or a supplied ledger-root field. [CHAIN_V2.md](CHAIN_V2.md) specifies the
+implemented MB-02C manifest, actual block acceptance and complete MRB2 replay.
+It preserves these frozen formats and validates each candidate using its own
+accepted ancestry. MB-03 next adds durable storage, synchronization and
+reorganization; the existing node daemon and legacy paths have not been migrated.
+Refer to CURRENT_STATUS.md for current source and acceptance evidence.

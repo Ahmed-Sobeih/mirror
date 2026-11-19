@@ -9,7 +9,9 @@ Membership transitions and MPS2 bytes remain specified in
 
 The ledger stages accounts and membership together. It does not accept a real
 block, establish canonical ancestry, issue rewards, prove human uniqueness or
-process biometric readings. Those boundaries remain explicit below.
+process biometric readings. The separate MB-02C [chain acceptance layer](CHAIN_V2.md)
+now validates actual blocks and complete finite MRB2 histories before publishing
+this staged state. These component boundaries remain explicit below.
 
 ## 1. Immutable parent and candidate
 
@@ -32,10 +34,12 @@ membership requests under the existing rules.
 
 `StagedLedgerV2::bind_to_validated_block` attaches a caller-supplied hash and returns
 the next immutable ledger. It is a trusted integration boundary, **not block
-validation**. The future outer chain executor must first check the actual block,
-genesis, parent, height, configuration, timestamp, target, work, operation commitment
-and resulting ledger root. MB-02C supplies that acceptance boundary. Synthetic
-examples and tests use explicitly synthetic parent hashes.
+validation**. MB-02C's `ChainV2` first checks the actual block, pinned genesis,
+parent, height, configuration, timestamp, target, work, operation commitment and
+resulting ledger root, using only its accepted branch for ancestry. Its in-memory
+acceptance and complete replay contract is [CHAIN_V2.md](CHAIN_V2.md). The original
+ledger component example/tests continue to use explicitly synthetic parent hashes;
+the separate chain example/tests use actual validated V2 block hashes.
 
 The current block hash is external provenance and never part of the state root;
 including it would create a cycle with the header's ledger-root commitment.
@@ -97,7 +101,8 @@ must be compared with independently executed trusted state.
 
 MPH2 remains membership-only and retains contiguous positions. It still rejects
 Transfer=0. It cannot replay a mixed ledger by omitting transfers; complete validated
-MRB2 replay belongs to MB-02C/MB-03. The previous diagnostic replay budgets remain.
+MRB2 replay is implemented by MB-02C's `ChainV2`. Durable replay/publication and
+recovery remain MB-03. The previous diagnostic replay budgets remain unchanged.
 
 ## 3. Execution and error order
 
@@ -225,8 +230,16 @@ capacity/exhaustion, actual original error order and rollback in both directions
 The synthetic example demonstrates execution and atomic failure, and explicitly
 does not claim canonical block acceptance.
 
-MB-02C must validate actual headers/genesis/work/ancestry/roots and replay accepted
-MRB2 blocks before binding candidate provenance. MB-03 adds durable coherent storage,
-network synchronization and recovery across both components. Passing component
-tests is neither a crash-safety guarantee nor final human-weighted consensus.
-Private matching, biometric capture, privacy and real admission remain later gates.
+MB-02C now validates actual headers, exact manifest/genesis identity, work, accepted
+ancestry and both roots before binding candidate provenance. Its complete MRB2
+replay uses the same executor and a separately selected five-field checkpoint;
+valid work over a wrong final ledger root rejects without changing either component.
+See [CHAIN_V2.md](CHAIN_V2.md) for the finite resource profile and actual branch
+authority, and CURRENT_STATUS.md for exact source/CI evidence.
+
+MB-03 will add durable coherent storage, network synchronization and recovery across
+both components. The next slice, MB-03A, will freeze the storage/pin/checkpoint,
+locking and recovery contract and implement explicit identity initialization,
+single-writer ownership and read-only reopening. In-memory acceptance is neither a
+crash-safety guarantee nor final human-weighted consensus. Private matching,
+biometric capture, privacy and real admission remain later gates.
