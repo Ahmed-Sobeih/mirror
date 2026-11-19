@@ -1,7 +1,7 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
 Work directly in GitHub. The user expects implementation and verification, not
 repeated paste-and-repair scripts. This living handoff never overrides newer work.
-Updated 2026-11-19 after the user asked to continue building the blockchain.
+Updated 2026-11-19 after the user's progress-percentage question.
 
 RECOVER LIVE STATE FIRST
 Verify default/active branches, PRs, recent commits/comments and exact CI results.
@@ -13,6 +13,20 @@ ad7ffd120fb451fe44cf59cb909176785b33bf8f. Latest tested IMPLEMENTATION:
 Checkpoint documentation follows that implementation. Inspect its later CI separately.
 Read active-branch files, not stale main. Never reset to this snapshot, repeat
 completed work, overwrite concurrent/unpushed work or merge merely to save a handoff.
+
+LATEST DISCUSSION — PROGRESS ESTIMATE (2026-11-19)
+The user asked how much of Mirror is finished, as a percentage. The engineering
+planning estimate is about 20%, with a rough 15–25% range, toward Gate A: the
+integrated blockchain and enrollment software ready for device integration using
+synthetic inputs. This is a scope-based judgment, not a measured completion metric,
+a fraction inferred from test counts, a time forecast or a security percentage.
+The legacy chain foundation and MB-01B membership component are implemented.
+Major remaining work includes V2 ledger/block integration, durable multi-node
+operation, wallets/operator flows, Ant Kiss admission, human-based consensus,
+monetary decisions/implementation, protected evidence/matching interfaces and
+end-to-end hardening. Actual hardware and real biometric validation are Gate B.
+This was a discussion-only turn: no new runtime code or tests. Preserve B4's
+verified implementation/evidence and resume MB-02A when development continues.
 
 READ FIRST
 AGENTS.md
@@ -56,7 +70,7 @@ members. Whole-candidate failure leaves the entire parent unchanged.
 B3 capacities: 64 retained approvals per record and separately configured max_records
 retained approvals globally. Never evict history; full capacity can stop admissions.
 
-B4 IMPLEMENTED THIS TURN
+LATEST IMPLEMENTATION — B4
 v2/state_codec.rs: canonical MPS2 encode/root, excluding derived indexes and tip
 hash to avoid cycles. Domain MIRROR_MEMBERSHIP_STATE_V2, unchanged frozen layout.
 UntrustedMembershipSnapshotV2::decode checks bounded structure, ordering, indexes,
