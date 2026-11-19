@@ -66,8 +66,12 @@ Profile 1 currently operates only on **Linux**; other operating systems return
 `try_lock_shared` on an opened **root directory inode**. The descriptor is private,
 uncloned and retained by `StoreV2`. Exclusive ownership excludes both other writers
 and shared inspectors; multiple shared inspectors may coexist and exclude writers.
-Dropping the handle or terminating its process closes its descriptor and releases
-the operating-system lock. There is no lock file, owner-PID authority, stale lease
+Dropping the handle or terminating its process closes its descriptor. The lock is
+released when the last descriptor for that open file description closes, including
+inherited descriptors in any forked child. Even a concurrent process spawn can
+temporarily prolong ownership before exec closes inherited close-on-exec files.
+`Busy` therefore remains an explicit outcome; no automatic takeover is attempted.
+There is no lock file, owner-PID authority, stale lease
 or lock-path deletion. No upgrade/downgrade API is provided.
 
 The store root must never be renamed, replaced or removed while any handle is
@@ -223,6 +227,14 @@ and lock release. Initialization injection covers preparation boundaries and bot
 post-publication boundaries. These deterministic injected errors and killed lock
 holders do **not** emulate power loss, torn kernel writes, disk firmware failures
 or every filesystem. No universal crash-safety certification is claimed.
+
+The five parent lock tests are serialized against each other with a test-local
+mutex so one test's process fork cannot temporarily inherit another test's lock.
+Each intended cross-process test still runs its real child concurrently and uses
+pipe acknowledgments, not sleeps or weakened ownership assertions. Linux's
+[flock open-file-description rules](https://man7.org/linux/man-pages/man2/flock.2.html)
+and Rust's [standard file locking API](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock)
+explain the ownership boundary. This isolation changes no production lock behavior.
 
 Run the bounded `storage_v2_demo` for explicit initialization, second-writer
 rejection, complete reopening and independently selected membership-fork recovery

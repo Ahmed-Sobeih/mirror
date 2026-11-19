@@ -10,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
+        Mutex, MutexGuard,
         atomic::{AtomicU64, Ordering},
         mpsc::{self, Receiver},
     },
@@ -27,6 +28,20 @@ const DROPPED: &str = "MIRROR_STORAGE_V2_LOCK_DROPPED";
 const READY_TIMEOUT: Duration = Duration::from_secs(20);
 
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+// An unrelated parallel test's Command::spawn can briefly inherit every open
+// directory descriptor between fork and exec, even when it is close-on-exec.
+// Dropping the last parent handle then need not close the last kernel reference.
+// Isolate only these parent cases so another case's spawn cannot prolong their
+// lock lifetime. Each process test still exercises genuine concurrent processes
+// and descriptors. There are no production retries, sleeps, or unlock changes.
+static PARENT_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn isolate_parent_test() -> MutexGuard<'static, ()> {
+    PARENT_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 struct TestDirectory {
     parent: PathBuf,
@@ -217,6 +232,7 @@ fn lock_process_probe() {
 
 #[test]
 fn writer_excludes_independent_handles_and_drop_releases() {
+    let _isolation = isolate_parent_test();
     let directory = TestDirectory::new();
     let store = directory.initialize();
     assert_eq!(store.access(), StoreAccessV2::Writer);
@@ -231,6 +247,7 @@ fn writer_excludes_independent_handles_and_drop_releases() {
 
 #[test]
 fn shared_handles_exclude_writer_until_every_reader_drops() {
+    let _isolation = isolate_parent_test();
     let directory = TestDirectory::new();
     drop(directory.initialize());
     let first = reader(&directory.store).unwrap();
@@ -249,6 +266,7 @@ fn shared_handles_exclude_writer_until_every_reader_drops() {
 
 #[test]
 fn writer_in_another_process_releases_on_store_drop_while_process_lives() {
+    let _isolation = isolate_parent_test();
     let directory = TestDirectory::new();
     drop(directory.initialize());
     let mut child = ChildHolder::spawn(&directory.store, StoreAccessV2::Writer);
@@ -262,6 +280,7 @@ fn writer_in_another_process_releases_on_store_drop_while_process_lives() {
 
 #[test]
 fn killed_writer_releases_without_unlinking_or_repairing_anything() {
+    let _isolation = isolate_parent_test();
     let directory = TestDirectory::new();
     drop(directory.initialize());
     let before = fs::symlink_metadata(&directory.store).unwrap();
@@ -289,6 +308,7 @@ fn killed_writer_releases_without_unlinking_or_repairing_anything() {
 
 #[test]
 fn shared_locks_in_separate_processes_coexist_and_exclude_a_writer() {
+    let _isolation = isolate_parent_test();
     let directory = TestDirectory::new();
     drop(directory.initialize());
     let mut child = ChildHolder::spawn(&directory.store, StoreAccessV2::ReadOnly);

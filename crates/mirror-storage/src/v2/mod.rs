@@ -42,7 +42,9 @@ pub enum StoreAccessV2 {
 /// An immutable validated selection, with its directory lock held for life.
 ///
 /// No raw file handle, mutable chain access, clone, append or recovery API is
-/// exposed. Dropping the handle releases ownership through the operating system.
+/// exposed. Dropping closes this descriptor. The operating-system lock is released
+/// after every descriptor for its open file description has closed, including
+/// any temporarily inherited by a concurrent process fork before exec.
 #[derive(Debug)]
 pub struct StoreV2 {
     root: PathBuf,

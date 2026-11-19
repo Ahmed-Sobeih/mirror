@@ -17,6 +17,8 @@ use super::{StorageErrorV2, StoreAccessV2};
 
 /// Owns an uncloned directory descriptor until the containing store is dropped.
 /// No lock file, PID lease, explicit unlock, or path deletion is involved.
+/// Fork can still inherit the underlying open file description: kernel ownership
+/// lasts until those inherited descriptors have closed as well.
 #[derive(Debug)]
 pub(super) struct DirectoryLockV2 {
     directory: File,
