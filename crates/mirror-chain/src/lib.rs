@@ -3,6 +3,9 @@
 //! This crate links blocks into an ordered chain and advances the
 //! deterministic account state only after complete validation.
 
+/// Explicit synthetic V2 manifest, complete block acceptance and bounded replay.
+pub mod v2;
+
 use mirror_consensus::{BlockConsensusError, mine_block, validate_block};
 
 use mirror_core::{Address, BLOCK_VERSION, Block, BlockError, SignedTransaction};

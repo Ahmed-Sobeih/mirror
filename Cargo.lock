@@ -140,6 +140,7 @@ dependencies = [
  "mirror-consensus",
  "mirror-core",
  "mirror-crypto",
+ "mirror-personhood",
  "mirror-state",
 ]
 
