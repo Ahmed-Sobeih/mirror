@@ -331,6 +331,16 @@ fn operation_count(config: &ConfigV2, len: usize) -> Result<u32, BlockErrorV2> {
     Ok(count)
 }
 
+/// Preflight the complete MRB2 operation/count/byte budgets without allocating,
+/// hashing or verifying signatures. Returns the complete encoded block length.
+/// This is shared with the mixed-ledger executor; success grants no authority.
+pub fn validate_operation_limits_v2(
+    config: &ConfigV2,
+    operations: &[SignedOperationV2],
+) -> Result<usize, BlockErrorV2> {
+    check_operations(config, operations)
+}
+
 fn check_operations(
     config: &ConfigV2,
     operations: &[SignedOperationV2],

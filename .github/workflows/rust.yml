@@ -30,6 +30,8 @@ jobs:
         run: python3 tools/reference_state_v2.py --check
       - name: Independent V2 transfer and block vectors
         run: python3 tools/reference_blocks_v2.py --check
+      - name: Independent V2 atomic ledger vectors
+        run: python3 tools/reference_ledger_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
@@ -38,6 +40,10 @@ jobs:
         run: cargo +1.98.0 test -p mirror-personhood --release --locked
       - name: Core release-mode tests
         run: cargo +1.98.0 test -p mirror-core --release --locked
+      - name: Ledger release-mode tests
+        run: cargo +1.98.0 test -p mirror-state --release --locked
+      - name: V2 atomic ledger demonstration
+        run: cargo +1.98.0 run -p mirror-state --example ledger_v2_demo --locked
       - name: V2 mixed operation and block format demonstration
         run: cargo +1.98.0 run -p mirror-core --example block_v2_demo --locked
       - name: Synthetic enrollment and replay demonstration

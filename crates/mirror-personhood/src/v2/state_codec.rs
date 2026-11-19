@@ -395,10 +395,11 @@ fn check_retained_consistency(state: &MembershipStateV2) -> Result<(), StateCode
     for record in state.records.values() {
         if let MembershipOriginV2::Enrollment(operation) = record.origin {
             check_operation_metadata(state, &operation, record.inclusion.height)?;
-            if record.inclusion.operation_index >= state.config.limits().max_operations
-                || record.inclusion.operation_index
-                    >= state.config.limits().max_membership_operations
-            {
+            // Enrollment positions refer to the complete ordered MRB2 body,
+            // including transfers. The membership count cap is not an index
+            // bound. A structurally plausible cache still has no authority;
+            // verify_against must match independently executed trusted state.
+            if record.inclusion.operation_index >= state.config.limits().max_operations {
                 return Err(StateCodecErrorV2::Inconsistent("inclusion operation index"));
             }
             if let Some(activation) = record.activation {

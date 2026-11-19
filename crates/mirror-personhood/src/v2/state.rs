@@ -24,9 +24,15 @@ pub use codec::{StateCodecErrorV2, UntrustedMembershipSnapshotV2};
 /// Neither history nor duplicate protection is evicted to reclaim this budget.
 pub const MAX_APPROVALS_PER_RECORD_V2: usize = MAX_APPROVAL_THRESHOLD as usize;
 
-/// Planned MRB2 magic/header/count overhead. This charges a membership-only
-/// candidate the full container cost; MB-02 must additionally charge transfers.
+/// MRB2 magic/header/count overhead, charged before operation bytes.
 pub const MEMBERSHIP_BLOCK_BASE_BYTES_V2: usize = 168;
+
+// Cross-crate V2 format contract: the only non-membership operation in MRB2 is
+// Transfer (kind 0), whose complete signed encoding is exactly 243 bytes. This
+// crate cannot depend on mirror-core; indexed staging charges every omitted slot
+// this exact size plus its four-byte length prefix. Any new operation kind or
+// changed encoding requires explicit version/format review in both crates.
+const INDEXED_TRANSFER_OPERATION_BYTES_V2: usize = 243;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MembershipStatusV2 {
@@ -693,7 +699,49 @@ impl MembershipRegistryV2 {
         parent: &V,
         operations: &[SignedMembershipOperationV2],
     ) -> Result<StagedMembershipStateV2, StateErrorV2> {
-        self.check_budget(operations)?;
+        let mut stage =
+            self.begin_plan(parent, MembershipOperationPlanV2::Contiguous(operations))?;
+        for index in 0..operations.len() {
+            // begin_plan has already bounded the complete slice by max_operations.
+            stage = stage.apply_next(index as u32)?;
+        }
+        stage.finish()
+    }
+
+    /// Begin membership execution within an ordered mixed MRB2 block. Indices
+    /// are positions in the complete block, including transfers, not positions
+    /// in the filtered membership slice. The plan must be strictly increasing.
+    ///
+    /// Every omitted position is charged as the frozen V2 Transfer encoding.
+    /// The caller must independently validate and execute those transfers in
+    /// their original order, stopping at the first failure, before finishing
+    /// and accepting the complete accounts/membership transition. This stage
+    /// cannot authenticate omitted operations or establish block authority.
+    ///
+    /// All budgets and parent binding are checked before cloning state. The
+    /// returned builder is consumed by each step: a failed operation cannot be
+    /// skipped and later published using the same candidate.
+    pub fn begin_indexed_block<'a, V: ParentChainViewV2 + ?Sized>(
+        &self,
+        parent: &'a V,
+        total_operation_count: u32,
+        operations: &'a [(u32, SignedMembershipOperationV2)],
+    ) -> Result<IndexedMembershipStageV2<'a, V>, StateErrorV2> {
+        self.begin_plan(
+            parent,
+            MembershipOperationPlanV2::Indexed {
+                total_operation_count,
+                operations,
+            },
+        )
+    }
+
+    fn begin_plan<'a, V: ParentChainViewV2 + ?Sized>(
+        &self,
+        parent: &'a V,
+        plan: MembershipOperationPlanV2<'a>,
+    ) -> Result<IndexedMembershipStageV2<'a, V>, StateErrorV2> {
+        self.check_budget(&plan)?;
         if parent.config_hash() != self.state.config.context() {
             return Err(StateErrorV2::WrongParentContext);
         }
@@ -716,37 +764,62 @@ impl MembershipRegistryV2 {
         let mut candidate = self.state.clone();
         candidate.height = height;
         candidate.expire_pending()?;
-        for (index, operation) in operations.iter().enumerate() {
-            let index = u32::try_from(index).map_err(|_| StateErrorV2::OperationLimit)?;
-            operation
-                .validate_for_parent(&candidate.config, parent)
-                .map_err(|error| StateErrorV2::Operation { index, error })?;
-            match *operation.action() {
-                MembershipActionV2::Enroll { .. } => candidate.enroll(operation, index)?,
-                MembershipActionV2::Approve {
-                    target_enrollment_id,
-                } => candidate.approve(operation, target_enrollment_id, &parent_active)?,
-                MembershipActionV2::Withdraw { own_member_id } => {
-                    candidate.withdraw(operation, own_member_id)?
-                }
-            }
-        }
-        candidate.activate_at_block_end(&parent_active)?;
-        candidate.check_invariants()?;
-        Ok(StagedMembershipStateV2 { state: candidate })
+        Ok(IndexedMembershipStageV2 {
+            candidate,
+            parent_active,
+            parent,
+            plan,
+            next_operation: 0,
+        })
     }
 
-    fn check_budget(&self, operations: &[SignedMembershipOperationV2]) -> Result<(), StateErrorV2> {
+    fn check_budget(&self, plan: &MembershipOperationPlanV2<'_>) -> Result<(), StateErrorV2> {
         let limits = self.state.config.limits();
-        if operations.len() > limits.max_operations as usize {
+        let total_operation_count = plan.total_operation_count()?;
+        if total_operation_count > limits.max_operations {
             return Err(StateErrorV2::OperationLimit);
         }
-        if operations.len() > limits.max_membership_operations as usize {
+        if plan.len() > limits.max_membership_operations as usize {
             return Err(StateErrorV2::MembershipOperationLimit);
         }
-        let mut bytes = MEMBERSHIP_BLOCK_BASE_BYTES_V2;
+        if plan.len() > total_operation_count as usize {
+            return Err(StateErrorV2::MembershipCountExceedsTotal);
+        }
+        if let MembershipOperationPlanV2::Indexed { operations, .. } = plan {
+            let mut previous = None;
+            for &(index, _) in *operations {
+                if index >= total_operation_count {
+                    return Err(StateErrorV2::OperationIndexOutOfRange { index });
+                }
+                if let Some(previous) = previous {
+                    if index <= previous {
+                        return Err(StateErrorV2::OperationIndicesNotIncreasing {
+                            previous,
+                            got: index,
+                        });
+                    }
+                }
+                previous = Some(index);
+            }
+        }
+        let transfers = total_operation_count as usize - plan.len();
+        if transfers > 0
+            && INDEXED_TRANSFER_OPERATION_BYTES_V2 > limits.max_operation_bytes as usize
+        {
+            return Err(StateErrorV2::OperationBytesLimit);
+        }
+        let mut bytes = transfers
+            .checked_mul(4 + INDEXED_TRANSFER_OPERATION_BYTES_V2)
+            .and_then(|value| value.checked_add(MEMBERSHIP_BLOCK_BASE_BYTES_V2))
+            .ok_or(StateErrorV2::BlockBytesLimit)?;
+        if bytes > limits.max_block_bytes as usize {
+            return Err(StateErrorV2::BlockBytesLimit);
+        }
         let mut enrollments = 0u32;
-        for operation in operations {
+        for position in 0..plan.len() {
+            let (_, operation) = plan
+                .get(position)
+                .ok_or(StateErrorV2::InconsistentState("membership plan"))?;
             let size = operation.encoded_len();
             if size > limits.max_operation_bytes as usize {
                 return Err(StateErrorV2::OperationBytesLimit);
@@ -768,6 +841,124 @@ impl MembershipRegistryV2 {
             }
         }
         Ok(())
+    }
+}
+
+/// Borrowed immutable execution plan. Contiguous input preserves the original
+/// membership-only path without allocating an indexed copy before preflight.
+enum MembershipOperationPlanV2<'a> {
+    Contiguous(&'a [SignedMembershipOperationV2]),
+    Indexed {
+        total_operation_count: u32,
+        operations: &'a [(u32, SignedMembershipOperationV2)],
+    },
+}
+
+impl MembershipOperationPlanV2<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Self::Contiguous(operations) => operations.len(),
+            Self::Indexed { operations, .. } => operations.len(),
+        }
+    }
+
+    fn total_operation_count(&self) -> Result<u32, StateErrorV2> {
+        match self {
+            Self::Contiguous(operations) => {
+                u32::try_from(operations.len()).map_err(|_| StateErrorV2::OperationLimit)
+            }
+            Self::Indexed {
+                total_operation_count,
+                ..
+            } => Ok(*total_operation_count),
+        }
+    }
+
+    fn get(&self, position: usize) -> Option<(u32, &SignedMembershipOperationV2)> {
+        match self {
+            Self::Contiguous(operations) => operations
+                .get(position)
+                .map(|operation| (position as u32, operation)),
+            Self::Indexed { operations, .. } => operations
+                .get(position)
+                .map(|(index, operation)| (*index, operation)),
+        }
+    }
+}
+
+/// Opaque in-progress membership candidate for an ordered mixed block. There is
+/// deliberately no Clone, candidate accessor, registry conversion, or fallible
+/// borrowed mutator. Both apply_next and finish consume the candidate, so an
+/// execution failure cannot leave a publishable partial state behind.
+///
+/// ```compile_fail,E0382
+/// use mirror_personhood::v2::{IndexedMembershipStageV2, ParentChainViewV2};
+/// fn cannot_finish_after_failed_step<V: ParentChainViewV2>(stage: IndexedMembershipStageV2<'_, V>) {
+///     let _result = stage.apply_next(0);
+///     let _partial = stage.finish();
+/// }
+/// ```
+///
+/// ```compile_fail,E0599
+/// use mirror_personhood::v2::{IndexedMembershipStageV2, ParentChainViewV2};
+/// fn cannot_clone_partial_state<V: ParentChainViewV2>(stage: IndexedMembershipStageV2<'_, V>) {
+///     let _copy = stage.clone();
+/// }
+/// ```
+pub struct IndexedMembershipStageV2<'a, V: ParentChainViewV2 + ?Sized> {
+    candidate: MembershipStateV2,
+    parent_active: BTreeSet<[u8; 32]>,
+    parent: &'a V,
+    plan: MembershipOperationPlanV2<'a>,
+    next_operation: usize,
+}
+
+impl<V: ParentChainViewV2 + ?Sized> IndexedMembershipStageV2<'_, V> {
+    /// Execute exactly the next planned membership operation at its full-block
+    /// position. The integration caller executes any preceding transfers first.
+    pub fn apply_next(mut self, expected_full_index: u32) -> Result<Self, StateErrorV2> {
+        let (index, operation) = self
+            .plan
+            .get(self.next_operation)
+            .ok_or(StateErrorV2::NoRemainingMembershipOperations)?;
+        if expected_full_index != index {
+            return Err(StateErrorV2::UnexpectedOperationIndex {
+                expected: index,
+                got: expected_full_index,
+            });
+        }
+        operation
+            .validate_for_parent(&self.candidate.config, self.parent)
+            .map_err(|error| StateErrorV2::Operation { index, error })?;
+        match *operation.action() {
+            MembershipActionV2::Enroll { .. } => self.candidate.enroll(operation, index)?,
+            MembershipActionV2::Approve {
+                target_enrollment_id,
+            } => self
+                .candidate
+                .approve(operation, target_enrollment_id, &self.parent_active)?,
+            MembershipActionV2::Withdraw { own_member_id } => {
+                self.candidate.withdraw(operation, own_member_id)?
+            }
+        }
+        self.next_operation += 1;
+        Ok(self)
+    }
+
+    /// Complete block-end activation only after every planned membership
+    /// operation has succeeded. The returned state still needs complete ledger
+    /// and block validation before it may be bound as the next parent.
+    pub fn finish(mut self) -> Result<StagedMembershipStateV2, StateErrorV2> {
+        if self.next_operation != self.plan.len() {
+            return Err(StateErrorV2::IncompleteMembershipStage {
+                remaining: (self.plan.len() - self.next_operation) as u32,
+            });
+        }
+        self.candidate.activate_at_block_end(&self.parent_active)?;
+        self.candidate.check_invariants()?;
+        Ok(StagedMembershipStateV2 {
+            state: self.candidate,
+        })
     }
 }
 
@@ -802,6 +993,12 @@ pub enum StateErrorV2 {
     EnrollmentLimit,
     OperationBytesLimit,
     BlockBytesLimit,
+    MembershipCountExceedsTotal,
+    OperationIndexOutOfRange { index: u32 },
+    OperationIndicesNotIncreasing { previous: u32, got: u32 },
+    UnexpectedOperationIndex { expected: u32, got: u32 },
+    NoRemainingMembershipOperations,
+    IncompleteMembershipStage { remaining: u32 },
     WrongParentContext,
     WrongParentHeight,
     UnknownParent,

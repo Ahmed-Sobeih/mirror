@@ -21,9 +21,10 @@ pub use operation::{
 };
 
 pub use state::{
-    ActivationV2, ApprovalRecordV2, InclusionPositionV2, MAX_APPROVALS_PER_RECORD_V2,
-    MEMBERSHIP_BLOCK_BASE_BYTES_V2, MembershipOriginV2, MembershipRecordV2, MembershipRegistryV2,
-    MembershipStateV2, MembershipStatusV2, StagedMembershipStateV2, StateErrorV2,
+    ActivationV2, ApprovalRecordV2, InclusionPositionV2, IndexedMembershipStageV2,
+    MAX_APPROVALS_PER_RECORD_V2, MEMBERSHIP_BLOCK_BASE_BYTES_V2, MembershipOriginV2,
+    MembershipRecordV2, MembershipRegistryV2, MembershipStateV2, MembershipStatusV2,
+    StagedMembershipStateV2, StateErrorV2,
 };
 
 pub use replay::{
