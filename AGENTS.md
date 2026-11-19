@@ -24,7 +24,8 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-personhood tests, all three independent reference checks and all three membership examples.
+core/personhood tests, all four independent reference checks and all four synthetic
+examples (three personhood examples and core block_v2_demo).
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -32,13 +33,15 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-02A.
-MB-01A design and MB-01B/B1–B4 components are verified. B4 canonical MPS2 commitments,
-untrusted snapshot codecs and trusted grouped MPH2 replay are implemented.
-Next: TransferV2/unified operations/BlockV2 codecs and commitments with independent
-vectors. Actual atomic ledger/chain integration and durable recovery remain unfinished.
+NEXT_SESSION.md points to the next unfinished task: currently MB-02B.
+MB-01A design, MB-01B/B1–B4 and MB-02A format components are verified. B4 supplies
+MPS2 commitments, untrusted snapshot codecs and trusted grouped MPH2 replay.
+MB-02A supplies signed transfers, unified operations and bounded MRB2 codecs/roots.
+Next: atomic accounts/membership and combined roots, preserving original full-block
+indices. Actual chain acceptance and durable recovery remain unfinished.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
-docs/OPERATIONS_V2_ENCODING.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
+docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
+docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
@@ -60,8 +63,14 @@ including configuration-copy charges, until a documented versioned replacement.
 MB-02 mixed blocks must preserve original full-block operation positions, including
 transfers. Do not filter transfers into membership-only stage_block or MPH2 and
 silently change inclusion indices/activation order. Specify indexed/full-block staging
-and replay before integrating accounts; preserve frozen prior bytes. Avoid a core/
-personhood dependency cycle. MB-02A codecs are not actual ledger/block acceptance.
+and replay before integrating accounts; preserve frozen prior bytes. Core now
+uses personhood; personhood depends only on crypto. Preserve this acyclic direction.
+MB-02A codecs/body integrity are not actual ledger/block acceptance. Body integrity
+checks configuration agreement, the operation root and signatures; it omits transfer
+policy/anchor/window authorization, balances/sequences, ledger roots and
+parent/time/work/genesis checks. Compose the appropriate validators explicitly.
+Review MPS2 full-block index bounds when adding indexed membership execution.
+Keep the existing address namespace and separate account/member sequences.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

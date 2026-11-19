@@ -4,16 +4,19 @@ Checkpoint: **MIRROR-MB01A-001**. Task: MB-01A.
 Status: **DESIGN DELIVERABLE, not implemented consensus**.
 Audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
 
-Current implementation update: **MB-01B/B1–B4 are verified standalone components**.
+Current implementation update: **MB-01B/B1–B4 are verified standalone components;
+MB-02A is complete as a verified codec/commitment component**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
 [REPLAY_V2.md](REPLAY_V2.md) specifies bounded MPH2 grouped replay. Source
 `21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
 [CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870).
-**Next is MB-02A: TransferV2, the unified operation envelope and BlockV2
-encoding/commitments with independent vectors.** MB-02B/C then implement mixed
-ledger execution and actual block authority. The historical design-status
-statements below describe the original MB-01A checkpoint; source/test evidence is
+MB-02A implements TransferV2, the unified operation envelope and BlockV2
+encoding/commitments with independent vectors; the frozen contract is
+[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). **Next is MB-02B: deterministic combined
+ledger execution.** MB-02C then establishes actual block/chain authority. MB-02
+overall remains IN_PROGRESS; Gate A and Gate B remain unmet. The historical
+design-status statements below describe the original MB-01A checkpoint; source/test evidence is
 in CURRENT_STATUS.md and the acceptance matrix.
 
 This specifies the next development implementation, not mainnet rules. `V1` in
@@ -25,10 +28,11 @@ policy. Follow [DECISIONS.md](DECISIONS.md) and [MASTER_PLAN.md](../MASTER_PLAN.
 ## 1. Source audit and selected integration path
 
 Current APIs and the identified gaps are recorded in [THREAT_MODEL.md](THREAT_MODEL.md).
-The standalone MembershipRegistry and the account-only ChainState currently have
-separate roots. No existing Block carries MembershipEvent. We will not silently
-reinterpret legacy transfer payloads as enrollments or change the meaning of a
-historical state root.
+The standalone MembershipRegistry and the account-only legacy ChainState still
+have separate roots. Legacy V1 Block remains transfer-only. MB-02A's new BlockV2
+can carry typed transfers and membership operations together, but does not execute
+them into combined ledger state. No legacy transfer payload is reinterpreted as an
+enrollment and no historical state root changes meaning.
 
 **Engineering choice:** add an explicitly selected synthetic development profile,
 `membership-dev-v2`, with typed V2 operations, a combined ledger root and its own
@@ -252,21 +256,26 @@ leaves accounts, membership, roots, counters and sequences unchanged.
 
 ## 7. Header, body and unified commitment (R23–R27)
 
-Proposed V2 header fields:
+V2 header fields, now frozen and implemented by MB-02A:
 `version:u32 | C:32 | height:u64 | previous_hash:32 | operations_root:32 |
 ledger_root:32 | timestamp:u64 | pow_bits:u32 | nonce:u64` = **160 bytes**.
 Block bytes: `MRB2[4] | header[160] | count:u32 | repeated(u32 length, operation)`.
 Empty block size = **168 bytes**. Reject unknown versions/kinds, bad exact lengths,
 count/size inconsistencies and trailing bytes. Hash the header as
-`H("MIRROR_BLOCK_V2" || header)` and use the existing fixed target comparison as
-temporary development PoW. It is not the final one-human-one-vote protocol.
+`H("MIRROR_BLOCK_V2" || header)`. MB-02A implements these byte/hash rules, but only
+carries the supplied target and ledger-root fields. Actual PoW, timestamp, parent,
+height, pinned-genesis and ledger-state acceptance are separate MB-02B/C work.
+The design retains fixed-target PoW for temporary development; it is not the final
+one-human-one-vote protocol.
 
 Let leaf_i = H("MIRROR_OP_LEAF_V2" || u32(len(op_i)) || complete_signed_op_i).
 `operations_root = H("MIRROR_OP_ROOT_V2" || u32(count) || merkle_root(leaves))`.
 The count commitment is required: the current odd-leaf duplication convention
 must not let lists of different lengths share a commitment unnoticed.
 
-The ledger contains accounts, membership, and disabled-economics state together.
+The planned combined ledger contains accounts, membership, and disabled-economics
+state together. The following account/economics/combined-root computation and
+balance conservation are MB-02B work, not behavior supplied by the MB-02A codecs.
 `accounts_root = H("MIRROR_ACCOUNTS_V2" || u32(count) || sorted(address,balance,nonce))`.
 Membership canonical encoding commits C, all counters, and sorted records including
 request data, status, inclusion location, next membership sequence, activation
@@ -280,7 +289,9 @@ check sum(account balances)==initial_test_supply under the zero-fee/no-mint prof
                  membership_root || economics_root)`.
 
 MB-01B has frozen and independently verified full field ordering/optional encodings
-for its V2 membership module. MB-02 must do the same for full block/ledger bytes.
+for its V2 membership module. MB-02A now does the same for Transfer and full block
+bytes/operation commitments. MB-02B must supply the combined-ledger preimages and
+independent vectors before claiming implemented ledger-root semantics.
 Domains listed here are exact ASCII, no
 terminating NUL. Any revision is explicit and updates the design and vectors.
 
@@ -297,8 +308,9 @@ while preserving all existing membership-only bytes and transition tests.
 
 ## 8. Persistence, transport and dependency boundaries (R28–R32)
 
-Proposed dependency direction: crypto <- personhood V2; core V2 may depend on
-personhood's typed events (personhood must not depend on core); state V2 composes
+Implemented dependency direction through MB-02A: crypto <- personhood V2 <- core V2.
+Core reuses personhood's typed operations/configuration/parent-view interface;
+personhood does not depend on core. The planned state V2 layer composes
 accounts+membership; chain V2 validates parent/config/state; node coordinates
 storage/transport. Do not create a core/state/personhood dependency cycle.
 
@@ -346,7 +358,8 @@ monetary components; D-01/D-04 still block a combined executable monetary policy
 At the original MB-01A checkpoint, all V2 runtime cases were NOT_IMPLEMENTED.
 Static design review was not evidence that those behaviors existed. The historical
 slice plan below has now been completed for the standalone membership component;
-actual MB-02 ledger/block integration is still pending.
+MB-02A adds full mixed block representation, while actual ledger/chain integration
+is still pending.
 
 Original MB-01B slices:
 
@@ -357,13 +370,27 @@ Original MB-01B slices:
   roots/codecs and tombstones. No direct unbounded mutation escape hatch.
 - B4: full regression/adversarial suite and synthetic demo, debug/release CI.
 
-Then MB-02 adds TransferV2, BlockV2 and the unified ledger executor with mixed-batch
-atomicity and exact genesis validation. MB-03 adds durable multi-node integration.
+The original MB-02 plan adds TransferV2, BlockV2 and the unified ledger executor with
+mixed-batch atomicity and exact genesis validation. Its first codec/commitment slice
+is now implemented; execution and actual chain acceptance remain MB-02B/C.
+MB-03 adds durable multi-node integration.
 Do not combine these milestones into an unreviewed rewrite or alter real policy
 merely to make a test pass.
 
-Current B4 acceptance: 323 workspace tests (254 retained + 69 B4), 216 personhood
+Historical B4 acceptance: 323 workspace tests (254 retained + 69 B4), 216 personhood
 release reruns, one compile-fail documentation test, three independent references
 and three synthetic examples pass. These scoped results complete MB-01B, not this
-entire 35-rule integration design. The precise next slice is MB-02A as stated above;
-full combined state/blocks and durable authority remain MB-02B/C and MB-03.
+entire 35-rule integration design.
+
+Current MB-02A source is `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382`.
+Local acceptance passed 403 workspace tests (323 retained + 80 new: 37 operation,
+33 block and 10 independent-vector cases), one documentation test, 121 core release
+reruns and 216 personhood release reruns plus its documentation case. Four
+independent references and four synthetic examples passed.
+[Exact-source push CI 44428924399](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428924399)
+and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
+passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
+for the detailed acceptance record.
+The precise next slice is **MB-02B**. Combined-ledger execution, canonical chain
+acceptance and durable authority remain MB-02B/C and MB-03; an MRB2 body-integrity
+check does not establish any of them.

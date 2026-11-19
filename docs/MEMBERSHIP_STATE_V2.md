@@ -12,7 +12,10 @@ No runtime membership transition proves biological uniqueness. Fingerprint/ECG
 capture and private duplicate matching remain external, later work. Only synthetic
 commitments/public development keys belong in examples. There is no monetary API,
 grant, founder privilege, anonymous credential or live V2 block network in this
-component. B4 completes MB-01B; actual ledger/block integration is still ahead.
+component. B4 completes MB-01B; MB-02A now supplies the transfer/block formats in
+[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). Actual atomic ledger integration is
+next in MB-02B; real block authority follows in MB-02C. This membership-only API
+and its existing MPS2 semantics are unchanged by the format layer.
 
 ## 1. State and trusted chain association
 
@@ -302,9 +305,9 @@ configuration clone entries, under its separate default 4-MiB log limit. The def
 MPS2 maximum remains 41,484,378 bytes. Full details and trust assumptions are in
 [REPLAY_V2.md](REPLAY_V2.md); reaching a limit rejects without erasing retained history.
 
-This completes the **MB-01B membership component**. Next **MB-02A** implements
-TransferV2, a unified operation envelope and BlockV2 codecs/commitments with independent
-vectors. Full accounts-plus-membership execution and actual validated block/root
+This completed the **MB-01B membership component** at the B4 checkpoint. MB-02A
+has since implemented TransferV2, unified operations and BlockV2 codecs/commitments
+with independent vectors. The current next task is MB-02B atomic mixed execution. Full accounts-plus-membership execution and actual validated block/root
 association remain MB-02B/C; durable canonical recovery and reorg integration remain
 MB-03. Diagnostic group commitments are not MRB2 operation roots, and membership-only
 indices must never be substituted for original positions in future mixed blocks.

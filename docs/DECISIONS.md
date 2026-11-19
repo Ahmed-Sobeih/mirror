@@ -137,7 +137,36 @@ reuse a membership-only transcript would change semantics.
 Decoded snapshots have no conversion into runtime membership state or a registry.
 Verified replay still depends on a trusted caller supplying actual history; B4
 does not implement the chain, durable tip or consensus that establishes that trust.
-Next MB-02A adds typed transfers/unified operation and block encodings; MB-02B/C
-then integrate the ledger and real block validation, followed by MB-03 persistence.
+At the B4 checkpoint, MB-02A was next. Its subsequent implementation is recorded
+below; MB-02B/C still integrate the ledger and real block validation, followed by
+MB-03 persistence.
 No grant, fee, monetary exception formula, private matching, anonymity, real
 admission policy or final human-consensus decision was selected by B4.
+
+
+## MB-02A engineering choices — MIRROR-MB02A-001
+
+Source `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382` implements the previously selected
+V2 transfer/unified-operation and MRB2 format contract. Exact-source CI 44428924399
+passed; CURRENT_STATUS.md records the acceptance evidence. MB-02B atomic execution
+is next. No user economic, admission, privacy or human-consensus decision changed.
+
+Core depends on personhood's immutable config, membership operations and parent
+view. Personhood still depends only on crypto; there is no reverse dependency.
+V2 transfer senders retain MIRROR_ADDRESS_V1 derivation for compatibility with
+configured synthetic account addresses. Authorization binds the frozen V2 prefix
+and context; account sequences and membership sequences remain separate.
+
+The ordered-operation commitment explicitly includes signed bytes and operation
+count, eliminating the duplicate-last Merkle ambiguity without changing legacy
+roots. All format APIs enforce configured budgets; the decoder completes structural
+preflight before allocating the operation vector. The exact bytes and validation
+boundaries are frozen in CORE_V2_ENCODING.md with independent reference fixtures.
+
+Positive amount/zero fee are static development transfer checks only. A signed
+transfer spends nothing until the ledger executes it. A block body with valid
+signatures/commitment is still untrusted with respect to balances, sequences,
+ledger root, ancestry, work/time, genesis and acceptance. Existing membership-only
+MPH2 remains unchanged and rejects transfers. Mixed execution must preserve original
+positions in the complete block rather than filtering transfers out. D-01/D-04,
+all grant/reward implementation and real biometric/device work remain open.

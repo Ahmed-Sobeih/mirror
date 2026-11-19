@@ -1,8 +1,9 @@
 # MB-02A: V2 transfer and block encoding contract
 
 Checkpoint: **MIRROR-MB02A-001**. This document freezes the implementation contract
-for the next component slice. Exact acceptance evidence belongs in CURRENT_STATUS.md
-and the test matrix after verification. No balance/membership execution, accepted
+for the verified MB-02A component. Source 35ad0cf passed exact-source CI 44428924399;
+CURRENT_STATUS.md and the test matrix record scoped acceptance evidence.
+No balance/membership execution, accepted
 V2 chain, genesis, PoW proof, currency issuance or device support follows from a
 value decoding or passing body-integrity checks.
 

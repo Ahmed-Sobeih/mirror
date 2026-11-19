@@ -4,6 +4,13 @@ Checkpoint MIRROR-MB01B-B2-001. Source implementation acceptance requires the
 exact CI evidence in CURRENT_STATUS.md. No membership execution, money or devices
 are enabled by this module. Read with LEDGER_MEMBERSHIP_V1.md and CONFIG_V2_ENCODING.md.
 
+Current integration update: **MB-02A implements TransferV2, the unified operation
+envelope and MRB2 codecs/commitments in `mirror_core::v2`**; see
+[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). This B2 membership contract remains
+unchanged. B3/B4 implement standalone membership execution and diagnostic replay;
+**MB-02B combined-ledger execution is next**. MB-02 overall remains IN_PROGRESS.
+Exact-source acceptance and CI status are recorded in CURRENT_STATUS.md.
+
 ## Frozen bytes
 
 Integers are unsigned little-endian; domains are ASCII without NUL. Prefix:
@@ -24,10 +31,13 @@ Integers are unsigned little-endian; domains are ASCII without NUL. Prefix:
 Enroll body: nonce[32], evidence commitment[32], evidence profile[32].
 Approve body: complete target enrollment ID[32]. Withdraw body: own member ID[32].
 A 64-byte Ed25519 signature follows. Complete sizes are 291, 227 and 227 bytes.
-No variable payload, optional field or archive is supported. Transfer=0 remains
-reserved and is rejected by this membership-only decoder, including a valid-sized
-future transfer envelope. MB-02 must reuse this prefix without changing membership
-bytes; introducing transfer support must not reinterpret old signatures.
+No variable payload, optional field or archive is supported. Transfer=0 is now
+implemented by the MB-02A unified/Transfer decoders, with a 243-byte signed
+envelope. It remains rejected by this membership-only decoder, including a
+correctly sized Transfer envelope. MB-02A reuses the common prefix without changing
+membership bytes or reinterpreting old signatures. The final prefix field is a
+membership sequence here; Transfer uses its separate account sequence. Signing
+either field does not consume or validate a current state sequence.
 
 Signature message = SHA256d("MIRROR_OPERATION_V2" || complete unsigned bytes).
 Operation ID = SHA256d("MIRROR_OPERATION_ID_V2" || complete signed bytes).
@@ -66,7 +76,7 @@ view for the whole validation/block. Do not construct it from a peer's unchecked
 hash map or advertised height. During competing-branch validation, use THAT branch.
 B2 supplies synthetic test views, not a live chain resolver or genesis pinning.
 
-## Stateful rules deliberately left to B3 / MB-02
+## Stateful boundary: standalone B3 execution and future mixed-ledger execution
 
 B2 does not consume or compare current membership sequences for Approve/Withdraw,
 check target existence/status/lifetime alignment, verify signer eligibility or
@@ -84,7 +94,7 @@ against malicious covert data; no raw/encrypted biometric archives are authorize
 
 ## Evidence
 
-`tests/operations_v2.rs` covers exact encodings; every truncation; oversized,
+`crates/mirror-personhood/tests/operations_v2.rs` covers exact encodings; every truncation; oversized,
 trailing, wrong-kind/version and legacy input; bytewise message/signature tampering;
 wrong signing/weak keys; domain separation; context and changed-seed configuration;
 parent/anchor/window edges including u64 boundaries; required evidence metadata;
@@ -97,8 +107,18 @@ strictly verify those exact signatures. Fixture: tests/vectors/operations_v2.txt
 CI requires no new Python package: the reference check is standard-library only.
 The local reference generation does not imply local Rust execution.
 
-T04 membership lengths/decoding and T06 cryptographic target binding are partial
-rows; Transfer and stateful reuse checks remain later. T05 signature binding is
-covered for the three membership kinds. T09/T10 check synthetic parent contexts;
-live candidate ancestry and full replay remain MB-02/03. T07 sequence-state safety
-is not completed by signing a sequence field. B2 does not complete MB-01B or Gate A/B.
+At the historical B2 checkpoint, T04 membership lengths/decoding and T06
+cryptographic target binding were partial rows; Transfer and stateful reuse checks
+were later work. B3/B4 subsequently supplied the standalone membership-state and
+diagnostic-replay subcases. MB-02A now adds 37 operation, 33 block and 10 independent
+vector tests in `crates/mirror-core/tests`, covering Transfer and all four kinds in
+the unified envelope without changing this membership-only API. The current
+coverage map is in [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md).
+
+T09/T10 contextual checks still rely on trusted parent views. Actual candidate
+ancestry and combined-ledger replay remain MB-02B/C and MB-03. T07 Transfer
+sequence-state safety is not completed by signing an account-sequence field;
+MB-02A does not validate balances, consume account nonces or require active
+membership. Passing block body-integrity checks does not imply that the
+separate operation-context checks ran. Neither Gate A nor Gate B follows from
+these codec and authorization components.

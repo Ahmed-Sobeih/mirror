@@ -43,8 +43,9 @@ withdrawn status and sequence rather than the withdrawal message itself.
 Therefore each trusted height includes an exact operation-group digest in addition
 to its block hash and membership root. Replay rejects changed bytes or ordering
 even when the resulting MPS2 state would be identical. The digest is a diagnostic
-membership-only commitment; it is **not** the future MRB2 ordered-operation Merkle
-root. The current format cannot replay mixed transfer/membership blocks by simply
+membership-only commitment; it is **not** the MRB2 ordered-operation Merkle
+root implemented in [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The current format
+cannot replay mixed transfer/membership blocks by simply
 dropping transfers: doing so changes membership inclusion indices and may change
 ledger execution. MB-02 must explicitly extend/version that representation or use
 full validated blocks, preserving their original operation positions and combined

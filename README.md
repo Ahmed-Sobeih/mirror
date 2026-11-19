@@ -8,10 +8,9 @@ Mirror is a Rust development blockchain exploring human-based participation.
 [MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
 membership register to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
-criteria. **MB-01B is verified as a standalone component, including B1–B4.**
-Next is **MB-02A: TransferV2, the unified operation envelope, and BlockV2 codecs
-and commitments with independent vectors**. Combined-ledger execution and actual
-block authority follow in MB-02B/C; durable integration follows in MB-03.
+criteria. **MB-01B and the MB-02A transfer/block format layer are verified components.**
+Next is **MB-02B: atomic accounts and membership execution with combined ledger roots**.
+Actual V2 block authority follows in MB-02C; durable integration follows in MB-03.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -60,11 +59,17 @@ and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
 authority; a caller-supplied hash is not proof of actual block validity. Live V2
 block validation, peer messages, unified balances and rewards remain later work.
 
-Verified B4 source: [`21e2272`](https://github.com/Ahmed-Sobeih/mirror/commit/21e2272b5ac92c00e840d7aaa26a99570a5ec24f).
-[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
-passed 323 workspace tests, 216 personhood release reruns, one compile-fail
-documentation test, three independent references and all three examples.
-Release reruns are not additional unique tests. PR #1 remains open and unmerged.
+`mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
+MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
+commitments. Decode is structural; body integrity checks C, roots and signatures.
+Neither grants ledger/chain authority. See the [encoding contract](docs/CORE_V2_ENCODING.md).
+
+Latest source: [`35ad0cf`](https://github.com/Ahmed-Sobeih/mirror/commit/35ad0cf708bd4ceeb4faa306ba4f7bd74912c382).
+[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428924399)
+passed **403 workspace tests**, core release 121, personhood release 216, the retained
+compile-fail doctest, all four independent references and all four examples.
+The same doctest also passed in personhood release. Release reruns are not new tests.
+PR #1 remains open and unmerged. Actual V2 balances/membership execution is next.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
 same human presenting a different key and new evidence. Human review and private
@@ -89,12 +94,15 @@ secrets or `mirror-data` to GitHub.
 cargo test --workspace --all-targets --locked
 cargo test --workspace --doc --locked
 cargo test -p mirror-personhood --release --locked
+cargo test -p mirror-core --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
 python3 tools/reference_state_v2.py --check
+python3 tools/reference_blocks_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
+cargo run -p mirror-core --example block_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

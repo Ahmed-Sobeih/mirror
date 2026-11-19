@@ -11,7 +11,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4
-evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md. The updates below
+and MB-02A evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md. The updates below
 record component-level mitigations without rewriting historical findings or
 claiming that live ledger, consensus or storage integration already exists.
 
@@ -33,7 +33,7 @@ authority, MB-03 durable reorgs, human consensus and real private biological
 matching remained unfinished. B4 component progress is recorded next.
 No finding is declared globally closed or externally audited from these tests.
 
-## B4 implementation update
+## Historical B4 implementation update
 
 Source `21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
 [push CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870)
@@ -72,6 +72,45 @@ Future mixed blocks must retain transfers and original inclusion positions; they
 cannot be replayed by filtering operations into the current membership-only log.
 No biometric uniqueness, anonymity, currency issuance or human consensus follows
 from these passing component tests. MB-01B is complete only in that bounded scope.
+
+## MB-02A implementation update
+
+Published source `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382` adds 80 tests
+(37 operation, 33 block and 10 independent-vector cases). Local verification passed
+403 workspace tests and one documentation test, 121 core release tests, and 216
+personhood release tests plus its documentation case. Four reference checks and
+four synthetic examples passed.
+[Exact-source push CI 44428924399](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428924399)
+and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
+passed. The push checkout and full job log were inspected; CURRENT_STATUS.md
+records the exact acceptance evidence.
+
+The new `mirror_core::v2` component adds Transfer and a unified four-kind operation
+envelope, a 160-byte header and bounded MRB2 bodies. Strict signatures and separate
+domains bind Transfer fields. The block operation root binds count, order, record
+lengths and complete signed bytes, including the odd-leaf duplicate-last case.
+Construction, encoding, decoding and root calculation enforce complete byte,
+operation, membership and enrollment limits. Independent Python vectors guard the
+actual Transfer/header/block preimages and preserve existing membership bytes.
+See [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md) and test-matrix section 7.
+
+This supplies F06's missing mixed-body representation and integrity component;
+**it does not close F06 or F07**. `verify_integrity` checks bounds, configuration,
+the operation root and signatures. It does not execute balances/membership,
+consume account sequences, validate the supplied ledger root, check actual
+parent/height/timestamp/PoW or pin an authoritative genesis. Even positive amount,
+zero-fee and authorization-window checks belong to the separate operation-context
+method and must be invoked by the future executor. Its parent view remains a
+trusted caller boundary. Body integrity cannot authorize a canonical state update.
+
+F08/F09 durable publication and network-session limits remain unresolved; an
+in-memory decoder's bounds are not disk-read, session or global availability
+guarantees. F10 private biological matching and F11 the final fee/reward economy
+also remain open. Original mixed-operation positions are now represented and
+committed, but B3/MPH2 must not be fed a transfer-filtered list as though it were
+equivalent execution. **MB-02B combined-ledger execution is next; MB-02 overall
+remains IN_PROGRESS.** No launch gate, human uniqueness, anonymity, currency
+issuance or device readiness is established by this component milestone.
 
 ## 1. Assets and trust boundaries
 
@@ -204,9 +243,12 @@ permissionless security until the specified handoff and fault model are tested.
 
 MB-01A design deliverables identify integration blockers, choose a compatibility
 path, and map defenses to tests. They did not close F01–F11. The original next task
-was MB-01B/B1. B1–B4 are now verified standalone components; **current next:
-MB-02A**, TransferV2/unified operation and BlockV2 codecs, commitments and independent
-vectors. Combined-ledger execution and actual chain authority remain MB-02B/C;
-durable recovery and multi-node membership reorgs remain MB-03.
+was MB-01B/B1. B1–B4 are verified standalone components; MB-02A's Transfer/unified
+operation and BlockV2 codecs, commitments and independent vectors are complete and
+verified in exact-source CI. **Current next: MB-02B**, deterministic combined-ledger
+execution.
+Actual chain authority remains MB-02C; MB-02 overall remains IN_PROGRESS and
+Gate A/Gate B remain unmet. Durable recovery and multi-node membership reorgs remain
+MB-03. Exact-source CI acceptance is recorded in CURRENT_STATUS.md.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
