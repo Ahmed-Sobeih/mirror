@@ -1,9 +1,10 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MIRROR-MB02A-001**.
-These 35 rows are acceptance requirements, NOT 35 passing tests. Runtime ledger
-integration is still pending. B1 added 31 Rust tests, B2 added 39 and B3 added 51.
+Current implementation checkpoint: **MIRROR-MB02B-001**.
+These 35 rows are acceptance requirements, NOT 35 passing tests. Atomic ledger
+staging is implemented; actual block acceptance and durable integration remain
+pending. B1 added 31 Rust tests, B2 added 39 and B3 added 51.
 B4 adds canonical MPS2 commitments, untrusted cache decoding and bounded MPH2
 replay through the B3 executor. Its suites have 26 snapshot cases, 10 independent
 vector cases, 31 replay cases and two private work-budget cases; a compile-fail
@@ -11,13 +12,15 @@ documentation test separately protects the snapshot-to-authority boundary. Count
 represent completed roadmap rows. Exact source/test/CI acceptance is recorded in
 CURRENT_STATUS.md. Release executions are reruns, not new unique tests.
 
-**MB-01B is verified; MB-02A is complete as a verified codec/commitment
-component. MB-02 overall remains IN_PROGRESS.** MB-02A adds 80 tests: 37 operation,
-33 block and 10 independent-vector cases, bringing the workspace total to 403.
-**Next is MB-02B: combined-ledger execution.** Actual chain authority and durable
-integration remain MB-02C and MB-03. Section 6 retains historical B4 evidence;
-section 7 records MB-02A scope and exact-source CI evidence. CURRENT_STATUS.md
-records the current continuation and acceptance details.
+**MB-01B, MB-02A and MB-02B are verified components. MB-02B completes atomic
+staging in memory; MB-02 overall remains IN_PROGRESS.** MB-02B adds
+59 tests: 18 indexed membership, 28 public ledger, five private ledger fault cases
+and eight independent-vector cases, bringing the workspace total to 462. Three
+compile-fail documentation tests run separately. **Next is MB-02C: actual V2 block
+acceptance.** Durable integration remains MB-03. Sections 6 and 7 retain historical
+B4 and MB-02A evidence; section 8 records MB-02B's component scope. Exact-source
+CI results and the current acceptance checkpoint are recorded in
+[CURRENT_STATUS.md](../CURRENT_STATUS.md).
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
@@ -25,47 +28,49 @@ Exact byte contracts: [CONFIG_V2_ENCODING.md](CONFIG_V2_ENCODING.md) and
 [OPERATIONS_V2_ENCODING.md](OPERATIONS_V2_ENCODING.md); frozen B4 state layout and
 B3 execution rules: [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md).
 Grouped replay: [REPLAY_V2.md](REPLAY_V2.md). Transfer, unified operation and MRB2
-byte contracts: [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md).
+byte contracts: [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). Atomic mixed execution,
+root composition and the explicit MPS2 index extension:
+[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
 
 ## 1. Rule-to-assertion map
 
 | Case | Required assertion / proposed acceptance name | Owner and current coverage |
 |---|---|---|
 | T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | B1/B2 and MB-02A operation/MRB2 decoder rejection and no-fallback subcases VERIFIED; directory/init acceptance remains MB-02C/03 |
-| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | B1 config/seed VERIFIED; B2 context-bound messages tested; live use MB-02 |
+| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | B1 config/seed and B2 context-bound messages VERIFIED; MB-02B checks shared context during staged execution; actual chain acceptance MB-02C |
 | T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction and B3 ordinary seed runtime rights VERIFIED; production bootstrap policy remains gated |
 | T04/R04 | `v2_operations_have_exact_lengths`: prefix131; signed Transfer243/Enroll291/Approve227/Withdraw227; reject all truncations, versions/kinds, oversized/trailing bytes before mutation. | B2 membership plus MB-02A Transfer/unified codecs VERIFIED COMPONENTS; all four lengths and preserved membership bytes covered |
 | T05/R05 | `every_signed_field_is_bound`: altered kind/context/anchor/window/key/sequence/evidence/profile/target invalidates signature; malformed keys/signatures do not panic. | B2 membership plus MB-02A Transfer authentication, domain separation and strict signatures VERIFIED COMPONENTS |
 | T06/R06 | `approval_targets_complete_request`: changed request/window changes enrollment ID; approval cannot authorize it; exact request/key/evidence reuse rejected after active/revoked/expired outcomes. | B2 complete-request ID/signatures and B3 retained ID/key/evidence reuse rejection VERIFIED; fresh biometric duplicates remain external |
-| T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership sequence execution VERIFIED; MB-02A signs a separate Transfer account sequence but does not consume/check it against state; mixed sequence execution remains MB-02B |
-| T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02A contextual authorization rejects zero amount/nonzero fee; balance arithmetic, account nonce consumption and conservation remain MB-02B PLANNED |
-| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2/B3/B4 and MB-02A Transfer trusted-view checks VERIFIED COMPONENTS; actual validated blocks/branch ancestry remains MB-02C/03 |
-| T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2 membership and MB-02A Transfer message windows plus B3 per-operation rechecks VERIFIED COMPONENTS; deterministic record expiry covered in T11 |
-| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3 execution and B4 empty-group expiry/tombstone reconstruction VERIFIED COMPONENTS; durable restart MB-03 |
+| T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership and MB-02B account/membership sequence separation, exact consumption, replay rejection and private overflow tests VERIFIED STAGING COMPONENTS |
+| T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02B positive zero-fee transfers, self-transfers, checked arithmetic, retained zero accounts and exact synthetic-supply conservation VERIFIED IN MEMORY; no mint/reward API or final economy |
+| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | B2/B3/B4 and MB-02A authorization plus MB-02B parent-binding/per-operation rechecks VERIFIED COMPONENTS; actual validated blocks/branch ancestry remains MB-02C/03 |
+| T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2/MB-02A message boundaries and B3/MB-02B staged per-operation rechecks VERIFIED COMPONENTS; deterministic record expiry covered in T11 |
+| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | B3/B4 behavior and MB-02B empty mixed-stage expiry, unchanged account component and failed-stage expiry rollback VERIFIED COMPONENTS; durable restart MB-03 |
 | T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 ownership/state and per-operation authorization VERIFIED IN MEMORY |
-| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3 ordered membership transition, B4 diagnostic digest and MB-02A ordered mixed-body root/original indices VERIFIED COMPONENTS; mixed transition execution remains MB-02B |
-| T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3 VERIFIED IN MEMORY; trusted synthetic parent snapshots, not deployed membership consensus |
-| T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3 VERIFIED IN MEMORY, including retained earlier-block approvals and no cascade revocation |
-| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3 inclusion-order/ordinal preservation/overflow and B4 independent roots/replay VERIFIED COMPONENTS |
+| T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3/B4 and MB-02A commitments plus MB-02B original mixed-order execution, receive-before-spend and first-failure precedence VERIFIED COMPONENTS |
+| T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3 and MB-02B mixed execution VERIFIED IN MEMORY; trusted synthetic parent snapshots, not deployed membership consensus |
+| T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3 retained history/no-cascade behavior and MB-02B mixed-stage reviewer withdrawal before activation VERIFIED IN MEMORY |
+| T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3/B4 ordinal/overflow/vector behavior and MB-02B sparse full-body positions and activation ordering VERIFIED COMPONENTS; actual canonical selection remains MB-02C/03 |
 | T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | B3 derived consistency plus B4 canonical roots, snapshot metadata/sequence/counter checks and independent vectors VERIFIED COMPONENTS; snapshot remains untrusted |
 | T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | B3 final-state high-water and decline preservation VERIFIED; actual reorg/orphan counter recovery MB-03 |
-| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3 immutable staging plus B4 late replay rejection/retry and serialized-state equality VERIFIED COMPONENTS; mixed ledger MB-02 |
-| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1–B4 bounds plus MB-02A direct/encode/decode/root byte, operation, membership and enrollment budgets VERIFIED COMPONENTS; account/mixed execution budgets remain MB-02B |
+| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | B3/B4 atomicity and MB-02B complete account/member equality after late failures, including expiry and final account invariant failure, VERIFIED STAGING COMPONENTS |
+| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1–B4/MB-02A bounds and MB-02B complete-body preflight, exact transfer projection byte boundary, full-index plan validation and retained-account capacity VERIFIED COMPONENTS |
 | T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | B1/B2, B4 MPS2/MPH2 and MB-02A MRB2 huge-count/length/byte bounds VERIFIED COMPONENTS; disk/frame/streaming cases remain MB-03/04 |
 | T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | B3 tombstone/capacity behavior and B4 exact encoded replay reservations/indexes VERIFIED COMPONENTS; durable restart MB-03 |
-| T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A header/block bytes, hash binding, context/body integrity and independent vectors VERIFIED COMPONENTS; actual height/parent/target/ledger-root semantics and exact genesis remain MB-02B/C |
+| T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A structure/hash/context/body integrity VERIFIED; MB-02B derives candidate ledger roots; actual header height/parent/target/root comparison and exact genesis remain MB-02C |
 | T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment and independent empty/odd/mixed vectors VERIFIED COMPONENT; canonical acceptance remains MB-02C |
-| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02B PLANNED; MB-02A only carries and hashes the supplied ledger-root field |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | B4 membership-only replay matches full state and trusted expectations; actual combined-ledger/canonical recovery MB-02/03 |
-| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | MB-02B PLANNED; body-integrity rejection is not stateful atomicity |
-| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | B4 trusted synthetic config/genesis/height/tip/root expectations reject old logs; real MRB2 pinning and durable latestness MB-02/03 |
+| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02B canonical account/member/economics/combined root construction and independent vectors VERIFIED ONLY FOR STAGING; equal accounts with different membership positions produce different ledger roots; actual header-root acceptance MB-02C |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | B4 membership-only trusted replay plus MB-02B synthetic signed-fixture reexecution and untrusted-cache comparisons VERIFIED COMPONENTS; actual combined canonical replay/recovery remains MB-02C/03 |
+| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | MB-02B both mixed-operation failure directions and final account-invariant rollback VERIFIED IN MEMORY; wrong claimed final ledger-root rejection after valid execution remains MB-02C |
+| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | B4 trusted synthetic expectations and MB-02B exact parent association are component checks; real MRB2 genesis pinning/replay and durable latestness remain MB-02C/03 |
 | T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | MB-03 PLANNED |
 | T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | MB-03/04 PLANNED |
 | T31/R31 | `network_versions_do_not_fallback`: MIR2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | MB-03/04 PLANNED |
 | T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | MB-04 PLANNED |
 | T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 and MB-02A use fixed signed fields, no archive/URL schema; real custody/canary/privacy acceptance remains MB-08/09, fixed fields not a privacy proof |
-| T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3 no money API/no seed monetary privilege; actual integrated mint/grant rejection MB-02/07 |
-| T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02/06/07 PLANNED |
+| T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3/MB-02A closed operation kinds and MB-02B explicit-only allocations, no implicit member/founder funds and conserved supply across membership changes VERIFIED COMPONENTS; live economy MB-07 |
+| T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02B staging leaves mint/reward/fee policy disabled; D-01/D-04 unresolved; real admission and finality protection remain later gates, including MB-06/07 |
 
 ## 2. Boundary and adversarial requirements
 
@@ -232,10 +237,11 @@ Neither Gate A nor Gate B is completed by this component coverage.
 At the B4 checkpoint MB-01B was complete in this scope. The planned next MB-02A
 slice covered unified operation and BlockV2 bytes/commitments with independent
 vectors; section 7 records its subsequent implementation. Full T23–T28
-ledger/chain authority and mixed execution remain MB-02B/C or MB-03 as applicable;
-passing the 69 B4 cases does not mark all acceptance rows complete.
+ledger/chain authority and mixed execution then remained MB-02B/C or MB-03 as
+applicable; section 8 records later staged execution. Passing the 69 B4 cases did
+not mark all acceptance rows complete.
 
-## 7. MB-02A transfer, unified operation and block component coverage
+## 7. Historical MB-02A transfer, unified operation and block component coverage
 
 Published source: `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382`, tree
 `930aa22bf9810525372fd31926812c1bde6dcf81`. Local verification passed **403 workspace
@@ -267,8 +273,71 @@ generated Ed25519 signature constants from public test seeds. Expected vectors
 were not taken from Rust output. Header fixtures do not establish valid genesis,
 PoW, balances or real ancestry.
 
-**MB-02B is next:** implement deterministic combined-ledger execution, preserving
-full mixed-operation positions and rejecting late failures without publishing any
-account or membership state. MB-02 remains IN_PROGRESS. Real chain authority,
-durable recovery, human consensus, issuance, device admission and privacy gates
-remain unfinished; neither Gate A nor Gate B is completed by MB-02A.
+At the MB-02A checkpoint, **MB-02B was next:** deterministic combined-ledger
+execution with original mixed-operation positions and no publication after late
+failures. Section 8 records that implementation. Neither Gate A nor Gate B was
+completed by MB-02A.
+
+## 8. MB-02B atomic ledger staging and combined commitments
+
+Published source: `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`, tree
+`6871ad0fbc178bd76262a26416a7d255d9fcbd66`. Local acceptance passed **462 workspace
+tests = 403 retained + 59 new** and **three compile-fail documentation tests**.
+Release reruns passed **121 core**, **234 personhood plus three documentation
+cases**, and **49 state tests**. All five reference checks and five synthetic
+examples passed. Release reruns and example assertions are not additional unique
+workspace tests.
+[Exact-source push CI 44619155972](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619155972)
+passed; the exact `420d711` checkout and full job `135895834032` logs were inspected.
+The same workspace, documentation, release and audit gates passed, along with all
+five reference checks and five examples.
+[PR CI 44619172378](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619172378)
+also passed. [CURRENT_STATUS.md](../CURRENT_STATUS.md) records the final acceptance
+checkpoint and continuation.
+
+The 59 additions comprise 18 tests in
+[indexed_state_v2.rs](../crates/mirror-personhood/tests/indexed_state_v2.rs),
+28 in [ledger_v2.rs](../crates/mirror-state/tests/ledger_v2.rs),
+five private fault cases in [v2/tests.rs](../crates/mirror-state/src/v2/tests.rs),
+and eight in [ledger_vectors_v2.rs](../crates/mirror-state/tests/ledger_vectors_v2.rs).
+Two new compile-fail cases protect consumed-stage reuse and cloning, alongside
+the existing snapshot-to-authority case. The contract is
+[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
+
+In the table below, unqualified ledger test names are in `ledger_v2.rs`; `indexed`
+means `indexed_state_v2.rs`, `vectors` means `ledger_vectors_v2.rs`, and `private`
+means `mirror-state/src/v2/tests.rs`.
+
+| Case/subcase | Actual tests | Verified component scope and remainder |
+|---|---|---|
+| T07 separate sequences | `transfer_and_membership_sequences_are_independent`, `replay_or_skipped_account_sequence_cannot_spend`, `zero_balance_sender_history_survives_recredit_and_replay`; private `exhausted_account_sequence_fails_without_any_mutation` | Account and membership sequences remain separate; replay/skips/exhaustion reject without changing the parent |
+| T08 conservation and arithmetic | `successful_transfer_creates_recipient_and_preserves_supply`, `self_transfer_requires_funds_and_consumes_exactly_one_sequence`, `maximum_supply_self_transfer_and_full_transfer_do_not_overflow`, `zero_amount_nonzero_fee_and_bad_signature_precede_state_changes`; private `recipient_credit_overflow_is_checked_before_sender_mutation`, `account_component_rejects_corrupt_balance_sum_and_supply` | Positive zero-fee transfers preserve exact initial synthetic supply; checked arithmetic and self-transfer behavior tested; no mint or reward mechanism |
+| T09/T10 parent authorization | `wrong_parent_context_height_hash_or_missing_hash_rejects_whole_body`, `operation_lifetime_and_anchor_are_checked_before_execution` | Checks stable synthetic trusted parent/configuration/anchor/window; no actual canonical ancestry discovery |
+| T11 expiry and rollback | `empty_block_expires_membership_without_changing_account_component`, `failure_after_expiry_does_not_publish_the_expiry`; indexed `transfer_only_membership_stage_still_advances_expiry` | Empty/transfer-only stages still advance membership height and expiry; discarded candidates publish neither expiry nor accounts |
+| T13/T14/T15 mixed execution order | `same_signed_transfers_require_receive_before_spend`, `first_failure_is_selected_in_original_mixed_order`, `same_block_activation_does_not_grant_review_rights`, `reviewer_withdrawal_is_reflected_before_end_block_activation` | Executes original order and reports its first per-operation failure after preflight; parent eligibility and end-block reviewer survival retained |
+| T16/T17 full-body positions | `full_block_indices_survive_sparse_membership_and_snapshot_roundtrip`; indexed `activation_follows_original_full_enrollment_positions_at_block_end`; vectors `full_operation_positions_survive_interspersed_transfers_and_are_committed` | Enrollment indices include transfers and may exceed the membership-count cap; activation order and committed membership bytes preserve full positions |
+| T19/T27 atomic staging | `late_transfer_failure_discards_earlier_membership_and_accounts`, `late_membership_failure_discards_earlier_accounts_and_membership`; private `final_account_invariant_failure_discards_completed_candidate`; indexed `finish_requires_all_preflighted_membership_operations`, `wrong_step_index_cannot_skip_or_reapply_a_planned_operation`, `late_stateful_failure_discards_earlier_candidate_mutation` | Both failure directions preserve the complete parent; a partial membership candidate cannot be reused or published; wrong claimed final block-root rejection remains MB-02C |
+| T20 full budgets and account capacity | `full_operation_count_preflight_precedes_parent_access`, `full_membership_and_enrollment_quota_preflight_precedes_parent_access`, `indexed_membership_and_full_block_share_exact_transfer_byte_budget`, `account_limit_rejects_new_recipient_but_keeps_existing_and_zero_records`; indexed plan/count/budget cases | Core and projected membership agree on 243-byte transfers plus four-byte prefixes; exact mixed size 710 passes and 709 rejects; bounded plan/index checks precede state clone/signatures |
+| T25 staged commitments | `account_encoding_and_component_roots_follow_canonical_domains`, `provenance_hash_is_excluded_from_committed_state`; vectors `independent_accounts_membership_economics_and_combined_roots`, `empty_block_expiry_changes_only_membership_and_height_commitments`, `staged_roots_do_not_depend_on_later_external_block_hash_binding` | Canonical account, membership, disabled-economics and combined roots reproduced independently; current tip hash excluded; these are staged roots, not accepted header commitments |
+| T26 cache and fixture boundaries | indexed `plausible_changed_full_index_remains_untrusted_and_out_of_full_range_rejects`; vectors `signed_python_fixture_decodes_and_reexecutes_from_verified_bootstrap` | Coherent changed-index caches still fail trusted-state comparison; signed synthetic fixtures reexecute from verified bootstrap; actual accepted MRB2 replay/recovery remains MB-02C/03 |
+| T34/T35 disabled monetary policy | `bootstrap_uses_only_explicit_allocations_including_zero_records`, `empty_allocations_create_no_supply_or_implicit_member_accounts`, `withdrawing_membership_does_not_destroy_or_restrict_accounts`; vectors `explicit_zero_entries_and_supply_survive_all_membership_changes` | Only explicit synthetic allocations exist; membership changes neither mint funds nor restrict account spending; D-01/D-04 and final economy remain unresolved |
+
+The independent Python reference
+[reference_ledger_v2.py](../tools/reference_ledger_v2.py) reconstructs explicit
+synthetic configuration, signed operations, account bytes, MPS2 bytes and component
+preimages. Rust independently executes the same signed fixture and compares the
+committed roots. Frozen older references remain unchanged; neither Python fixture
+hashes nor `bind_to_validated_block` establish real block authority.
+
+The MPS2 extension changes only the structural runtime-enrollment index bound from
+the membership-count limit to `max_operations`. Its bytes/domains are unchanged;
+older decoders may reject the newly possible mixed states. Decoding still returns
+an untrusted wrapper. MPH2 remains membership-only and cannot reconstruct a mixed
+ledger by omitting transfers.
+
+**Next is MB-02C.** Validate actual genesis, headers, height/parent/configuration,
+timestamp/target/work, body commitments and the claimed final ledger root before
+binding or accepting staged state. T27's wrong-final-root subcase and T26's actual
+canonical replay are not completed by this milestone. MB-03 must add coherent
+durable recovery and reorg handling. MB-02 remains IN_PROGRESS; human consensus,
+issuance, biometric admission, privacy and both launch gates remain unfinished.

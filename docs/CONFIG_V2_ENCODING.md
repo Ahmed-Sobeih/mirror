@@ -62,7 +62,9 @@ Each is nonzero. Membership ops <= all ops, new enrollments <= membership ops an
 pending quota, pending/bootstrap <= total records. Single-operation capacity is
 at least 291 bytes. Block capacity >= 168+4+max_operation_bytes; log capacity >=
 8+max_operation_bytes. Limits may be lowered consistently. These checks validate
-configuration ONLY; execution/peer/storage enforcement is still B2/B3/MB-02/03/04.
+configuration ONLY. B2/B3 and MB-02A/B now enforce their respective message,
+membership, body and mixed-execution bounds; actual accepted-block, peer and
+storage enforcement still requires MB-02C/03/04.
 
 ## Independent evidence
 
@@ -78,12 +80,13 @@ match an unexplained Rust failure. CI runs reference, debug and release tests.
 
 T02 configuration/seed-context binding is covered. T03's acyclic construction,
 ordered all-seed proof verification and invalid-config parts are covered; its
-runtime approval/withdrawal privilege tests remain B3. T20 configuration/count
-bounds are covered; direct V2 execution bounds remain B3/MB-02. No other full
-matrix case is claimed complete here. Legacy V1 APIs, signatures, MPH1/MRB1 bytes,
+runtime approval/withdrawal privilege tests were subsequently supplied by B3.
+T20 configuration/count bounds are covered here; B3 and MB-02A/B add direct
+membership/body/mixed-execution bounds. No other full matrix case is claimed
+complete by B1 alone. Legacy V1 APIs, signatures, MPH1/MRB1 bytes,
 node source, ledger history and monetary policy are unchanged.
 
-Trusted deployment configuration must still pin C and exact genesis in MB-02/03;
+Trusted deployment configuration must still pin C and exact genesis in MB-02C/03;
 valid proofs of possession do not make a peer-supplied configuration authoritative.
 No V2 membership activation, genesis initialization, real admission, biometric
 matching, new grants, fees or human consensus is enabled by B1.

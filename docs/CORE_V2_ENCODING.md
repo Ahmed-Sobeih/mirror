@@ -1,7 +1,8 @@
 # MB-02A: V2 transfer and block encoding contract
 
-Checkpoint: **MIRROR-MB02A-001**. This document freezes the implementation contract
-for the verified MB-02A component. Source 35ad0cf passed exact-source CI 44428924399;
+Original checkpoint: **MIRROR-MB02A-001**. This document preserves the implementation
+contract for the verified MB-02A component. Historical source 35ad0cf passed
+exact-source CI 44428924399;
 CURRENT_STATUS.md and the test matrix record scoped acceptance evidence.
 No balance/membership execution, accepted
 V2 chain, genesis, PoW proof, currency issuance or device support follows from a
@@ -9,7 +10,10 @@ value decoding or passing body-integrity checks.
 
 Read with [the integration design](LEDGER_MEMBERSHIP_V1.md),
 [configuration](CONFIG_V2_ENCODING.md), [membership operations](OPERATIONS_V2_ENCODING.md),
-[membership state](MEMBERSHIP_STATE_V2.md) and [diagnostic replay](REPLAY_V2.md).
+[membership state](MEMBERSHIP_STATE_V2.md), [diagnostic replay](REPLAY_V2.md), and
+the implemented [MB-02B atomic ledger](LEDGER_STATE_V2.md). Ledger staging now
+executes a complete mixed body; MB-02C must still establish actual block authority.
+Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
 
@@ -20,8 +24,11 @@ there is no reverse dependency or cycle. This is one internal workspace dependen
 not an external dependency upgrade.
 
 Legacy V1 core, node, storage, consensus and network paths remain unchanged. MCF2,
-B2 signed membership bytes, MPS2 and MPH2 retain their exact meanings. The new
-unified decoder accepts Transfer=0; the existing membership-only decoder and MPH2
+B2 signed membership bytes, MPS2 fields/domains and MPH2 bytes remain unchanged.
+MB-02B explicitly extends MPS2's accepted runtime enrollment-index bound to
+`< max_operations`, preserving positions in full mixed blocks; this is a structural
+acceptance extension without new encoded fields. See [membership state](MEMBERSHIP_STATE_V2.md).
+The unified decoder accepts Transfer=0; the existing membership-only decoder and MPH2
 still reject it. No automatic MRB1 migration, genesis replacement or mixed-version
 fallback is introduced.
 
@@ -91,7 +98,9 @@ matcher or network I/O.
 
 Transfer sequence belongs to the sender ACCOUNT; membership sequences remain
 separate. Current nonce equality/exhaustion, sufficient funds, account capacity,
-self-transfer arithmetic and whole-ledger supply conservation are MB-02B checks.
+self-transfer arithmetic and whole-ledger supply conservation are implemented by
+the MB-02B executor, not this operation codec. Explicit zero allocations and
+exhausted accounts remain in its commitments; membership never implies a balance.
 A valid signature/context with amount or sequence u64::MAX is not permission to
 mutate state. Membership eligibility is not silently added as a transfer rule.
 The zero-fee profile does not settle production fees, rewards or D-01/D-04.
@@ -171,10 +180,12 @@ The API boundaries are deliberately separate:
 | Operation verify_signature | Strict signature over signed intent | Context, profile, balances, nonce and member rights |
 | Operation validate_for_parent | Context, signature, anchor/window; transfer's static profile | Current account/member state and acceptance |
 | Block verify_integrity | Bounds, header/operation C, operation root and signatures | Static transfer profile, ancestry, height linkage, time, target/work, ledger root, genesis and state execution |
+| LedgerV2 stage_operations (MB-02B) | Atomic account/member execution, parent association, separate sequences, balances, conservation and computed roots | Actual header/genesis/work/time validation, claimed-root comparison and canonical block/chain authority |
 
-No method in this slice mutates balances, consumes sequences, activates membership,
-publishes a canonical block, mines genesis, or opens a chain database. All actual
-ledger execution and proof/root/genesis/ancestry validation remain MB-02B/C.
+No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
+publishes a canonical block, mines genesis, or opens a chain database. The separate
+MB-02B state module now stages ledger execution; actual proof/header/genesis/ancestry
+and claimed-root acceptance remain MB-02C.
 A signature-valid block with a deliberately claimed ledger root can pass body
 integrity; this is an explicit tested boundary, not an accepted block.
 
@@ -187,8 +198,15 @@ Python package and does not call Rust. Fixtures cover empty, single, odd, mixed,
 reordered and duplicated-last lists, and field changes. Rust independently rebuilds,
 signs and checks these values. Never use a failed Rust result as a new expectation.
 
-MB-02B must stage accounts and membership atomically. The existing membership-only
-stage_block and MPH2 cannot accept a filtered mixed list without changing inclusion
-positions. Specify indexed/full-block staging and appropriate index bounds while
-preserving existing bytes and membership-only behavior. MB-02C then establishes
-actual validated chain/manifest authority; MB-03 durable multi-node publication.
+MB-02B now stages accounts and membership atomically using the complete ordered
+operation list. Its consuming indexed membership stage retains full positions and
+charges omitted transfer slots at their exact 243-byte signed size plus length
+prefix, while the ledger preflights the actual body. The original membership-only
+stage_block remains compatible. MPH2 still cannot replay a filtered mixed list
+without losing positions and account effects; it continues to reject Transfer=0.
+
+[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md) freezes account/economics/combined-state
+commitments and zero-fee/no-mint execution. Successful staging is not acceptance of
+a block or a supplied ledger-root field. Next, MB-02C establishes actual validated
+block/chain/manifest authority; MB-03 adds durable multi-node publication. Refer to
+CURRENT_STATUS.md for current source and acceptance evidence.

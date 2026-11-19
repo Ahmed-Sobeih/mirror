@@ -8,9 +8,9 @@ Mirror is a Rust development blockchain exploring human-based participation.
 [MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the current standalone
 membership register to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
-criteria. **MB-01B and the MB-02A transfer/block format layer are verified components.**
-Next is **MB-02B: atomic accounts and membership execution with combined ledger roots**.
-Actual V2 block authority follows in MB-02C; durable integration follows in MB-03.
+criteria. **MB-01B, MB-02A formats and MB-02B atomic ledger execution are verified
+components.** Next is **MB-02C: pinned V2 genesis, actual block acceptance and replay**.
+Durable coherent multi-node integration follows in MB-03.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -57,19 +57,26 @@ configuration, hashes, exact operation groups, intermediate roots and the reques
 final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.md)
 and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
 authority; a caller-supplied hash is not proof of actual block validity. Live V2
-block validation, peer messages, unified balances and rewards remain later work.
+block validation, peer messages and rewards remain later work.
 
 `mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
 MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
 commitments. Decode is structural; body integrity checks C, roots and signatures.
 Neither grants ledger/chain authority. See the [encoding contract](docs/CORE_V2_ENCODING.md).
 
-Latest source: [`35ad0cf`](https://github.com/Ahmed-Sobeih/mirror/commit/35ad0cf708bd4ceeb4faa306ba4f7bd74912c382).
-[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428924399)
-passed **403 workspace tests**, core release 121, personhood release 216, the retained
-compile-fail doctest, all four independent references and all four examples.
-The same doctest also passed in personhood release. Release reruns are not new tests.
-PR #1 remains open and unmerged. Actual V2 balances/membership execution is next.
+`mirror_state::v2` now stages accounts and membership atomically, preserves original
+mixed-operation positions, executes checked zero-fee transfers and commits the
+combined state. Late transfer or membership failure leaves both parent components
+unchanged. Explicit zero accounts and independent sequences are retained. The
+[ledger contract](docs/LEDGER_STATE_V2.md) specifies canonical bytes and boundaries.
+Actual block/root/genesis/work acceptance remains MB-02C.
+
+Latest source: [`420d711`](https://github.com/Ahmed-Sobeih/mirror/commit/420d7114ddf782469a6ace6ba0a2c4076fb93aaf).
+[Exact-source CI](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619155972)
+passed **462 workspace tests**, **3 compile-fail doctests**, release core **121**,
+personhood **234** plus the same **3** doctests, state **49**, all **five independent
+references** and all **five examples**. Release reruns are not new tests.
+[PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
 same human presenting a different key and new evidence. Human review and private
@@ -95,14 +102,17 @@ cargo test --workspace --all-targets --locked
 cargo test --workspace --doc --locked
 cargo test -p mirror-personhood --release --locked
 cargo test -p mirror-core --release --locked
+cargo test -p mirror-state --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
 python3 tools/reference_state_v2.py --check
 python3 tools/reference_blocks_v2.py --check
+python3 tools/reference_ledger_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
 cargo run -p mirror-core --example block_v2_demo --locked
+cargo run -p mirror-state --example ledger_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

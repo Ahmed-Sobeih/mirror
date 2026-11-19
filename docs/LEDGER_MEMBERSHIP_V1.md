@@ -1,25 +1,28 @@
 # Membership-ledger integration — design revision 1
 
-Checkpoint: **MIRROR-MB01A-001**. Task: MB-01A.
-Status: **DESIGN DELIVERABLE, not implemented consensus**.
-Audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
+Original checkpoint: **MIRROR-MB01A-001**. Task: MB-01A.
+Original status: **DESIGN DELIVERABLE, not implemented consensus**.
+Original audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
 
-Current implementation update: **MB-01B/B1–B4 are verified standalone components;
-MB-02A is complete as a verified codec/commitment component**.
+Current implementation update: **MB-01B/B1–B4 supply standalone membership;
+MB-02A supplies codecs/commitments; MB-02B now implements atomic combined ledger
+execution and commitments**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
-[REPLAY_V2.md](REPLAY_V2.md) specifies bounded MPH2 grouped replay. Source
+[REPLAY_V2.md](REPLAY_V2.md) specifies bounded membership-only MPH2 grouped replay.
+Historical B4 source
 `21e2272b5ac92c00e840d7aaa26a99570a5ec24f` passed
 [CI 44404337870](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44404337870).
 MB-02A implements TransferV2, the unified operation envelope and BlockV2
 encoding/commitments with independent vectors; the frozen contract is
-[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). **Next is MB-02B: deterministic combined
-ledger execution.** MB-02C then establishes actual block/chain authority. MB-02
-overall remains IN_PROGRESS; Gate A and Gate B remain unmet. The historical
-design-status statements below describe the original MB-01A checkpoint; source/test evidence is
-in CURRENT_STATUS.md and the acceptance matrix.
+[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The implemented combined state contract
+is [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md). **Next is MB-02C: actual block/chain
+acceptance.** Staging a ledger does not establish block authority. MB-02 overall
+remains IN_PROGRESS; Gate A and Gate B remain unmet. The historical design-status
+statements below describe the original MB-01A checkpoint; current publication and
+acceptance evidence is in CURRENT_STATUS.md and the acceptance matrix.
 
-This specifies the next development implementation, not mainnet rules. `V1` in
+This specifies the development integration design, not mainnet rules. `V1` in
 this document's filename means design revision 1. The proposed wire formats are
 **V2**, because MRB1/MPH1 already exist. Proposed constants below are explicitly
 small-network development limits, not new user-approved economic or admission
@@ -28,10 +31,11 @@ policy. Follow [DECISIONS.md](DECISIONS.md) and [MASTER_PLAN.md](../MASTER_PLAN.
 ## 1. Source audit and selected integration path
 
 Current APIs and the identified gaps are recorded in [THREAT_MODEL.md](THREAT_MODEL.md).
-The standalone MembershipRegistry and the account-only legacy ChainState still
-have separate roots. Legacy V1 Block remains transfer-only. MB-02A's new BlockV2
-can carry typed transfers and membership operations together, but does not execute
-them into combined ledger state. No legacy transfer payload is reinterpreted as an
+The standalone MembershipRegistry and the account-only legacy ChainState retain
+their separate roots. Legacy V1 Block remains transfer-only. MB-02A's BlockV2 can
+carry typed transfers and membership operations together; MB-02B's new LedgerV2
+executes the complete ordered body into atomic combined state. Actual acceptance
+of that block is MB-02C. No legacy transfer payload is reinterpreted as an
 enrollment and no historical state root changes meaning.
 
 **Engineering choice:** add an explicitly selected synthetic development profile,
@@ -168,9 +172,12 @@ MB-05/09. Do not accept a simulated matcher as real uniqueness evidence.
 
 ## 5. Block execution and eligibility timing (R13–R19)
 
-The proposed API accepts a trusted parent state plus a verified parent-chain view
-and candidate height, NOT a caller-chosen arbitrary active-member count or clock.
-There is no public unbounded `apply` bypass for the V2 block executor.
+The full chain-acceptance design accepts a trusted parent state plus a verified
+parent-chain view and candidate height, NOT a caller-chosen arbitrary active-member
+count or clock. MB-02B implements the deterministic state-staging portion described
+in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md), deriving the next height from its parent.
+It has no public unbounded `apply` bypass. The header, work and claimed-root
+acceptance portions of the following design remain MB-02C.
 
 1. Check format, context, parent/height, declared bytes/counts and fixed target.
 2. Clone/stage the complete ledger; snapshot the parent's Active member set.
@@ -263,8 +270,9 @@ Block bytes: `MRB2[4] | header[160] | count:u32 | repeated(u32 length, operation
 Empty block size = **168 bytes**. Reject unknown versions/kinds, bad exact lengths,
 count/size inconsistencies and trailing bytes. Hash the header as
 `H("MIRROR_BLOCK_V2" || header)`. MB-02A implements these byte/hash rules, but only
-carries the supplied target and ledger-root fields. Actual PoW, timestamp, parent,
-height, pinned-genesis and ledger-state acceptance are separate MB-02B/C work.
+carries the supplied target and ledger-root fields. MB-02B computes the resulting
+ledger state/root. Actual PoW, timestamp, parent/height linkage, pinned genesis and
+comparison with the header's claimed ledger root remain MB-02C acceptance work.
 The design retains fixed-target PoW for temporary development; it is not the final
 one-human-one-vote protocol.
 
@@ -273,10 +281,14 @@ Let leaf_i = H("MIRROR_OP_LEAF_V2" || u32(len(op_i)) || complete_signed_op_i).
 The count commitment is required: the current odd-leaf duplication convention
 must not let lists of different lengths share a commitment unnoticed.
 
-The planned combined ledger contains accounts, membership, and disabled-economics
-state together. The following account/economics/combined-root computation and
-balance conservation are MB-02B work, not behavior supplied by the MB-02A codecs.
+The implemented MB-02B combined ledger contains accounts, membership, and
+disabled-economics state together. The following root computations and balance
+conservation are specified in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); they are
+executor behavior, not authority supplied by the MB-02A codecs.
 `accounts_root = H("MIRROR_ACCOUNTS_V2" || u32(count) || sorted(address,balance,nonce))`.
+Account records are sorted by raw address bytes and encode 32-byte address, u64
+balance and u64 next account sequence. Explicit zero allocations and exhausted
+accounts remain included; absent and retained-zero accounts are distinguishable.
 Membership canonical encoding commits C, all counters, and sorted records including
 request data, status, inclusion location, next membership sequence, activation
 height/ordinal, and sorted approval evidence. Presence of optional values uses
@@ -289,9 +301,10 @@ check sum(account balances)==initial_test_supply under the zero-fee/no-mint prof
                  membership_root || economics_root)`.
 
 MB-01B has frozen and independently verified full field ordering/optional encodings
-for its V2 membership module. MB-02A now does the same for Transfer and full block
-bytes/operation commitments. MB-02B must supply the combined-ledger preimages and
-independent vectors before claiming implemented ledger-root semantics.
+for its V2 membership module. MB-02A does the same for Transfer and full block
+bytes/operation commitments. MB-02B adds independently calculated mixed-ledger
+preimages and vectors in `tools/reference_ledger_v2.py`; publication and acceptance
+evidence belongs in CURRENT_STATUS.md.
 Domains listed here are exact ASCII, no
 terminating NUL. Any revision is explicit and updates the design and vectors.
 
@@ -302,17 +315,23 @@ Invalid late membership operations must roll back earlier transfers, and vice ve
 B4 MPH2 has a separate exact group digest because state roots alone do not commit
 to every operation history. It is **not** the MRB2 Merkle operation root specified
 above. Do not filter transfers out of a mixed block to feed B3/MPH2: membership
-inclusion indices must remain positions in the original complete block. MB-02
-must explicitly integrate or version the executor/replay interface for mixed input
-while preserving all existing membership-only bytes and transition tests.
+inclusion indices must remain positions in the original complete block. MB-02B
+implements a consuming indexed membership stage that preserves those positions
+while the ledger executes the complete ordered body. MPS2's accepted runtime
+enrollment-index range is explicitly extended from `< max_membership_operations`
+to `< max_operations`; serialized fields and domains are unchanged. Older decoders
+may reject newly possible mixed positions. MPH2 remains membership-only; actual
+validated mixed-block replay and durable authority remain MB-02C/MB-03.
 
 ## 8. Persistence, transport and dependency boundaries (R28–R32)
 
-Implemented dependency direction through MB-02A: crypto <- personhood V2 <- core V2.
+Implemented dependency direction through MB-02B: crypto <- personhood V2 <- core V2,
+with state V2 composing core and personhood.
 Core reuses personhood's typed operations/configuration/parent-view interface;
-personhood does not depend on core. The planned state V2 layer composes
-accounts+membership; chain V2 validates parent/config/state; node coordinates
-storage/transport. Do not create a core/state/personhood dependency cycle.
+personhood does not depend on core. State V2 now stages accounts+membership
+atomically. Chain V2 must next validate parent/config/state and actual block
+authority; later node integration coordinates storage/transport. Do not create a
+core/state/personhood dependency cycle.
 
 MB-02 first proves deterministic in-memory mixed execution and full replay. MB-03
 then persists canonical MRB2 blocks with explicit store metadata (format, C,
@@ -358,8 +377,8 @@ monetary components; D-01/D-04 still block a combined executable monetary policy
 At the original MB-01A checkpoint, all V2 runtime cases were NOT_IMPLEMENTED.
 Static design review was not evidence that those behaviors existed. The historical
 slice plan below has now been completed for the standalone membership component;
-MB-02A adds full mixed block representation, while actual ledger/chain integration
-is still pending.
+MB-02A adds full mixed block representation and MB-02B adds atomic ledger
+execution. Actual block/chain authority remains pending in MB-02C.
 
 Original MB-01B slices:
 
@@ -371,8 +390,9 @@ Original MB-01B slices:
 - B4: full regression/adversarial suite and synthetic demo, debug/release CI.
 
 The original MB-02 plan adds TransferV2, BlockV2 and the unified ledger executor with
-mixed-batch atomicity and exact genesis validation. Its first codec/commitment slice
-is now implemented; execution and actual chain acceptance remain MB-02B/C.
+mixed-batch atomicity and exact genesis validation. Its codec/commitment and atomic
+executor slices are now implemented; actual chain acceptance remains
+MB-02C.
 MB-03 adds durable multi-node integration.
 Do not combine these milestones into an unreviewed rewrite or alter real policy
 merely to make a test pass.
@@ -382,7 +402,7 @@ release reruns, one compile-fail documentation test, three independent reference
 and three synthetic examples pass. These scoped results complete MB-01B, not this
 entire 35-rule integration design.
 
-Current MB-02A source is `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382`.
+Historical MB-02A source is `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382`.
 Local acceptance passed 403 workspace tests (323 retained + 80 new: 37 operation,
 33 block and 10 independent-vector cases), one documentation test, 121 core release
 reruns and 216 personhood release reruns plus its documentation case. Four
@@ -391,6 +411,9 @@ independent references and four synthetic examples passed.
 and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
 passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
 for the detailed acceptance record.
-The precise next slice is **MB-02B**. Combined-ledger execution, canonical chain
-acceptance and durable authority remain MB-02B/C and MB-03; an MRB2 body-integrity
-check does not establish any of them.
+The precise next slice is **MB-02C**. MB-02B's atomic combined execution is specified
+in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); CURRENT_STATUS.md records current source
+and acceptance evidence. Canonical block/chain acceptance and durable authority
+remain MB-02C and MB-03. An MRB2 body-integrity check or a successful staged ledger
+does not establish either. Zero-fee/no-mint synthetic execution introduces no
+founder allocation, marketing reserve, population issuance or bootstrap payout.

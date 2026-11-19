@@ -1,10 +1,16 @@
 # B4: bounded grouped membership replay
 
-Checkpoint **MIRROR-MB01B-B4-001**. MPH2 is a synthetic diagnostic format for
+Original checkpoint **MIRROR-MB01B-B4-001**. MPH2 is a synthetic diagnostic format for
 reconstructing the membership component. It is not an accepted blockchain block,
 a peer synchronization protocol, a durable latest-tip store, or a proof of real
 human uniqueness. Read with [membership execution and MPS2](MEMBERSHIP_STATE_V2.md),
 [signed operations](OPERATIONS_V2_ENCODING.md), and [configuration](CONFIG_V2_ENCODING.md).
+
+MB-02B now implements the separate [atomic mixed ledger](LEDGER_STATE_V2.md).
+MPH2 remains membership-only: its bytes, group commitments, contiguous membership
+positions and acceptance rules are unchanged. A successful mixed ledger stage is
+not an accepted block or an MPH2 replay. MB-02C is next for actual block authority;
+CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
 
@@ -26,7 +32,7 @@ Do not implement the trusted view using a peer's advertised hashes/roots or the
 same diagnostic file that is under examination. A malicious view can authorize a
 malicious history; the trait is an explicit integration trust boundary. B4 uses
 synthetic independently executed fixtures. Actual MRB2 header/root/genesis
-validation remains MB-02, and durable canonical-tip recovery remains MB-03.
+validation remains MB-02C, and durable canonical-tip recovery remains MB-03.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -47,9 +53,15 @@ membership-only commitment; it is **not** the MRB2 ordered-operation Merkle
 root implemented in [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The current format
 cannot replay mixed transfer/membership blocks by simply
 dropping transfers: doing so changes membership inclusion indices and may change
-ledger execution. MB-02 must explicitly extend/version that representation or use
-full validated blocks, preserving their original operation positions and combined
-state semantics. Do not reinterpret MPH2 as such an integration automatically.
+ledger execution. MB-02B supplies indexed execution within the full mixed body,
+but does not change this replay representation. Actual mixed-chain replay must use
+full validated MRB2 blocks under MB-02C/MB-03, preserving their original positions
+and combined state semantics. Do not reinterpret MPH2 as such an integration.
+
+MPS2's MB-02B structural enrollment-index bound is explicitly extended to
+`< max_operations` from `< max_membership_operations`, without changing snapshot
+fields or hash domains. That allows full mixed positions; it does not provide
+missing transfer history to MPH2 or authorize a snapshot as runtime state.
 
 ## 3. MPH2 canonical bytes
 
@@ -87,7 +99,8 @@ requests. Do not merge groups, discard empty groups, or flatten into MPH1's
 immediate-activation semantics.
 
 Signed operation lengths are the frozen B2 values: Enroll=291, Approve=227,
-Withdraw=227. Other lengths/kinds, including the reserved Transfer kind, reject.
+Withdraw=227. Other lengths/kinds, including Transfer=0 (implemented in the separate
+core V2 envelope), reject in MPH2.
 
 ### Exact group commitment
 

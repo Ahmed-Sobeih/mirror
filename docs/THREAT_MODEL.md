@@ -10,10 +10,11 @@ Read with [the proposed integration specification](LEDGER_MEMBERSHIP_V1.md) and
 merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
-The preceding sentence describes the original design checkpoint. Current B1–B4
-and MB-02A evidence is in CURRENT_STATUS.md and MEMBERSHIP_TEST_MATRIX.md. The updates below
-record component-level mitigations without rewriting historical findings or
-claiming that live ledger, consensus or storage integration already exists.
+The preceding sentence describes the original design checkpoint. Current B1–B4,
+MB-02A and MB-02B evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+[MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
+component-level mitigations without rewriting historical findings or claiming
+that actual V2 block acceptance, consensus or durable integration already exists.
 
 ## Historical B3 implementation update
 
@@ -73,7 +74,7 @@ cannot be replayed by filtering operations into the current membership-only log.
 No biometric uniqueness, anonymity, currency issuance or human consensus follows
 from these passing component tests. MB-01B is complete only in that bounded scope.
 
-## MB-02A implementation update
+## Historical MB-02A implementation update
 
 Published source `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382` adds 80 tests
 (37 operation, 33 block and 10 independent-vector cases). Local verification passed
@@ -108,9 +109,88 @@ in-memory decoder's bounds are not disk-read, session or global availability
 guarantees. F10 private biological matching and F11 the final fee/reward economy
 also remain open. Original mixed-operation positions are now represented and
 committed, but B3/MPH2 must not be fed a transfer-filtered list as though it were
-equivalent execution. **MB-02B combined-ledger execution is next; MB-02 overall
-remains IN_PROGRESS.** No launch gate, human uniqueness, anonymity, currency
-issuance or device readiness is established by this component milestone.
+equivalent execution. At that checkpoint, **MB-02B combined-ledger execution was
+next**. Its component implementation is recorded below. No launch gate, human
+uniqueness, anonymity, currency issuance or device readiness was established by
+MB-02A.
+
+## MB-02B atomic execution implementation update
+
+Published source `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`, tree
+`6871ad0fbc178bd76262a26416a7d255d9fcbd66`, implements atomic accounts/membership
+staging under [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md). Local acceptance passed
+462 workspace tests (403 retained + 18 indexed membership + 33 ledger execution
+and private fault cases + eight independent vectors), three compile-fail
+documentation cases, release reruns for 121 core, 234 personhood and 49 state tests,
+and five reference checks and five synthetic examples. Personhood's three release
+documentation cases passed too. These counts are component evidence,
+not an external security audit or additional completed roadmap rows.
+[Exact-source push CI 44619155972](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619155972)
+passed; exact checkout `420d711` and full job `135895834032` logs were inspected.
+The same test, reference, example and audit gates passed.
+[PR CI 44619172378](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619172378)
+also passed. [CURRENT_STATUS.md](../CURRENT_STATUS.md) records final acceptance.
+
+The `mirror_state::v2::LedgerV2` executor addresses another part of F06: it stages
+the account map and membership state together and commits both through a combined
+root. Complete body/count/byte preflight occurs before input-sized candidate
+cloning or signature work. The executor then follows original mixed operation
+order, so an earlier invalid transfer cannot be hidden by a later membership
+error, or vice versa. Both candidates are discarded on any failure, including a
+late account invariant failure. Tests compare the complete parent and its roots,
+not only the returned error. This verifies T27's staged failure directions;
+**rejecting a wrong claimed final block root remains an MB-02C requirement**.
+
+Accounts retain explicit zero allocations and exhausted balances with their
+sequences. Transfers require positive amounts, zero fees, exact account sequences
+and sufficient balance; self-transfers advance only the account sequence. Checked
+arithmetic, account capacity and the exact initial synthetic-supply invariant
+bound execution. Membership sequences remain independent. Admission, activation
+or withdrawal neither issues funds nor silently changes spending rights. No
+founder allocation, marketing privilege, mint, reward or grant API is added.
+F11's final monetary-policy problem is still open; D-01/D-04 remain unresolved.
+
+The personhood projection preserves full-block inclusion indices, including
+intervening transfers. Its immutable plan checks strictly increasing indices and
+all quotas before state cloning. An opaque, non-cloneable builder is consumed by
+each operation and by finish; compile-fail cases protect against reusing or cloning
+a failed partial candidate. Finish requires every planned membership step and then
+applies the original parent-Active, reviewer-survival and activation-order rules.
+This extends F02/F04/F05 mitigations into mixed staging without establishing
+resource availability, honest admission or human-weighted consensus.
+
+The projected byte budget treats each omitted V2 Transfer=0 as exactly 243 signed
+bytes plus its four-byte prefix. The complete core preflight independently checks
+the actual operations. A cross-crate test accepts the exact 710-byte mixed body
+and rejects a 709-byte cap. This contract needs explicit review when adding an
+operation kind or changing transfer size; a projection cannot validate the omitted
+transfers on its own.
+
+MPS2 permits runtime enrollment positions below `max_operations` even when above
+`max_membership_operations`, because the latter limits a count rather than a full
+body position. This is an explicit structural-acceptance extension, not a wire or
+hash-domain change; older decoders may reject those mixed states. A coherently
+altered position can still decode but fails comparison with independently executed
+trusted state. The snapshot retains no executable-state conversion. MPH2 still
+rejects transfers and retains its membership-only replay semantics.
+
+Independent reference vectors reproduce account bytes, membership bytes,
+disabled-economics roots and combined ledger roots across mixed synthetic histories.
+They include equal final accounts with different membership positions and therefore
+different combined roots. The current block hash remains external provenance to
+avoid a commitment cycle. This supplies T25's staged component evidence; it does
+not supply an actual accepted header's root comparison. Reexecution of a signed
+fixture under a synthetic trusted parent is not T26's canonical chain recovery.
+
+**F06 is partially mitigated at the staging boundary; F07 is not closed.**
+`bind_to_validated_block` attaches caller-supplied provenance and does not verify
+genesis, actual header height/parent/configuration/timestamp/target/work, body
+commitment, claimed ledger root or finality. **Next is MB-02C**, which must validate
+those real block inputs and replay accepted MRB2 history before binding state.
+F08 durable recovery and reorg publication remain MB-03; F09 network sessions,
+F10 biological uniqueness/privacy and the final human consensus/economy remain
+their later gates. No launch, mainnet, device readiness or sensitive-data processing
+is authorized or established by these component tests.
 
 ## 1. Assets and trust boundaries
 
@@ -206,7 +286,7 @@ stable fingerprint hashes, encrypted archives, evidence URLs or personal records
 Cryptographic commitments require an appropriate randomized construction outside
 this register; the ledger cannot verify how an opaque commitment was produced.
 
-## 4. Security invariants for the next implementation
+## 4. Security invariants for remaining integration
 
 - The same trusted config, parent and ordered operations produce identical roots
   on independent nodes, without device/matcher queries or local clock decisions.
@@ -243,12 +323,13 @@ permissionless security until the specified handoff and fault model are tested.
 
 MB-01A design deliverables identify integration blockers, choose a compatibility
 path, and map defenses to tests. They did not close F01–F11. The original next task
-was MB-01B/B1. B1–B4 are verified standalone components; MB-02A's Transfer/unified
-operation and BlockV2 codecs, commitments and independent vectors are complete and
-verified in exact-source CI. **Current next: MB-02B**, deterministic combined-ledger
-execution.
-Actual chain authority remains MB-02C; MB-02 overall remains IN_PROGRESS and
-Gate A/Gate B remain unmet. Durable recovery and multi-node membership reorgs remain
-MB-03. Exact-source CI acceptance is recorded in CURRENT_STATUS.md.
+was MB-01B/B1. B1–B4 and MB-02A's Transfer/unified operation and BlockV2 codecs,
+commitments and independent vectors are verified components. MB-02B adds atomic
+ledger staging and combined commitments verified locally and in exact-source CI,
+with the scoped evidence above. **Current next: MB-02C**, actual V2 block acceptance
+and validated replay.
+MB-02 overall remains IN_PROGRESS and Gate A/Gate B remain unmet. Durable recovery
+and multi-node membership reorgs remain MB-03. Exact-source CI and final checkpoint
+acceptance are recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md).
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.

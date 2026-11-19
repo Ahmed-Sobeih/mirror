@@ -8,7 +8,8 @@ Current integration update: **MB-02A implements TransferV2, the unified operatio
 envelope and MRB2 codecs/commitments in `mirror_core::v2`**; see
 [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). This B2 membership contract remains
 unchanged. B3/B4 implement standalone membership execution and diagnostic replay;
-**MB-02B combined-ledger execution is next**. MB-02 overall remains IN_PROGRESS.
+MB-02B now implements [atomic combined-ledger execution](LEDGER_STATE_V2.md).
+**Next is MB-02C: actual V2 block acceptance and replay**. MB-02 remains IN_PROGRESS.
 Exact-source acceptance and CI status are recorded in CURRENT_STATUS.md.
 
 ## Frozen bytes
@@ -116,9 +117,10 @@ the unified envelope without changing this membership-only API. The current
 coverage map is in [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md).
 
 T09/T10 contextual checks still rely on trusted parent views. Actual candidate
-ancestry and combined-ledger replay remain MB-02B/C and MB-03. T07 Transfer
-sequence-state safety is not completed by signing an account-sequence field;
-MB-02A does not validate balances, consume account nonces or require active
-membership. Passing block body-integrity checks does not imply that the
-separate operation-context checks ran. Neither Gate A nor Gate B follows from
-these codec and authorization components.
+ancestry and accepted-block replay remain MB-02C, with durable recovery in MB-03.
+T07 transfer sequence-state safety is now implemented in MB-02B's ledger executor;
+signing an account-sequence field or passing MB-02A body integrity alone does not
+consume it or validate balances. Mixed execution uses positive zero-fee transfers,
+separate account/member sequences and no additional membership spending restriction.
+Passing body integrity still does not imply that separate context/execution checks
+ran. Neither Gate A nor Gate B follows from these component results.

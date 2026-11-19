@@ -1,45 +1,40 @@
 # Mirror master plan — blockchain to biometric enrollment readiness
 
-Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-19).
+Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-20).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB02A-001 — V2 transfers and block formats VERIFIED_COMPONENT**.
-MB-01B remains **VERIFIED_COMPONENT** through B1–B4. MB-02A adds signed transfers,
-unified operations and bounded MRB2 codecs/commitments. MB-02 is **IN_PROGRESS**;
-atomic mixed-ledger execution, actual V2 block acceptance, durable synchronization
-and human consensus remain unfinished.
+Latest implementation: **MIRROR-MB02B-001 — atomic V2 ledger VERIFIED_COMPONENT**.
+MB-01B/B1–B4, MB-02A formats and MB-02B atomic execution are complete within their
+component scope. MB-02 is **IN_PROGRESS**; actual V2 block acceptance, durable
+synchronization and final human consensus remain unfinished.
 
 ## Start here: current position and next action
 
-**Next task: MB-02B — atomic accounts + membership, original mixed-operation
-indices and combined ledger roots. Status: READY.**
+**Next task: MB-02C — pinned V2 genesis, actual block acceptance and replay. READY.**
 
-MB-02A source: `35ad0cf708bd4ceeb4faa306ba4f7bd74912c382`.
-Source tree: `930aa22bf9810525372fd31926812c1bde6dcf81`, matching local verification.
-Rust 1.98.0: 403 workspace tests; core release 121; personhood release 216 plus the
-retained compile-fail doctest; four references, four examples and audit PASS.
-Exact-source push CI 44428924399 passed; job 135240927609 full logs and checkout
-inspected. PR CI 44428936866 also passed. See section 15 for scoped evidence.
-Neither Gate A/B nor MB-02 is complete. Check later documentation-head CI separately.
+MB-02B source: `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`.
+Source tree: `6871ad0fbc178bd76262a26416a7d255d9fcbd66`, matching local verification.
+Rust 1.98.0: **462 workspace tests**, **3 compile-fail doctests**, release core 121,
+personhood 234 plus the same 3 doctests and state 49; all 5 references/examples and audit
+passed. Exact-source push CI **44619155972** passed; job **135895834032** full logs
+and exact checkout inspected. PR CI **44619172378** also passed. Section 16 records
+scoped evidence. Neither Gate A/B nor MB-02 is complete. Later documentation-head
+CI must be inspected separately from this implementation evidence.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
-[the-prompt](the-prompt). The active branch is `work/personhood-register-v0.1`;
-PR #1 remains open and unmerged. Recheck live refs before acting. Do not restart
-from an older copied prompt.
+[the-prompt](the-prompt). Active branch `work/personhood-register-v0.1`; PR #1 is
+open and unmerged. Recheck live refs before acting; preserve newer/unpushed work.
 
 Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
-[source threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
-[configuration encoding](docs/CONFIG_V2_ENCODING.md),
-[signed membership operations](docs/OPERATIONS_V2_ENCODING.md),
-[V2 transfers and blocks](docs/CORE_V2_ENCODING.md),
-[state/execution layout](docs/MEMBERSHIP_STATE_V2.md), and
-[grouped replay](docs/REPLAY_V2.md).
+[threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
+[configuration](docs/CONFIG_V2_ENCODING.md), [signed membership](docs/OPERATIONS_V2_ENCODING.md),
+[transfers/blocks](docs/CORE_V2_ENCODING.md), [atomic ledger](docs/LEDGER_STATE_V2.md),
+[membership state](docs/MEMBERSHIP_STATE_V2.md), [diagnostic replay](docs/REPLAY_V2.md).
 
-The original request established this plan and a maintained continuation pointer,
-not a mainnet launch, hardware purchase, real biometric collection, or a change to
-unresolved monetary policy. The work packages below are engineering steps toward
-the accepted direction. Technical choices require review/tests and, where marked,
-a user decision. No proposed default silently becomes production policy.
+The roadmap leads toward software that accepts device readings; it does not
+initiate mainnet, hardware procurement, real biometric collection or an unresolved
+monetary policy. Proposed technical choices must retain documented compatibility
+and verified behavior; marked user decisions remain explicit gates.
 
 ## 1. What completion means
 
@@ -96,11 +91,12 @@ Pre-plan baseline CI: run 44186275709 — SUCCESS.
 Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
 that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
 passed run 44194994506. B1/B2/B3/B4 evidence is in sections 11/12/13/14;
-MB-02A evidence is in section 15.
+MB-02A evidence is in section 15; MB-02B evidence is in section 16.
 
 Historical suite: 133 workspace tests. B1 added 31 (164 total), B2 added 39 (203),
-B3 added 51 (254), B4 added 69 (323), and MB-02A added 80 (403).
-B4 also added the retained compile-fail doctest.
+B3 added 51 (254), B4 added 69 (323), MB-02A added 80 (403), and MB-02B added
+59 (462). B4 added the first compile-fail doctest; MB-02B adds two consuming-stage
+compile-fail cases, bringing documentation tests to three.
 Release reruns are NOT additional unique tests. Both device-readiness gates remain UNMET.
 
 Already demonstrated: development signed transfers, account state, fixed easy
@@ -115,8 +111,9 @@ B3 adds bounded immutable V2 execution, private indexes/tombstones, exact sequen
 expiry, parent-eligible approvals, end-of-block activation and counters. B4 adds
 canonical V2 roots, an untrusted snapshot wrapper and bounded replay against trusted
 per-height/checkpoint expectations. MB-02A now provides signed transfers, unified
-operation ordering and bounded V2 block encodings/commitments. These components
-are not yet live V2 blockchain membership or atomic mixed-ledger execution.
+operation ordering and bounded V2 block encodings/commitments. MB-02B now executes
+accounts and membership atomically with original mixed indices, checked transfers,
+independent sequences and combined roots. Actual V2 block authority remains MB-02C.
 
 NOT implemented: biological deduplication, live membership-bearing blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -164,10 +161,10 @@ For design-only work this means design acceptance, NOT runtime implementation.
 | MB-01B/B2 | Signed membership messages, codecs, ancestry/windows | VERIFIED — MESSAGE LAYER | af1dd66, CI 44205064789, section 12 |
 | MB-01B/B3 | Bounded staged execution, sequences, expiry, eligibility/activation | VERIFIED — IN MEMORY | b6f1233, local suite and CI 44317174000 PASS, section 13 |
 | MB-01B/B4 | Full registry codec/root/replay and adversarial regression | VERIFIED — COMPONENT | 21e2272, CI 44404337870, section 14 |
-| MB-02 | Versioned membership operations in block execution | IN_PROGRESS — NEXT MB-02B | A complete; actual ledger/chain integration remains |
+| MB-02 | Versioned membership operations in block execution | IN_PROGRESS — NEXT MB-02C | A/B components complete; actual block authority remains |
 | MB-02A | TransferV2, unified envelope, BlockV2 codecs/commitments | VERIFIED_COMPONENT — FORMAT LAYER | 35ad0cf, CI 44428924399, section 15 |
-| MB-02B | Atomic accounts + membership with full mixed-operation indices | READY — NEXT | MB-02A complete; no-fee/no-mint development semantics |
-| MB-02C | Pinned V2 genesis, actual block acceptance and replay | TODO | MB-02B; trusted ancestry/root/PoW binding |
+| MB-02B | Atomic accounts + membership with full mixed-operation indices | VERIFIED_COMPONENT — STAGED LEDGER | 420d711, CI 44619155972, section 16 |
+| MB-02C | Pinned V2 genesis, actual block acceptance and replay | READY — NEXT | Reuse A/B; establish actual ancestry/root/PoW authority |
 | MB-03 | Durable state, synchronization and membership reorg/replay | TODO | MB-02 |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
 | MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
@@ -244,18 +241,19 @@ Implement in three bounded slices:
   160-byte header, bounded MRB2 codec (168-byte empty block), domain-separated block
   hash/count-bound Merkle operation commitment and independent reference vectors.
   Preserve membership signed bytes; avoid a core/personhood dependency cycle.
-- **MB-02B (NEXT):** stage accounts and membership together, preserve original full-block
+- **MB-02B (VERIFIED_COMPONENT):** stage accounts and membership together, preserve original full-block
   operation indices including transfers, checked positive zero-fee/no-mint transfers,
   separate account/member sequences and canonical combined roots. Test whole-ledger
   rollback after a late failure and conservation of initial synthetic supply.
-- **MB-02C:** explicit manifest and pinned exact genesis, actual block/header/root/
+- **MB-02C (NEXT):** explicit manifest and pinned exact genesis, actual block/header/root/
   parent/configuration/PoW validation, stable candidate ancestry and accepted-block
   replay. Only validated blocks may bind staged membership provenance.
 
-B3/MPH2 currently accept membership operations only. Filtering transfers out of
-mixed blocks would change inclusion metadata and potentially activation order.
-Specify indexed/full-block staging and version/extend diagnostic replay explicitly,
-or replay complete validated MRB2 blocks. Do not reinterpret existing MPH2 bytes.
+The original B3 stage_block and MPH2 remain membership-only. MB-02B adds an indexed
+consuming stage preserving full positions and exact omitted-transfer byte budgets.
+MPS2 now explicitly uses max_operations as its runtime inclusion-index bound.
+Complete mixed history must be replayed from validated MRB2 in MB-02C/03, never
+filtered into MPH2 or renumbered. Preserve previous bytes and untrusted-cache rules.
 Structural codecs do not establish ledger validity or canonical-chain authority.
 
 Validation must not rerun floating-point biometrics, query a central matcher, or
@@ -458,10 +456,10 @@ Refresh the-prompt for every Mirror response, including discussion-only changes.
 Do not count documentation publication as runtime evidence or chase self-referential
 checkpoint SHAs. No background-work promise; disclose failed publication.
 
-**Immediate next:** MB-02B atomic accounts/membership and combined roots, beginning
-with a specified full-block/indexed staging boundary. Reuse verified B1–B4/MB-02A.
-MB-02C adds actual block authority; MB-03 durable multi-node state. No minting or
-hardware work now.
+**Immediate next:** MB-02C pinned genesis and actual block authority/replay. Reuse
+verified B1–B4, MB-02A formats and MB-02B atomic ledger. Validate the actual header,
+body and claimed ledger root before binding staged provenance. MB-03 follows with
+durable multi-node state. No minting or hardware work now.
 
 ## 8. Engineering references, not user policy
 
@@ -698,8 +696,70 @@ MPS2/MPH2 vectors remain unchanged; lib.rs adds only new-module wiring. Cargo.lo
 adds only core's internal personhood dependency. No economic decision, founder
 allocation, reserve, grant, real biometric or device interface was added.
 
-**Next: MB-02B.** Stage accounts and membership atomically, retaining original
+**At the MB-02A checkpoint, next was MB-02B.** Its subsequent implementation is
+recorded in section 16. The planned work was to stage accounts and membership, retaining original
 full-block operation indices including transfers, and independently commit the
 combined ledger. Current membership-only staging/MPH2 must not silently consume
 filtered mixed blocks. MB-02C actual block authority and MB-03 durability follow.
 MB-02 remains IN_PROGRESS; Gate A/B remain UNMET.
+
+
+## 16. MB-02B acceptance — MIRROR-MB02B-001
+
+Implemented 2026-11-20. Source `420d7114ddf782469a6ace6ba0a2c4076fb93aaf`, tree
+`6871ad0fbc178bd76262a26416a7d255d9fcbd66`. Exact-source
+[push CI 44619155972](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619155972)
+**SUCCESS**; job `135895834032` full logs and checkout inspected.
+[PR CI 44619172378](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44619172378)
+also **SUCCESS**. PR #1 remains open/unmerged; main is unchanged. Documentation
+checkpoints follow this implementation and have separate exact-head CI.
+
+`LedgerV2` and `StagedLedgerV2` combine immutable accounts and membership. Full-body
+limits and exact parent association precede bounded cloning. Operations execute in
+original full-block order; an error discards both components, including prior
+transfers, approvals, sequence increments or expiry. Finish activates membership
+under the preserved B3 rules, checks account capacity and conserves initial supply.
+Transfers require positive amounts, zero fees, exact account sequences and checked
+arithmetic. Funded self-transfers consume one sequence without changing balances.
+Explicit zero and spent accounts retain capacity/sequence history. Membership status
+does not add a new restriction on spending owned test balances.
+
+Personhood's non-cloneable consuming indexed builder preserves mixed enrollment
+positions and charges omitted transfers exactly as 4+243 bytes. No intermediate
+state or failed partial candidate can be published. The original membership-only
+path shares transition machinery without changing its old vectors. MPS2's runtime
+index bound now uses max_operations rather than the membership count cap; the
+explicit range extension changes no layout/domain. Snapshot decoding remains
+untrusted. MPH2 remains membership-only, including existing replay budgets.
+
+Accounts commit sorted address/balance/account-sequence records, including zeros.
+An immutable initial-supply economics root and existing MPS2 root feed the combined
+C/height/accounts/membership/economics commitment. Tip hash is external provenance.
+[LEDGER_STATE_V2.md](docs/LEDGER_STATE_V2.md) freezes bytes, error order, capacities
+and the boundary between staged execution and actual block acceptance.
+
+The independent Python reference computes five explicit 1,000-Nusa states plus an
+alternate valid mixed ordering. Sixteen signatures were independently generated
+and verified before Rust; all eight vector comparisons matched on the first run.
+No failed Rust output became an expected value. The synthetic ledger example shows
+successful mixed execution and rollback in both directions; it accepts no actual
+block, real enrollment or valuable currency.
+
+Local and exact-source CI: **462 workspace tests = 403 retained + 59 new**.
+New cases are **18 indexed staging, 28 ledger integration, 5 private arithmetic/
+invariant faults and 8 independent vectors**. **Three compile-fail doctests** pass.
+Release reruns: core **121**, personhood **234** plus the same **3** doctests, state
+**49**. All **five independent references**, **five examples**, formatting and
+preservation/allocation audits passed. Cross-reviews found no blocking discrepancy;
+these are not an external security audit or a proof of mainnet readiness.
+
+Legacy source behavior, previous vectors, monetary constants, historical genesis
+and runtime data are preserved. Only one internal state-to-personhood dependency
+was added; no external package changed. No founder bonus, reserve, grant, mint,
+fee/reward policy, biological duplicate matcher or device integration was enabled.
+
+**Next: MB-02C.** Pin exact genesis/configuration, validate actual headers/work/
+ancestry/operation and ledger roots, and replay complete accepted MRB2 blocks using
+this executor. A supplied provenance hash is not that validation. T27's wrong-final-
+root acceptance case and canonical recovery remain incomplete. MB-03 then provides
+durable coherent multi-node state. **MB-02 IN_PROGRESS; Gate A/B UNMET.**

@@ -24,8 +24,9 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood tests, all four independent reference checks and all four synthetic
-examples (three personhood examples and core block_v2_demo).
+core/personhood/state tests, all five independent reference checks and all five
+synthetic examples (three personhood examples, core block_v2_demo and state
+ledger_v2_demo).
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -33,15 +34,16 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-02B.
-MB-01A design, MB-01B/B1–B4 and MB-02A format components are verified. B4 supplies
-MPS2 commitments, untrusted snapshot codecs and trusted grouped MPH2 replay.
-MB-02A supplies signed transfers, unified operations and bounded MRB2 codecs/roots.
-Next: atomic accounts/membership and combined roots, preserving original full-block
-indices. Actual chain acceptance and durable recovery remain unfinished.
+NEXT_SESSION.md points to the next unfinished task: currently MB-02C.
+MB-01A design, MB-01B/B1–B4, MB-02A formats and MB-02B atomic ledger are verified
+components. B4 supplies MPS2/untrusted caches and trusted grouped MPH2 replay.
+MB-02A supplies transfers, unified operations and bounded MRB2 codecs/roots.
+MB-02B supplies indexed membership staging, atomic accounts/membership execution
+and combined roots. Next: pinned genesis, actual block acceptance and complete
+validated MRB2 replay. Durable coherent recovery remains MB-03.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
-docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
+docs/LEDGER_STATE_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
@@ -62,15 +64,28 @@ including configuration-copy charges, until a documented versioned replacement.
 
 MB-02 mixed blocks must preserve original full-block operation positions, including
 transfers. Do not filter transfers into membership-only stage_block or MPH2 and
-silently change inclusion indices/activation order. Specify indexed/full-block staging
-and replay before integrating accounts; preserve frozen prior bytes. Core now
+silently change inclusion indices/activation order. Preserve the implemented consuming
+indexed builder, documented full-block budgets and frozen prior bytes. Core now
 uses personhood; personhood depends only on crypto. Preserve this acyclic direction.
 MB-02A codecs/body integrity are not actual ledger/block acceptance. Body integrity
 checks configuration agreement, the operation root and signatures; it omits transfer
 policy/anchor/window authorization, balances/sequences, ledger roots and
 parent/time/work/genesis checks. Compose the appropriate validators explicitly.
-Review MPS2 full-block index bounds when adding indexed membership execution.
+MPS2 now bounds runtime inclusion indices by max_operations, not the membership
+count cap; this explicit range extension changes no layout/domain or snapshot
+authority. The membership projection charges omitted transfers exactly as 4+243
+bytes. Review this cross-crate contract before adding a new kind or variable size.
 Keep the existing address namespace and separate account/member sequences.
+
+Reuse LedgerV2::stage_operations on complete original bodies. It stages both
+components atomically after full preflight and parent binding; late failure must
+leave both unchanged. Preserve explicit zero/spent account records and initial
+synthetic-supply conservation, positive zero-fee transfers and funded self-transfer
+sequence semantics. There is no mint/grant/reward API or new membership spending
+restriction. bind_to_validated_block is only trusted provenance attachment.
+MB-02C must validate the actual header/genesis/parent/height/time/target/work/body
+and resulting ledger root before calling it or publishing state. Full MRB2 replay
+must use accepted candidate-branch ancestry, not peer assertions or filtered MPH2.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

@@ -170,3 +170,33 @@ ledger root, ancestry, work/time, genesis and acceptance. Existing membership-on
 MPH2 remains unchanged and rejects transfers. Mixed execution must preserve original
 positions in the complete block rather than filtering transfers out. D-01/D-04,
 all grant/reward implementation and real biometric/device work remain open.
+
+
+## MB-02B engineering choices — MIRROR-MB02B-001
+
+Source `420d7114ddf782469a6ace6ba0a2c4076fb93aaf` implements the selected atomic
+accounts/membership development ledger. Exact-source push CI 44619155972 and PR
+CI 44619172378 passed; CURRENT_STATUS.md records the inspected acceptance evidence.
+MB-02C actual block/genesis/work/root authority is next. These are implementation
+choices under the existing design, not new user economic or admission decisions.
+
+Full mixed-operation order is preserved through a consuming indexed membership
+builder. Every omitted transfer is charged at its frozen 243-byte signed size plus
+four-byte prefix. Runtime MPS2 enrollment indices are now bounded by max_operations
+rather than the membership count cap. This explicit accepted-range extension changes
+no serialized field/domain and grants no snapshot authority. MPH2 remains unchanged
+and membership-only; actual mixed replay must use complete validated MRB2 bodies.
+
+V2 retains every explicit zero account allocation and every spent account so consumed
+sequences and capacity history persist. Transfers use exact account sequences,
+positive amounts and zero fees; funded self-transfers advance one sequence without
+changing balances. Membership sequence/status changes do not imply monetary grants
+or new spending restrictions. Both components stage together and conserve initial
+synthetic supply. Account/economics/combined roots are frozen independently in
+LEDGER_STATE_V2.md; current block hash remains external trusted provenance.
+
+No founder allocation, marketing reserve, bootstrap payout, population mint, fee or
+reward formula was enabled. D-01/D-04 remain OPEN. Synthetic configured balances
+are not a new currency policy. Private matching, real admission, anonymity, device
+support and final equal-human consensus remain later gates. A staged ledger and a
+caller-supplied hash do not establish that any actual blockchain block is valid.

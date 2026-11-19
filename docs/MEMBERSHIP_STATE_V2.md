@@ -1,6 +1,6 @@
 # V2 membership state and block execution
 
-Checkpoint: **MIRROR-MB01B-B4-001**. Synthetic development profile only.
+Original codec checkpoint: **MIRROR-MB01B-B4-001**. Synthetic development profile only.
 This document preserves the B3 state model/execution and its frozen MPS2 layout.
 B4 adds the canonical codec, commitment and untrusted cache boundary. Grouped
 diagnostic replay is specified in [REPLAY_V2.md](REPLAY_V2.md). Exact published
@@ -12,10 +12,12 @@ No runtime membership transition proves biological uniqueness. Fingerprint/ECG
 capture and private duplicate matching remain external, later work. Only synthetic
 commitments/public development keys belong in examples. There is no monetary API,
 grant, founder privilege, anonymous credential or live V2 block network in this
-component. B4 completes MB-01B; MB-02A now supplies the transfer/block formats in
-[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). Actual atomic ledger integration is
-next in MB-02B; real block authority follows in MB-02C. This membership-only API
-and its existing MPS2 semantics are unchanged by the format layer.
+component. B4 completes MB-01B; MB-02A supplies the transfer/block formats in
+[CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). MB-02B now implements indexed membership
+staging and atomic combined execution in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
+The next slice, MB-02C, establishes actual block authority. Membership-only behavior
+and MPS2 bytes/domains are preserved; section 5 documents the explicit extension
+of MPS2's accepted inclusion-index range for mixed blocks.
 
 ## 1. State and trusted chain association
 
@@ -36,12 +38,21 @@ height and canonical parent hash as the registry's stored association. Its ances
 must be locally validated and stable throughout execution. A peer's unchecked
 height/hash map is not such a view.
 
+`begin_indexed_block` additionally accepts a total full-block operation count and
+an immutable membership projection with strictly increasing original indices. Its
+consuming builder applies each next planned membership operation at that full
+position and finalizes only after all planned operations succeed. It never
+authenticates the omitted transfers. MB-02B's ledger executor separately preflights
+and executes the complete mixed list, preserving operation order and discarding
+both account and membership candidates on any failure. The complete contract and
+byte charging are in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
+
 Successful staging returns a new `StagedMembershipStateV2`; the previous registry
 is unchanged. `bind_to_validated_block` associates a staged snapshot with its block
 hash only **after the trusted outer chain executor accepts that block**. This is a
 trusted integration boundary, not a block-validation function. It does not verify
 PoW, a header, genesis pinning or a committed state root. B3 tests use synthetic
-block hashes; MB-02 must implement the actual validated association.
+block hashes; MB-02C must implement the actual validated association.
 
 The current block hash is deliberately excluded from committed membership state:
 the future block header commits to the ledger/membership root, so including that
@@ -77,9 +88,9 @@ expiry and activation; they are not evicted to reclaim replay-protection capacit
 
 ## 3. One atomic transition per candidate block
 
-1. Check context and parent association, derive candidate height with checked
-   parent-height+1, and preflight operation/count/byte budgets before signature
-   work or staging input-sized state.
+1. Preflight operation/count/byte budgets, then check context and parent
+   association and derive candidate height with checked parent-height+1. All
+   precede signature work or staging input-sized state.
 2. Snapshot the parent's Active set. Stage the state and expire Pending requests
    whose `valid_until < candidate_height`, including on empty blocks. Expiry frees
    pending capacity, not records, approvals or identity indexes.
@@ -113,15 +124,19 @@ can free a pending slot, while Approve then Enroll cannot free it before finaliz
 `total_activations` and old activation ordinals survive ordinary withdrawal.
 These are development counters, not production monetary qualification. A future
 reorg must restore the chosen branch's snapshot and counters, not the maximum over
-every branch observed. Actual ledger/reorg execution remains MB-02/03.
+every branch observed. Atomic mixed execution is now MB-02B behavior; actual
+validated chain/reorg integration remains MB-02C/MB-03.
 
 ## 4. Bounded synthetic execution
 
 Use the configuration's committed operation, membership-operation, new-enrollment,
-per-operation, pending and total-record limits. The planned MRB2 byte budget is
-`168 + sum(4 + signed_operation_length)` with checked arithmetic. B3 has only
-membership operations; MB-02 must apply the combined budget to the full mixed block.
-No declared count substitutes for checking the actual supplied slice.
+per-operation, pending and total-record limits. The complete MRB2 byte budget is
+`168 + sum(4 + signed_operation_length)` with checked arithmetic. The original B3
+path contains only membership operations. MB-02B preflights the actual full mixed
+list and its indexed membership stage also charges each omitted transfer position
+as `4 + 243` bytes. Total operation count, membership count and enrollment count
+are distinct limits. No declared count substitutes for checking the actual supplied
+slice; the indexed projection alone grants no authority to omitted operations.
 
 Two explicit B3 profile rules bound retained approvals without changing MCF2 bytes:
 
@@ -190,6 +205,25 @@ A seed record without activation payload is 159 bytes; an enrollment record with
 activation payload is 350 bytes. Present activation adds 16 bytes. Seed states must
 always retain their initial activation data even after self-withdrawal.
 
+### Full-block inclusion-index bound (MB-02B)
+
+For a runtime enrollment, `inclusion.operation_index` is the position in the full
+ordered block, including transfers. Its structural MPS2 bound is now
+`< config.limits().max_operations`. This explicitly extends the former
+`< max_membership_operations` check: the membership limit caps a count, not a
+position. For example, index 6 can be valid in a seven-operation block containing
+only three membership operations. Seed positions retain their configuration-index
+rules at height zero.
+
+No field, serialized byte order or hash domain changes. Existing membership-only
+fixtures remain unchanged. An older decoder may reject newly possible mixed
+positions; the extension is not a claim of identical decoder acceptance sets.
+MPS2 remains an untrusted snapshot until compared with independently executed
+trusted state. MPH2 remains membership-only and cannot reconstruct a mixed ledger
+by dropping transfers or renumbering membership operations.
+
+### Approval entries and commitment
+
 Each approval entry is reviewer key (32 bytes), accepted height u64, and the complete signed
 Approve operation (227 bytes). It is 267 bytes. Duplicates/non-increasing reviewer keys reject.
 
@@ -212,7 +246,7 @@ input counts to allocate beyond the state limits.
 Decoding internally coherent signed records does not prove their complete history,
 canonical tip or freshness. Snapshots remain disposable caches bound to a trusted
 validated block/root. B4 replay requires trusted configuration and candidate
-ancestry; MB-02/03 supplies actual block/root/storage authority. It must not accept
+ancestry; MB-02C/MB-03 must supply actual block/root/storage authority. It must not accept
 a peer-supplied snapshot merely because its individual signatures verify.
 
 ## 6. Historical B3 acceptance evidence
@@ -227,8 +261,10 @@ audits passed. At that checkpoint this document's MPS2 layout was a B4 byte cont
 not a tested state codec/root. B4 acceptance is recorded in section 8 below.
 
 Relevant verified B3 cases are the runtime portions of T03/T06/T07/T11–T20/T22.
-B4 root/codec/replay evidence was still pending then. Mixed-ledger execution,
-actual network reorgs, device readiness and Gate A/B remain pending today.
+B4 root/codec/replay and mixed-ledger execution were still pending then. B4 and
+MB-02B subsequently implemented those components; actual validated network reorgs,
+device readiness and Gate A/B remain pending. Consult CURRENT_STATUS.md for current
+source and acceptance evidence.
 Tests/review are not a security certification.
 
 The preceding evidence describes the B3 checkpoint. B4 adds the implementation
@@ -263,7 +299,7 @@ withdrawal. A manufactured but internally coherent revoked record may pass cache
 decoding while failing comparison to the trusted state. Root/signature/internal
 consistency alone do not establish history, canonical ancestry or latestness.
 Replay uses VerifiedBootstrap and the same B3 executor with the external trust
-checks in REPLAY_V2.md. MB-02/03 still must supply actual block/root/storage authority.
+checks in REPLAY_V2.md. MB-02C/MB-03 still must supply actual block/root/storage authority.
 
 The independent standard-library reference `tools/reference_state_v2.py --check`
 constructs five complete MPS2 snapshots from explicit synthetic record fixtures:
@@ -278,10 +314,11 @@ bytes, group commitments and trusted intermediate roots for replay verification.
 Acceptance tests are in `tests/state_codec_v2.rs`, `tests/state_vectors_v2.rs` and
 `tests/replay_v2.rs`. Consult the current checkpoint for actual test counts and CI.
 All data are synthetic; no device capture, uniqueness decision, money, new consensus
-or real chain genesis is produced. Inclusion indices here are membership-only;
-MB-02 must preserve full mixed-block positions when adding transfers.
+or real chain genesis is produced. The original B4 vectors use membership-only
+indices. MB-02B's additional independent ledger vectors preserve full mixed-block
+positions; they do not reinterpret the old fixtures or extend MPH2 to transfers.
 
-## 8. B4 acceptance and next integration
+## 8. Historical B4 acceptance and current integration
 
 Published implementation: `21e2272b5ac92c00e840d7aaa26a99570a5ec24f`.
 Source tree: `31dfafa463935c640cd5cb31b88588575fc06d4b`.
@@ -307,8 +344,15 @@ MPS2 maximum remains 41,484,378 bytes. Full details and trust assumptions are in
 
 This completed the **MB-01B membership component** at the B4 checkpoint. MB-02A
 has since implemented TransferV2, unified operations and BlockV2 codecs/commitments
-with independent vectors. The current next task is MB-02B atomic mixed execution. Full accounts-plus-membership execution and actual validated block/root
-association remain MB-02B/C; durable canonical recovery and reorg integration remain
-MB-03. Diagnostic group commitments are not MRB2 operation roots, and membership-only
-indices must never be substituted for original positions in future mixed blocks.
-No currency, biological uniqueness, privacy or final human consensus is enabled here.
+with independent vectors. MB-02B now stages accounts and membership together under
+[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md), with independent account/member/combined
+commitments, retained zero accounts, separate sequence spaces and zero-fee/no-mint
+conservation. Membership activation and high-water counters release no funds.
+
+The current next task is **MB-02C actual block/chain acceptance**. Durable canonical
+recovery and reorg integration remain MB-03. Diagnostic group commitments are not
+MRB2 operation roots, MPH2 remains membership-only, and filtered indices must never
+replace original mixed-block positions. Combined staging and caller-supplied hash
+binding do not establish canonical block authority. No real currency, biological
+uniqueness, privacy or final human consensus is enabled here. CURRENT_STATUS.md
+records current source and acceptance evidence.
