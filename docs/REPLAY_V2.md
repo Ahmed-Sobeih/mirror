@@ -11,7 +11,11 @@ MPH2 remains membership-only: its bytes, group commitments, contiguous membershi
 positions and acceptance rules are unchanged. A successful mixed ledger stage is
 not an accepted block or an MPH2 replay. MB-02C now implements the separate
 [actual-block acceptance and full MRB2 replay API](CHAIN_V2.md) for finite in-memory
-branches; it does not change MPH2 or make an MPS2 cache authoritative.
+branches; it does not change MPH2 or make an MPS2 cache authoritative. The
+implemented [MB-03A storage layer](STORAGE_V2.md) initializes an immutable selected
+history and reopens it by replaying every complete MRB2 block under independent
+network/checkpoint pins. It does not use this diagnostic transcript as storage
+authority or alter its frozen bytes.
 CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
@@ -35,8 +39,10 @@ same diagnostic file that is under examination. A malicious view can authorize a
 malicious history; the trait is an explicit integration trust boundary. B4 uses
 synthetic independently executed fixtures. MB-02C's separate `ChainV2` now validates
 actual MRB2 headers, roots and pinned genesis using its own accepted ancestry.
-It does not implement an automatic MPH2 `ReplayChainViewV2` adapter. Durable
-canonical-tip selection/recovery remains MB-03.
+It does not implement an automatic MPH2 `ReplayChainViewV2` adapter. MB-03A storage
+reopening uses actual MRB2 replay with separately selected pins, not a diagnostic
+view inferred from this log. Continued accepted-tip publication and its failure
+recovery are next in MB-03B; global branch choice remains later integration.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -61,8 +67,10 @@ ledger execution. MB-02B supplies indexed execution within the full mixed body,
 but does not change this replay representation. Actual mixed-chain replay uses
 MB-02C's complete validated MRB2 histories, preserving their original positions
 and combined state semantics. That API requires independently selected C, genesis,
-height, tip and ledger root; durable publication remains MB-03. Do not reinterpret
-MPH2 as such an integration or replace its diagnostic group roots with MRB2 roots.
+height, tip and ledger root. MB-03A uses that API when reopening exact stored
+MNM2/MRB2 history, retaining the same external selection requirement. Do not
+reinterpret MPH2 as such an integration or replace its diagnostic group roots
+with MRB2 roots.
 
 MPS2's MB-02B structural enrollment-index bound is explicitly extended to
 `< max_operations` from `< max_membership_operations`, without changing snapshot
@@ -166,8 +174,10 @@ CPU-time or memory measurement. It adds no enrollment privilege or monetary rule
 These finite limits make MPH2 a bounded diagnostic transcript, not storage for
 unbounded whole-chain history. Exceeding a budget returns an error; it never
 truncates the history, deletes tombstones/approvals, lowers quorum, or claims a
-partial result is current. Streaming/durable history and larger production
-profiles require explicit later design and acceptance in MB-03.
+partial result is current. MB-03A's immutable MRB2 store preserves the separate
+chain budgets; it neither streams MPH2 into authority nor enlarges this profile.
+Continued publication/recovery and larger production profiles require their own
+later design and acceptance.
 
 ## 5. Replay procedure and failure behavior
 
@@ -223,4 +233,9 @@ Independent fixed state/group preimages and hashes are in the B4 reference fixtu
 and `tools/reference_state_v2.py`; `tests/state_vectors_v2.rs` checks the Rust
 implementation against them. Repository checkpoint files record the actual final
 test counts, publication commit and CI result. These tests are component evidence,
-not an external security audit or proof that live block/disk integration exists.
+not an external security audit or proof of later block/disk integration. MB-03A's
+separate implemented storage boundary is specified in [STORAGE_V2.md](STORAGE_V2.md);
+its source verification and publication evidence belong to the current checkpoint.
+The next storage slice is MB-03B accepted-tip publication and failure recovery,
+followed by peer reconstruction and durable reorganization. No V2 node service,
+real human admission or monetary issuance follows from this diagnostic API.

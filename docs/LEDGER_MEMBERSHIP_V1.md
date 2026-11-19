@@ -6,8 +6,9 @@ Original audited source: `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`.
 
 Current implementation update: **MB-01B/B1–B4 supply standalone membership;
 MB-02A supplies codecs/commitments; MB-02B implements atomic combined ledger
-execution/commitments; MB-02C now implements pinned actual block acceptance and
-complete finite MRB2 replay**.
+execution/commitments; MB-02C implements pinned actual block acceptance and
+complete finite MRB2 replay; MB-03A now implements immutable selected-chain
+initialization, ownership and checked reopening**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
 [REPLAY_V2.md](REPLAY_V2.md) specifies bounded membership-only MPH2 grouped replay.
@@ -18,8 +19,10 @@ MB-02A implements TransferV2, the unified operation envelope and BlockV2
 encoding/commitments with independent vectors; the frozen contract is
 [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The implemented combined state contract
 is [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); actual in-memory branch acceptance is
-[CHAIN_V2.md](CHAIN_V2.md). **Next is MB-03: durable storage, synchronization and
-reorganization, starting with the MB-03A storage/identity/locking/recovery contract.**
+[CHAIN_V2.md](CHAIN_V2.md). The implemented immutable storage contract is
+[STORAGE_V2.md](STORAGE_V2.md). **Next is MB-03B: accepted-tip updates, generation
+authority and failure reconciliation**, followed by peer reconstruction and durable
+membership reorganization. MB-03 remains in progress.
 Staging a ledger alone does not establish block authority. The MB-02 in-memory
 component is verified; durable/node integration, finality and Gate A/B remain
 unfinished. The historical design-status statements below describe the original
@@ -425,13 +428,15 @@ independent references and four synthetic examples passed.
 and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
 passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
 for the detailed acceptance record.
-The precise next slice is **MB-03A**: freeze the storage/pin/checkpoint, locking and
-recovery contract, then implement explicit identity initialization, single-writer
-ownership and read-only reopening. MB-02B's atomic execution is specified in
+The precise next slice is **MB-03B**: specify a separately versioned update profile,
+then implement durable accepted-tip advancement and failure/restart reconciliation.
+MB-03A now supplies explicit immutable initialization, cooperative ownership and
+full checked reopening under independent network/checkpoint pins; its contract is
+[STORAGE_V2.md](STORAGE_V2.md). MB-02B's atomic execution is specified in
 [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); MB-02C's finite in-memory acceptance and
 complete replay are specified in [CHAIN_V2.md](CHAIN_V2.md). CURRENT_STATUS.md records
 current source and acceptance evidence. An MRB2 body-integrity check or a successful
 staged ledger alone still does not establish actual block authority; ChainV2 adds
-the complete checks. Durable publication, network operation and final human
-consensus remain later work. Zero-fee/no-mint synthetic execution introduces no
+the complete checks. Updating an existing durable selection, peer/node operation
+and final human consensus remain later work. Zero-fee/no-mint synthetic execution introduces no
 founder allocation, marketing reserve, population issuance or bootstrap payout.

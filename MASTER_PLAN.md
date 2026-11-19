@@ -2,24 +2,25 @@
 
 Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-20).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB02C-001 — actual V2 block acceptance VERIFIED_COMPONENT**.
-MB-01B/B1–B4 and MB-02A/B/C are complete within their component scope.
-**MB-02 is VERIFIED_COMPONENT — IN MEMORY.** Durable coherent synchronization,
-canonical publication and final human consensus remain unfinished.
+Latest implementation: **MIRROR-MB03A-001 — immutable V2 storage and checked reopening**.
+MB-01B/B1–B4, MB-02A/B/C and MB-03A are complete within their component scope.
+**MB-03 is IN PROGRESS.** Updating an existing store's accepted tip, durable
+reorganization, peer reconstruction and final human consensus remain unfinished.
 
 ## Start here: current position and next action
 
-**Next task: MB-03A — explicit V2 storage identity, writer locking and recovery contract. READY.**
+**Next task: MB-03B — durable accepted-tip updates and failure reconciliation. READY.**
 
-MB-02C source: `db2cb58ba5a9a828ec949debd1b52b5915a66f3b`.
-Source tree: `3fa1d3b44abb885898cc256f9525355025649a0a`, matching local verification.
-Rust 1.98.0: **523 workspace tests**, **3 compile-fail doctests**, release core 121,
-personhood 234 plus the same 3 doctests, state 49, consensus 23 and chain 57;
-all 6 references/examples and audit passed. Exact-source push CI **44623282448**
-passed; job **135910328823** full logs and exact checkout inspected. PR CI
-**44623296178** also passed. Section 17 records the scoped evidence. Gate A/B
-remain unmet. Later documentation-head CI must be inspected separately from this
-implementation evidence.
+MB-03A source: `528c8912c5a50cfd2e86856d345b29d6bb79d2c5`.
+Source tree: `65004e73f4c19deedafdb8cf2874939df0ab367a`, matching local verification.
+Local Rust 1.98.0: **588 workspace tests**, **3 compile-fail doctests**, one explicitly
+ignored subprocess-only helper; release core 121/personhood 234/state 49/consensus 23/
+chain 57/storage 75, with the same 3 doctests. All **7 references and 7 examples**,
+focused formatting and preservation checks passed. Source push CI **44639322362**
+and PR CI **44639329630** both passed. Full push job **135965942902** logs confirmed
+the exact corrected checkout and every gate. Section 18 records this increment; section 17 retains
+MB-02C evidence. Gate A/B remain unmet. Later documentation-head CI must be inspected
+separately from implementation evidence.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -30,7 +31,7 @@ Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
 [threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
 [configuration](docs/CONFIG_V2_ENCODING.md), [signed membership](docs/OPERATIONS_V2_ENCODING.md),
 [transfers/blocks](docs/CORE_V2_ENCODING.md), [atomic ledger](docs/LEDGER_STATE_V2.md),
-[accepted chain](docs/CHAIN_V2.md), [membership state](docs/MEMBERSHIP_STATE_V2.md),
+[accepted chain](docs/CHAIN_V2.md), [storage](docs/STORAGE_V2.md), [membership state](docs/MEMBERSHIP_STATE_V2.md),
 [diagnostic replay](docs/REPLAY_V2.md).
 
 The roadmap leads toward software that accepts device readings; it does not
@@ -93,11 +94,13 @@ Pre-plan baseline CI: run 44186275709 — SUCCESS.
 Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
 that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
 passed run 44194994506. B1/B2/B3/B4 evidence is in sections 11/12/13/14;
-MB-02A evidence is in section 15; MB-02B in section 16; MB-02C in section 17.
+MB-02A evidence is in section 15; MB-02B in section 16; MB-02C in section 17;
+MB-03A in section 18.
 
 Historical suite: 133 workspace tests. B1 added 31 (164 total), B2 added 39 (203),
 B3 added 51 (254), B4 added 69 (323), MB-02A added 80 (403), and MB-02B added
-59 (462); MB-02C adds 61 (523). B4 added the first compile-fail doctest; MB-02B adds two consuming-stage
+59 (462); MB-02C adds 61 (523); MB-03A adds 65 (588). The subprocess-only storage
+helper is explicitly ignored and not counted as a passed test. B4 added the first compile-fail doctest; MB-02B adds two consuming-stage
 compile-fail cases, bringing documentation tests to three.
 Release reruns are NOT additional unique tests. Both device-readiness gates remain UNMET.
 
@@ -117,7 +120,9 @@ operation ordering and bounded V2 block encodings/commitments. MB-02B now execut
 accounts and membership atomically with original mixed indices, checked transfers,
 independent sequences and combined roots. MB-02C now validates actual complete
 blocks from a pinned manifest/genesis, uses its accepted branch for ancestry, and
-replays complete MRB2 histories against external selected checkpoints.
+replays complete MRB2 histories against external selected checkpoints. MB-03A now
+initializes and reopens those immutable selected histories with bounded disk inputs,
+cooperative directory ownership and full accounts/membership replay.
 
 NOT implemented: biological deduplication, persistent networked V2 membership blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -169,8 +174,9 @@ For design-only work this means design acceptance, NOT runtime implementation.
 | MB-02A | TransferV2, unified envelope, BlockV2 codecs/commitments | VERIFIED_COMPONENT — FORMAT LAYER | 35ad0cf, CI 44428924399, section 15 |
 | MB-02B | Atomic accounts + membership with full mixed-operation indices | VERIFIED_COMPONENT — STAGED LEDGER | 420d711, CI 44619155972, section 16 |
 | MB-02C | Pinned V2 genesis, actual block acceptance and replay | VERIFIED_COMPONENT — ACCEPTED BRANCH | db2cb58, CI 44623282448, section 17 |
-| MB-03 | Durable state, synchronization and membership reorg/replay | READY — NEXT MB-03A | Reuse complete MB-02 acceptance; preserve separate legacy data |
-| MB-03A | Explicit V2 storage identity, writer ownership and recovery contract | READY — NEXT | Freeze bounded storage/publication contract; implement explicit init/open and single-writer boundary |
+| MB-03 | Durable state, synchronization and membership reorg/replay | IN PROGRESS — NEXT MB-03B | Immutable selected-store lifecycle complete; updates, peers and reorg still open |
+| MB-03A | Explicit V2 storage identity, writer ownership and initial publication | VERIFIED_COMPONENT — IMMUTABLE STORE | 528c891; independent pins, complete replay, Linux directory ownership; section 18 |
+| MB-03B | Durable accepted-tip updates and failure reconciliation | READY — NEXT | Freeze explicit updatable profile/generation authority; append publication, write fencing and restart tests |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
 | MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
 | MB-06 | Human-limited rounds, certificates and easy-PoW participation | TODO | MB-03/04/05; D-03 |
@@ -273,17 +279,24 @@ legacy history remains intact. Freeze block/ledger vectors independently.
 
 ### MB-03 — persistence, synchronization and reorganizations
 
-**First slice — MB-03A (READY):** review legacy storage/recovery and freeze the
-separate V2 storage, network identity, selected checkpoint, publication and recovery
-contract before adding formats. Define explicit init/open/read-only inspection,
-bounded file inputs and single-writer ownership. Implement that first lifecycle
-boundary without touching existing directories or trusting a peer/cache as authority.
-Use real ChainV2 replay and public synthetic data; document every publication/fault
-boundary still incomplete. NEXT_SESSION.md gives the exact continuation.
+**First slice — MB-03A (VERIFIED_COMPONENT):** separate immutable profile1 storage
+now provides explicit initialization, exclusive reopening, shared read-only
+inspection, independently pinned network/checkpoint selection, bounded file inputs
+and complete ChainV2 replay. Manifest and blocks are synchronized before final
+generation-zero selection publication. Partial data is retained; ambiguous results
+return no owning handle and require checked reconciliation. The stable root inode
+provides cooperative Linux ownership. Legacy recovery is never invoked.
 
-Later slices complete durable publication/failure recovery, peer reconstruction
-and canonical reorganization. In-memory alternative-branch validation is already
-available; it does not satisfy this work package's disk/network acceptance criteria.
+**Next slice — MB-03B (READY):** define an explicit updatable profile/generation
+contract without reinterpreting immutable profile1 or legacy data. Implement one
+actual accepted-block advancement with coherent durable selection and memory,
+write fencing on uncertain I/O, bounded restart reconciliation and meaningful
+publication failure injection. Preserve private ChainV2 authority and stable root
+ownership. NEXT_SESSION.md gives the exact continuation.
+
+Later slices add peer reconstruction and canonical reorganization with different
+membership histories. Initializing two separate valid fork stores does not satisfy
+this work package's durable branch-replacement or network acceptance criteria.
 
 **Deliver:** coherent durable commit/recovery for blocks/accounts/membership,
 counter indexes and eventual grant history; writer locking; explicit migrations;
@@ -474,11 +487,11 @@ Refresh the-prompt for every Mirror response, including discussion-only changes.
 Do not count documentation publication as runtime evidence or chase self-referential
 checkpoint SHAs. No background-work promise; disclose failed publication.
 
-**Immediate next:** MB-03A explicit V2 storage identity, writer locking and recovery
-contract. Reuse verified B1–B4 and MB-02A/B/C, including actual ChainV2 acceptance
-and complete MRB2 replay. Define separate init/open/inspection and durable selected
-state before implementing storage publication or network reorganization. Preserve
-all legacy directories and user policy. No minting or hardware work now.
+**Immediate next:** MB-03B durable accepted-tip updates and failure reconciliation.
+Reuse B1–B4, MB-02A/B/C and MB-03A's immutable store, actual ChainV2 authority,
+independent pins and complete MRB2 replay. Freeze generation/update/restart semantics
+before implementing existing-store advancement. Preserve all previous formats,
+legacy directories, root ownership and user policy. No minting or hardware work now.
 
 ## 8. Engineering references, not user policy
 
@@ -853,8 +866,92 @@ unchanged. One internal chain-to-personhood dependency was added; no external
 package changed. No special founder or marketing allocation, grant/mint/reward/fee
 formula, private matcher or device interface was enabled. D-01/D-04 remain open.
 
-**MB-02 VERIFIED_COMPONENT — IN MEMORY. Next: MB-03A.** Freeze separate V2 storage
+**At the MB-02C checkpoint: MB-02 VERIFIED_COMPONENT — IN MEMORY; next was MB-03A.** Freeze separate V2 storage
 identity, selected-tip metadata, locking and recovery, then implement explicit
 initialization/opening and writer ownership. Subsequent MB-03 work must make actual
 block/state publication durable, handle I/O faults and synchronize/reorganize
 membership-bearing histories across nodes. **Gate A/B remain UNMET.**
+
+## 18. MB-03A acceptance — MIRROR-MB03A-001
+
+Implemented source **528c8912c5a50cfd2e86856d345b29d6bb79d2c5**, tree
+**65004e73f4c19deedafdb8cf2874939df0ab367a**, on the active feature branch.
+PR #1 remains open/unmerged and main is unchanged. Exact-source push CI is
+**44639322362**, job **135965942902**; source PR CI is **44639329630**.
+Both source runs SUCCEEDED. Full push-job logs were inspected and matched the exact
+source checkout and all gates. Documentation follows source and has separate exact-head verification.
+
+The frozen [storage contract](docs/STORAGE_V2.md) and separate
+`mirror_storage::v2::StoreV2` implement **immutable selected-history storage**.
+Explicit initialization takes an already accepted finite ChainV2; existing
+nonempty/partial/foreign/legacy stores are not overwritten or automatically repaired.
+Writer reopening and shared inspection require independently retained C/genesis
+and full height/tip/ledger-root expectations. Every file is bounded and the complete
+actual MRB2 history is replayed through normal acceptance before a handle returns.
+Accounts, membership, permanent records and cumulative budgets are reproduced;
+no snapshot or persisted counter can become authoritative state.
+
+New MSS2 is exactly 232 bytes, encoding version 2/profile 1/generation 0. It records the
+selected checkpoint, count/length information and integrity checksums for exact
+MNM2/record bytes. It preserves all existing formats/hash domains and carries no
+biometric archive, real private key or economic privilege. Successful encoded input
+is bounded by 19,559,084 bytes; this is not total resident memory. Complete MRB2 limits
+remain 4,096 blocks / 16 MiB and existing replay work limits remain unchanged.
+
+The root directory's private un-cloned Linux descriptor holds an exclusive writer
+or shared reader lock for handle lifetime. Real separate-process tests prove
+exclusion, coexistence, release on Drop while process stays alive, and release on
+process termination without lock files/PID cleanup. Initialization synchronizes
+files and containing directories before publishing selection.v2 last through a
+prepared marker; an uncertain publication returns no handle. A checked reopen
+reconciles visible content against external expectations. Static path aliases are
+rejected under a trusted parent/cooperating-process assumption; hostile same-user
+namespace changes are excluded. The live root inode must not be replaced.
+
+Local acceptance: **588 workspace passes = 523 retained + 65 new**, comprising 24 selection
+codec/vector, 34 filesystem, 5 lock/process and 2 initialization-fault tests. One subprocess
+helper is explicitly ignored by normal runs and invoked by parent tests, not counted
+as a pass. The 2 fault tests cover 9 injected boundaries; they are not actual power-loss
+or comprehensive syscall-failure simulation. The 3 existing compile-fail doctests
+passed. Release reruns passed core 121 / personhood 234 / state 49 / consensus 23 / chain 57 /
+storage 75 (including 10 legacy), plus the same 3 doctests and 1 ignored helper. All 7 references
+and 7 examples passed. Focused formatting, legacy/fixture/runtime preservation and
+dependency checks passed. Release reruns are not additional unique tests.
+
+The seventh Python reference independently derived genesis/main/membership-fork
+selection records from the unchanged MB-02C fixture before Rust comparison. New
+fixture SHA-256: `ab25051450c08774528fa14c253072a7856824051f526a2b7ea331adc34902ef`.
+The example initializes/reopens exact full selected history, rejects a second
+writer and another branch's checkpoint, and independently recovers a membership
+fork in newly created temporary stores. It does not launch a V2 network or reorg
+an existing store. Independent implementation reviews found no blocking issue
+within the stated assumptions; they are not an external security audit.
+
+Linux tmpfs/overlayfs behavior was directly exercised locally. WSL2 native Linux
+storage is intended but not directly verified; Windows/DrvFS/NFS/SMB remain
+unverified. OS gating does not detect mount types. Successful post-error inspection
+does not retroactively prove a failed sync survives future power loss. The bounded
+root-entry scan may report InvalidLayout before a more specific legacy/foreign
+classification; it still preserves data.
+
+Source changes: 16 files, 3,355 insertions / 2 deletions. Only one internal storage-to-chain
+dependency was added; no external package changed. Prior crate source, independent
+fixtures, node behavior, genesis/runtime data and economic rules remain intact;
+legacy storage only gains a separate V2 module. Source CI now includes the seventh
+reference, storage release tests and the new demonstration.
+
+Initial source `2370ff5df3a73ff874a8fb0031df9e2a98775a43` passed PR run 44638347110
+but failed push run 44638337326 in a release ownership test. Local reproduction
+confirmed that one test's concurrent fork could temporarily inherit another test's
+lock descriptor. The corrected source serializes only the five parent test cases,
+preserving their real concurrent child checks and immediate assertions; no production
+retry, sleep or lock behavior changed. All 200 repeated release executions passed,
+then the corrected workspace/docs/storage-release gates and the full exact-source
+CI passed. Repetitions are not additional unique tests. Last-descriptor ownership,
+including fork inheritance, is now explicit in the storage contract and handoff.
+
+**MB-03A VERIFIED_COMPONENT — IMMUTABLE STORE. MB-03 IN PROGRESS. Next: MB-03B.**
+No accepted-tip advancement, durable reorg, V2 peer/node integration, mint, reward,
+real device admission or anonymity has been delivered by this slice. D-01/D-04
+remain open; no founder bonus or privileged marketing reserve was added.
+**Gate A and Gate B remain UNMET.**

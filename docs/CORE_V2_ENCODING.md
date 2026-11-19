@@ -13,7 +13,9 @@ Read with [the integration design](LEDGER_MEMBERSHIP_V1.md),
 [membership state](MEMBERSHIP_STATE_V2.md), [diagnostic replay](REPLAY_V2.md), and
 the implemented [MB-02B atomic ledger](LEDGER_STATE_V2.md). Ledger staging executes
 a complete mixed body; the separate [MB-02C chain layer](CHAIN_V2.md) now establishes
-actual block authority within a bounded in-memory branch.
+actual block authority within a bounded in-memory branch. The implemented
+[MB-03A storage layer](STORAGE_V2.md) initializes an immutable selected history and
+reopens it through complete chain replay with independent network/checkpoint pins.
 Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
@@ -184,6 +186,7 @@ The API boundaries are deliberately separate:
 | Block verify_integrity | Bounds, header/operation C, operation root and signatures | Static transfer profile, ancestry, height linkage, time, target/work, ledger root, genesis and state execution |
 | LedgerV2 stage_operations (MB-02B) | Atomic account/member execution, parent association, separate sequences, balances, conservation and computed roots | Actual header/genesis/work/time validation, claimed-root comparison and canonical block/chain authority |
 | ChainV2 from_genesis/append/replay (MB-02C) | Pinned genesis, actual accepted branch ancestry, complete header/work/body/execution/root checks and atomic in-memory acceptance | Durable publication/recovery, fork choice/finality, network operation and real human admission |
+| StoreV2 initialize/open_writer/inspect (MB-03A) | Immutable generation-zero storage, lifetime exclusive/shared ownership, bounded exact MNM2/MRB2 reads and full replay against independent network/checkpoint pins | Continued tip publication, update/failure recovery, branch replacement, peer synchronization, V2 node operation and real human admission |
 
 No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
 publishes a canonical block, mines genesis, or opens a chain database. The separate
@@ -214,6 +217,13 @@ commitments and zero-fee/no-mint execution. Successful staging is not acceptance
 a block or a supplied ledger-root field. [CHAIN_V2.md](CHAIN_V2.md) specifies the
 implemented MB-02C manifest, actual block acceptance and complete MRB2 replay.
 It preserves these frozen formats and validates each candidate using its own
-accepted ancestry. MB-03 next adds durable storage, synchronization and
-reorganization; the existing node daemon and legacy paths have not been migrated.
+accepted ancestry. [STORAGE_V2.md](STORAGE_V2.md) specifies the implemented MB-03A
+immutable selected-chain initialization, exclusive reopening and shared read-only
+inspection. It retains exact MNM2 and complete MRB2 bytes, reconstructs both ledger
+components through `ChainV2`, and does not trust a decoded state cache.
+
+**Next is MB-03B:** continued accepted-tip publication, generation authority,
+failure reconciliation and restart behavior. Peer reconstruction and durable
+reorganization follow. The V2 node/API remains later work; the existing node daemon
+and legacy paths have not been migrated.
 Refer to CURRENT_STATUS.md for current source and acceptance evidence.

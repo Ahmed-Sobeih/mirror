@@ -101,8 +101,11 @@ must be compared with independently executed trusted state.
 
 MPH2 remains membership-only and retains contiguous positions. It still rejects
 Transfer=0. It cannot replay a mixed ledger by omitting transfers; complete validated
-MRB2 replay is implemented by MB-02C's `ChainV2`. Durable replay/publication and
-recovery remain MB-03. The previous diagnostic replay budgets remain unchanged.
+MRB2 replay is implemented by MB-02C's `ChainV2`. The separate implemented
+[MB-03A storage layer](STORAGE_V2.md) uses that full replay when reopening an
+immutable selected history, with independent network/checkpoint pins. Continued
+tip updates and their failure recovery remain MB-03B. The previous diagnostic
+replay budgets remain unchanged.
 
 ## 3. Execution and error order
 
@@ -237,9 +240,16 @@ valid work over a wrong final ledger root rejects without changing either compon
 See [CHAIN_V2.md](CHAIN_V2.md) for the finite resource profile and actual branch
 authority, and CURRENT_STATUS.md for exact source/CI evidence.
 
-MB-03 will add durable coherent storage, network synchronization and recovery across
-both components. The next slice, MB-03A, will freeze the storage/pin/checkpoint,
-locking and recovery contract and implement explicit identity initialization,
-single-writer ownership and read-only reopening. In-memory acceptance is neither a
-crash-safety guarantee nor final human-weighted consensus. Private matching,
-biometric capture, privacy and real admission remain later gates.
+The implemented [MB-03A storage contract](STORAGE_V2.md) initializes an immutable
+accepted chain under single-writer ownership. Exclusive reopening and shared
+read-only inspection require independently selected network and full checkpoint
+pins and rebuild both ledger components by replaying every complete MRB2 block.
+No cached account or membership state becomes a second authority. Exact source
+verification and publication evidence are recorded in the checkpoint files.
+
+**Next is MB-03B:** accepted-tip updates, generation authority, publication failure
+reconciliation and restart behavior. Peer reconstruction and durable branch
+replacement follow; the V2 node/API remains later work. In-memory acceptance and
+bounded storage checks are not universal crash-safety or human-consensus
+guarantees. Private matching, biometric capture, privacy and real admission remain
+later gates.

@@ -24,9 +24,12 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state/consensus/chain tests, all six independent reference checks
-and all six synthetic examples (three personhood examples, core block_v2_demo,
-state ledger_v2_demo and chain chain_v2_demo).
+core/personhood/state/consensus/chain/storage tests, all seven independent reference
+checks (including `tools/reference_storage_v2.py --check`) and all seven synthetic
+examples (three personhood examples, core block_v2_demo, state ledger_v2_demo,
+chain chain_v2_demo and storage storage_v2_demo). Include
+`cargo test -p mirror-storage --release --locked` and
+`cargo run -p mirror-storage --example storage_v2_demo --locked` in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -34,18 +37,23 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03A.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03B.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
 accounts/membership execution and combined roots. MB-02C now supplies pinned MNM2
 manifests, actual block/genesis/work/root validation, private accepted ancestry and
 complete validated MRB2 replay. MB-02 is complete within its in-memory component
-scope. Next is explicit V2 storage identity, locking and recovery contract, then
-durable coherent publication/synchronization/reorganization within MB-03.
+scope. MB-03A implements immutable selected-chain storage, explicit initialization,
+exclusive reopening, shared inspection and complete checked reconstruction.
+Next is MB-03B accepted-tip updates, generation authority and failure/restart
+reconciliation, followed by peer reconstruction and durable reorganization.
+MB-03 as a whole and the persistent V2 node/API remain unfinished; current
+source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
-docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
+docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/STORAGE_V2.md,
+docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
@@ -96,11 +104,36 @@ Preserve strict child timestamp > parent and configured literal bits; no wall-cl
 ceiling exists in this synthetic profile. Preserve 4,096 blocks, 16 MiB complete
 MRB2 and 1,048,576 cumulative state/config items, including the exact charge formula
 in CHAIN_V2.md. No pruning, cap bypass or silent profile change in storage/recovery.
-MB-03 must define separate explicit initialization/open/read-only inspection,
-single-writer ownership, bounded file reads and coherent accepted-tip publication.
-Ambiguous I/O requires reconciliation before further writes. Reuse ChainV2 for
-validity; do not install cached state as authority, silently initialize legacy
-directories or mistake in-memory rollback for crash recovery.
+Preserve MB-03A's separate explicit initialization, exclusive open and shared
+read-only inspection APIs. MSS2 is exactly 232 bytes: encoding version 2, storage
+profile 1, generation zero only. This immutable profile has no append, replacement
+or repair API; MB-03B must specify reviewed update/generation/restart semantics
+without silently reinterpreting old records. Preserve exact MNM2/MRB2 files and
+all prior wire bytes. Checksum validity is not selection authority: independently
+retained network and full checkpoint pins remain mandatory on every reopen.
+
+Profile 1 uses Linux nonblocking kernel locks on the root directory inode for the
+handle lifetime. All processes must cooperate; parent directories and the local
+owner are trusted. Never rename/remove/replace a live root inode, infer ownership
+from a PID/lock-file payload, or claim hostile same-user race protection. WSL,
+DrvFS and other untested filesystems must not be described as verified. Preserve
+bounded metadata/enumeration and length-plus-one sentinel reads, the 19,559,084-byte
+successful encoded-payload ceiling, and all separate replay/resource caps. That
+ceiling is not a total resident-memory limit.
+
+Closing a handle releases its own descriptor; inherited fork descriptors may
+briefly prolong the kernel lock until they also close. Keep subprocess ownership
+tests isolated from unrelated test forks while retaining actual concurrent child
+checks. Do not hide failed ownership assertions with sleeps or production retries.
+
+Initial selection is published only after prepared files and directories are
+synchronized. Ambiguous I/O requires reconciliation before further writes; future
+mutable handles must fence writes until restart/reconciliation establishes the
+selected complete state. Do not silently promote pending metadata, clean partial
+stores, overwrite foreign/legacy data, or free capacity by discarding history.
+Reuse ChainV2's complete MRB2 replay for validity, including all transfers and
+membership effects. No cached state or stored counter can replace reexecution
+and its resource accounting; in-memory rollback does not establish crash recovery.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

@@ -139,7 +139,7 @@ Verified replay still depends on a trusted caller supplying actual history; B4
 does not implement the chain, durable tip or consensus that establishes that trust.
 At the B4 checkpoint, MB-02A was next. Its subsequent implementation and MB-02B/C's
 completed atomic ledger and actual block validation are recorded below. Durable
-persistence remains MB-03.
+persistence was left to MB-03; the implemented MB-03A slice is recorded below.
 No grant, fee, monetary exception formula, private matching, anonymity, real
 admission policy or final human-consensus decision was selected by B4.
 
@@ -209,8 +209,9 @@ caller-supplied hash do not establish that any actual blockchain block is valid.
 Source `db2cb58ba5a9a828ec949debd1b52b5915a66f3b` implements pinned actual V2 block
 acceptance and complete bounded MRB2 replay. Exact-source push CI 44623282448 and
 PR CI 44623296178 passed; CURRENT_STATUS.md records inspected evidence. MB-02 is
-complete within its in-memory component scope; MB-03A storage identity/locking/
-recovery is next. These are compatibility and implementation choices, not new
+complete within its in-memory component scope. At that checkpoint MB-03A storage
+identity/locking/recovery was next; its implementation is recorded below.
+These are compatibility and implementation choices, not new
 user economic, real-admission, privacy or human-consensus decisions.
 
 MNM2 carries canonical MCF2, all ordered seed proofs and the selected exact genesis
@@ -236,8 +237,65 @@ V2 domain-separated header hash as a big-endian integer; accepted positive compa
 forms are not silently redefined. The mining helper's one-million-attempt cap is
 local, not a new consensus quota or equal-human reward rule.
 
-A valid finite branch is not globally canonical or final. Durable selected-tip
-publication, locking, restart/latestness authority, transport and membership-aware
-reorganization remain MB-03/04; human consensus remains MB-06. No founder/marketing
+A valid finite branch is not globally canonical or final. At the MB-02C checkpoint,
+durable selected-tip publication, locking, restart/latestness authority, transport
+and membership-aware reorganization remained MB-03/04; human consensus remained
+MB-06. No founder/marketing
 reserve, grant/mint, nonzero fee, reward distribution, biometric archive, real device
 support or reliable biological deduplication was introduced. D-01/D-04 remain OPEN.
+
+
+## MB-03A engineering choices — MIRROR-MB03A-001
+
+Source [`528c8912c5a50cfd2e86856d345b29d6bb79d2c5`](https://github.com/Ahmed-Sobeih/mirror/commit/528c8912c5a50cfd2e86856d345b29d6bb79d2c5)
+implements immutable selected-chain storage and checked reopening. Source tree:
+`65004e73f4c19deedafdb8cf2874939df0ab367a`. Local verification passed 588 workspace
+tests, including 65 new cases, with one ignored subprocess helper; three retained
+compile-fail doctests, all seven independent references and all seven examples
+also passed. Release reruns passed core 121, personhood 234 plus the same three
+doctests, state 49, consensus 23, chain 57 and storage 75 tests. These reruns are
+not additional unique tests. Exact-source CI and publication evidence are recorded
+separately in CURRENT_STATUS.md and MASTER_PLAN.md; local success is not a CI claim.
+
+The [storage contract](STORAGE_V2.md) chooses a separate explicit `StoreV2` lifecycle:
+initialize an absent or empty directory from an already accepted `ChainV2`, reopen
+an existing selection with exclusive ownership, or inspect it with shared read-only
+ownership. Reopening requires both an independently selected C/genesis identity
+and the matching full C/genesis/height/tip/ledger-root checkpoint. It retains exact
+MNM2 manifests and complete MRB2 blocks and reconstructs accounts and membership
+through normal whole-chain replay. No snapshot, stored counter, matching checksum
+or peer-supplied selection becomes runtime authority.
+
+MSS2 is a new fixed 232-byte storage record with version 2, profile 1 and generation
+zero only. Its manifest and record checksums detect byte corruption; they do not
+authenticate selection or discover freshness. Existing configuration, operation,
+block and state bytes/domains remain unchanged. The finite 4,096-block, 16-MiB MRB2
+and 1,048,576 cumulative state/configuration budgets are preserved. Disk metadata
+and all file lengths are bounded before payload allocation; the maximum successful
+encoded payload is 19,559,084 bytes, separately from runtime memory overhead.
+
+This initial profile is Linux-only and uses nonblocking operating-system locks on
+the unchanged root directory inode for each handle's lifetime. Cooperating
+processes, a trusted parent tree/local owner and the documented filesystem locking,
+rename and synchronization behavior are explicit assumptions. No lock-file PID
+lease, stale takeover, hostile-owner race defense or verification of WSL/DrvFS is
+implied. Initialization synchronizes prepared files and directories before the
+selected marker is published. An uncertain publication returns no writable handle;
+reconciliation requires retained independent pins. Partial stores are neither
+silently repaired nor deleted, and legacy stores are never migrated automatically.
+
+The profile has no append, tip replacement, automatic repair, global fork-choice
+or V2 node-daemon API. **Next is MB-03B:** accepted-tip updates and generation
+authority, write fencing after ambiguous I/O, failure reconciliation and restart
+behavior. Peer reconstruction and durable membership-aware reorganization follow;
+the V2 node/API and final human consensus remain later work. A reviewed update
+contract must preserve this immutable profile and cannot recover capacity by
+discarding retained history or restoring an untrusted cache.
+
+Only internal workspace dependencies were added; no external dependency changed.
+All inputs remain public synthetic test material. No founder allocation, marketing
+reserve, bootstrap payout, population mint, fee/reward formula, real biometric
+archive, device support, anonymity or biological uniqueness was introduced.
+Accepted user policies above are unchanged; D-01/D-04 remain OPEN and Gate A/B
+remain unmet. MB-03A is a bounded storage component, not completion of MB-03 or a
+universal crash-safety or mainnet-security guarantee.

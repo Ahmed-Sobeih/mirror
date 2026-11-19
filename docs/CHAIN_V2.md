@@ -23,7 +23,12 @@ These choices identify the intended network and finite branch. They do not disco
 the latest global tip, establish finality, choose a canonical competing branch or
 prove human uniqueness. Choosing both expectations from the untrusted input would
 remove this protection. An application must retain its trusted selection separately.
-The current API is in memory; durable selection/publication belongs to MB-03.
+`ChainV2` remains an in-memory acceptance API. The separate implemented
+[MB-03A storage layer](STORAGE_V2.md) initializes one immutable selected history,
+reopens it under exclusive ownership, or inspects it under shared ownership.
+Reopening requires independent network and full checkpoint pins and reconstructs
+every complete MRB2 block through this API. Continued accepted-tip publication
+and recovery during updates remain MB-03B.
 
 ## 2. Public network manifest — MNM2
 
@@ -169,8 +174,11 @@ not prevent rollback if an application itself supplies an obsolete expectation.
 external freshness. Parent lookup uses the private block at each real height in
 that candidate branch; another branch's operation anchor fails even if the header
 parent, work and signature otherwise pass. Two separately accepted branches can
-be valid simultaneously. Fork choice/reorganization/publication remains MB-03;
-the later human-finality profile remains MB-06.
+be valid simultaneously. MB-03A can persist and reopen either explicitly selected
+immutable branch; it supplies no global fork choice or branch replacement.
+Continued tip publication and failure recovery remain MB-03B, with peer
+reconstruction and reorganization in subsequent integration. The later
+human-finality profile remains MB-06.
 
 ## 7. Explicit finite resource profile
 
@@ -226,8 +234,17 @@ mixed blocks, demonstrates invalid-root rollback and complete MRB2 replay. It do
 not run a multi-process network or write a durable chain. Acceptance evidence and
 exact tested source/CI are tracked in CURRENT_STATUS.md and MASTER_PLAN.md.
 
-Next is MB-03: explicit storage initialization, selected manifest/tip metadata,
-writer locking, coherent durable publication/recovery, bounded I/O, synchronization
-and membership-aware reorganization. No founder or marketing reserve, grant, mint,
-fee/reward formula, real biometric enrollment or device integration is enabled by
-this contract. D-01/D-04 remain open and Gate A/B remain unmet.
+The implemented [MB-03A contract](STORAGE_V2.md) adds separate explicit storage
+initialization, exclusive reopening and shared read-only inspection. Its
+generation-zero MSS2 record is selected by independent C/genesis/height/tip/root
+expectations; exact MNM2 and complete MRB2 bytes are retained and fully replayed.
+It does not install account or membership caches as authority or change the
+finite resource profile above. Current source verification and publication
+evidence remain in the repository checkpoint files.
+
+**Next is MB-03B:** continued accepted-tip publication, generation authority,
+failure reconciliation and restart behavior. Peer reconstruction and durable
+membership-aware reorganization follow; the V2 node/API remains later work.
+No founder or marketing reserve, grant, mint, fee/reward formula, real biometric
+enrollment or device integration is enabled by these contracts. D-01/D-04 remain
+open and Gate A/B remain unmet.

@@ -1,117 +1,144 @@
-# Next session — MB-03A
+# Next session — MB-03B
 
 Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md). Updated **2026-11-20**.
-Read AGENTS.md, CURRENT_STATUS.md, docs/DECISIONS.md, docs/CHAIN_V2.md,
-docs/LEDGER_STATE_V2.md, docs/CORE_V2_ENCODING.md, docs/CONFIG_V2_ENCODING.md,
-docs/OPERATIONS_V2_ENCODING.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
-docs/LEDGER_MEMBERSHIP_V1.md, docs/THREAT_MODEL.md,
-docs/MEMBERSHIP_TEST_MATRIX.md and the latest the-prompt.
+Read AGENTS.md, CURRENT_STATUS.md, docs/DECISIONS.md, docs/STORAGE_V2.md,
+docs/CHAIN_V2.md, docs/LEDGER_STATE_V2.md, docs/CORE_V2_ENCODING.md,
+docs/CONFIG_V2_ENCODING.md, docs/OPERATIONS_V2_ENCODING.md,
+docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md, docs/LEDGER_MEMBERSHIP_V1.md,
+docs/THREAT_MODEL.md, docs/MEMBERSHIP_TEST_MATRIX.md and the latest the-prompt.
 
 ## Recover live state
 
 Verify default/active branches, PR #1, recent commits/comments and exact CI.
-Active branch `work/personhood-register-v0.1`; PR #1 remains open/unmerged.
-Main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`. Use feature-branch records,
+Active branch `work/personhood-register-v0.1`; PR #1 is open/unmerged.
+Main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`. Read feature-branch records,
 not stale main. Preserve concurrent/unpushed work and all runtime data. Never reset
 to a copied checkpoint or merge merely to publish handoff documents.
 
-Latest implementation `db2cb58ba5a9a828ec949debd1b52b5915a66f3b`, tree
-`3fa1d3b44abb885898cc256f9525355025649a0a`. Exact-source push CI:
-https://github.com/Ahmed-Sobeih/mirror/actions/runs/44623282448
-Source push CI and PR CI 44623296178 passed. Full job 135910328823 logs confirmed
-the exact source checkout and all gates. Check subsequent documentation-head CI
-separately. Local and CI Rust 1.98.0 gates passed 523 workspace tests, 3 doctests,
-release core 121 / personhood 234 plus the same 3 doctests / state 49 / consensus 23 /
-chain 57, all 6 references/examples and audit. Focused formatting and preservation
-checks passed locally. Release reruns do not add unique tests.
-MB-01A, MB-01B/B1–B4 and MB-02A/B/C are complete in their component scope.
-**MB-02 VERIFIED_COMPONENT — IN MEMORY. MB-03 READY. Gate A/B UNMET.**
+Latest published implementation `528c8912c5a50cfd2e86856d345b29d6bb79d2c5`, tree
+`65004e73f4c19deedafdb8cf2874939df0ab367a`, identical to the locally verified tree.
+[Corrected-source push CI 44639322362](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44639322362),
+job `135965942902`, and [PR CI 44639329630](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44639329630)
+both SUCCEEDED. Full push-job logs confirmed the exact corrected-source checkout
+and all verification gates. The original source's push run 44638337326 exposed a reproduced
+cross-test fork-inheritance race. The corrected test isolation preserves all real
+process assertions and passed 200 repeated release runs. No production retry or
+lock behavior was changed. Check later documentation-head CI separately.
 
-## Reuse the completed actual chain
+Local Rust 1.98.0 gates passed: 588 workspace tests, one explicitly ignored subprocess
+helper, 3 retained doctests; release core 121 / personhood 234 plus the same 3 doctests /
+state 49 / consensus 23 / chain 57 / storage 75; all 7 references and 7 examples;
+formatting, diff, preservation and dependency checks. The 65 new tests are 24 codec,
+34 filesystem, 5 ownership/process and 2 fault tests covering 9 initialization
+boundaries. Release reruns and those boundary scenarios are not additional tests.
+No external dependency changed. Source changes are published; CI verification is
+not inferred from the local result.
 
-`NetworkManifestV2` carries proof-checked configuration and exact genesis pin.
-MNM2 decode requires an independently selected `(C, genesis_hash)`. Every seed proof
-is mandatory. `genesis_template_v2` makes an unaccepted proposal; bounded work search
-then gives a candidate, not acceptance. `ChainV2::from_genesis` independently checks
-all genesis fields, work, body, bootstrap ledger root and exact selected hash.
+**MB-03A VERIFIED_COMPONENT — IMMUTABLE INIT/REOPEN. MB-03 IN PROGRESS.**
+**Next MB-03B READY. Gate A/B UNMET.** Previous milestone evidence remains in the
+master plan, particularly sections 17–18.
 
-`ChainV2::append` validates full budgets, context, height/parent/time, configured
-bits/work, ordered operation root, original full-body ledger execution and claimed
-combined root. Only then does it bind the actual hash and install state. It uses
-its private immutable accepted ancestry; do not add an external mutable oracle or
-state setter. A failed block leaves the entire branch and counters unchanged.
-`prepare_candidate` cannot publish state. Lower-level `bind_to_validated_block`
-remains only a trusted provenance operation, not a substitute for acceptance.
+## Reuse the completed storage and chain
 
-Typed and encoded complete MRB2 replay require external C/genesis/height/tip/root
-expectations. Replay checks every actual block through the same executor and returns
-no partial branch on failure. The expectation chooses a branch, not global freshness.
-MPH2 remains membership-only; MPS2 remains an untrusted cache with no runtime
-conversion. Never filter full mixed histories or restore authority from a snapshot.
+`StoreV2::initialize(path, &ChainV2)` initializes an absent final path under an
+existing parent or an explicitly empty directory. `open_writer` and `inspect`
+require independent `ManifestIdentityV2` and `ChainReplayExpectationV2` arguments.
+Every reopen reconstructs complete actual blocks through `ChainV2::replay_encoded`.
+No cached accounts/membership or on-disk assertion supplies authority. External
+pins choose a finite branch; they do not discover global freshness.
 
-Preserve strict child timestamp > parent, exact configured bits, empty blocks,
-full-operation indices, separate account/member sequences and initial test-supply
-conservation. There is no fee, mint, reward or added membership spending restriction.
-Chain caps include genesis: 4,096 blocks, 16 MiB complete MRB2, 1,048,576 cumulative
-state/config items. Exact charge formula is in CHAIN_V2.md. Do not bypass these
-limits through recovery, silently raise them or discard identity/account history.
+The frozen MSS2 profile 1 record is exactly 232 bytes at generation zero. The root
+contains exact `manifest.v2`, contiguous `blocks/*.mrb2` and `selection.v2` published
+last. `selection.pending` cannot authorize a branch. Initialization synchronizes
+prepared files/directories before marker rename and synchronizes the root afterward.
+Prepublication failure retains partial data; publication uncertainty returns no
+handle and requires checked reconciliation. Nothing automatically repairs, deletes,
+initializes from a peer or rewrites legacy data. There is no append or reorg API.
 
-## Exact next slice — MB-03A storage authority and one writer
+Linux root-directory inode locks last as long as the handle. An exclusive writer
+blocks writers and inspectors; shared inspectors coexist and block writers. Root
+identity must remain stable: do not rename, remove or replace a locked store root.
+There is no lock file or PID recovery. Closing a handle closes its descriptor,
+but ownership lasts until all inherited descriptors for the same open file
+description close; a concurrent fork can therefore prolong `Busy` briefly.
+Local owners and parent directories are
+trusted; static alias checks are not a hostile-owner sandbox. The operating-system
+gate does not validate every filesystem. See STORAGE_V2.md for actual tested and
+untested filesystem assumptions and the exact error/publication contract.
 
-Start by inspecting existing `mirror-storage` and legacy node recovery, then freeze
-an explicit V2 storage contract before adding file formats. Reuse ChainV2 for all
-validity; preserve all legacy files, APIs, genesis and existing runtime directories.
-This slice must be reviewable independently of future networking/economic work.
+Keep ChainV2's private accepted ancestry and atomic full-body executor. Validate
+version/configuration, height/parent/time, exact configured target/work, ordered
+operation root and complete executed ledger root before binding accepted state.
+Do not introduce external mutable ancestry or a cache/state setter. Lower-level
+`bind_to_validated_block` only attaches trusted provenance. Empty blocks, original
+mixed-operation indices, separate account/member sequences, explicit zero/spent
+accounts, permanent membership records and initial test-supply conservation persist.
+MPH2 is membership-only; MPS2 remains an untrusted cache with no runtime conversion.
 
-1. **Specify storage identity and lifecycle.** Define separate explicit V2 init,
-   open and read-only inspection paths. Pin configuration/genesis to trusted caller
-   selection, retain all public seed proofs, and define which metadata identifies
-   the selected accepted tip. Empty, missing, partial, foreign and legacy directories
-   need distinct behavior; reading status must never initialize, mine or repair.
-2. **Specify coherent publication and recovery.** Define exact bounded encodings,
-   staging/publication boundaries, file and directory synchronization, metadata
-   generations, restart decisions and error semantics before implementing them.
-   State which filesystem guarantees are assumed. Old/new complete selected state
-   or explicit failure must be identifiable; an ambiguous I/O result must force
-   reconciliation before further writes. No silent best-effort fallback.
-3. **Implement single-writer ownership and explicit initialization/opening.** Reject
-   a concurrent writer; bind ownership to store lifetime. Define safe reopening
-   after interruption without deleting another process's state or trusting stale
-   lock-file contents. Use explicit synthetic configuration/genesis; never create
-   a production founder key or initialize from an untrusted peer's manifest alone.
-4. **Bound all disk inputs and reconstruct through ChainV2.** Preflight lengths,
-   counts and selected metadata before allocation. Replay complete actual blocks
-   against the trusted chosen checkpoint. Reject truncation, gaps, wrong genesis,
-   tampered roots and obsolete/contradictory metadata. Cached accounts/membership
-   cannot become a second authoritative database. No matcher/device runs in replay.
-5. **Test the slice at its real boundary.** Use separate temporary directories and
-   actual V2 blocks with different membership histories. Cover wrong/legacy identity,
-   missing/partial init, a second writer, oversized/corrupt input and read-only open
-   without side effects. Document each still-unimplemented publication/fault case;
-   do not infer universal crash safety from normal round trips.
-6. **Publish with precise evidence.** Add tests and bounded examples for the chosen
-   slice, run required gates and exact-source CI, then update/read back handoffs.
-   If MB-03A splits further, record the exact implemented substep and leave remaining
-   storage acceptance criteria visibly incomplete.
+Chain caps include genesis: 4,096 blocks, 16 MiB complete MRB2 and 1,048,576 cumulative
+state/configuration items. Preserve the exact charge formula in CHAIN_V2.md, strict
+child timestamp greater than parent, and literal configured difficulty bits. There
+is no wall-clock/future ceiling or retargeting. Recovery must not evade capacity,
+erase history or silently choose a new finite profile.
 
-Next MB-03 slices complete durable block/ledger-tip publication with failure
-injection, peer reconstruction, then canonical reorganization with different
-admissions/withdrawals and no orphan counters retained. Global development fork
-choice must be specified before publication; human finality still belongs to MB-06.
-A network advertised height/root cannot choose trust. Do not label successful
-in-memory fork replay as completed durable reorg or multiple live nodes.
+## Exact next slice — MB-03B durable accepted-tip updates
+
+Freeze the update contract before implementing a new file format or changing
+publication. Work remains separate from the legacy node and from monetary/device
+policy. The first deliverable is a small reviewable continuation of verified storage.
+
+1. **Define a versioned update profile and migration boundary.** Preserve MSS2
+   profile 1/generation zero and every prior encoding. Specify whether a new profile
+   uses new metadata and how an existing immutable store can be explicitly adopted,
+   if supported. Never silently reinterpret an old store or accept nonzero generations
+   under profile 1. Distinguish external network/branch selection from local durable
+   generation authority; metadata must not manufacture its own trust or freshness.
+2. **Define ownership, staging and publication.** Keep the same stable locked root
+   for the owner lifetime. Start with an already validated full ChainV2 and a bounded
+   one-block append transition, reusing actual acceptance for the complete body.
+   Specify which files can be staged, how they are named/bounded, and the exact file
+   and directory synchronization order before a new selected-tip record is published.
+   Account, membership, population, approvals and resource counters must all describe
+   the same accepted history; do not create a second authoritative cache.
+3. **Specify failure states before exposing writes.** A candidate must not become
+   selected before all required durable data is prepared. If I/O may have published
+   a new selection, fence further writes until explicit reconciliation. Define how
+   retained old/new metadata and staged data are interpreted on restart, who supplies
+   expected authority, and when the operation returns success, uncertainty or failure.
+   Do not delete unexplained files or treat a directory/checksum as sufficient proof.
+4. **Implement and test the bounded append slice.** Cover accepted empty and mixed
+   transfer/membership blocks, rejection without changes, capacity and height/time
+   boundaries, a second writer, and reopened exact ledger/counter equality. Inject
+   deterministic failures at writes, syncs, selector publication and reconciliation.
+   Restart must identify a complete old or new selected branch, or explicitly reject;
+   no mixed ledger/selection state or partial success may escape. Document the limits
+   of simulated errors versus actual power-loss/filesystem testing.
+5. **Publish precise evidence and continuation.** Run required workspace/doc/release
+   gates, all 7 existing references/examples plus any added ones, preservation checks
+   and exact-source CI. Record implemented substeps, unimplemented failure cases and
+   the next action. Never mark all MB-03 complete from an append-only storage slice.
+
+After durable accepted-tip updates, specify canonical development fork choice before
+branch replacement, then implement durable reorganization with genuinely different
+admissions/withdrawals and peer reconstruction. Orphan approval/population/resource
+state must not survive selecting another branch. A peer-advertised height/root
+cannot choose local trust. MB-04 provides the persistent V2 node, wallet/pool and
+operator APIs; human finality belongs to MB-06.
 
 ## Constraints unchanged
 
-No founder bonus, privileged marketing reserve, grant/mint API, nonzero development
-fees or reward allocation. Retain explicit zero/spent accounts, original indices,
-parent-eligible reviewers, end-block activation and permanent identity reservations.
-D-01/D-04 remain open and do not block this no-mint storage work.
+No founder bonus, privileged marketing reserve, mint/grant API, nonzero development
+fees or reward allocation. First 1,000 qualifying humans receive the same 10 MRY,
+including the founder. Ordinary allowance is 0.2 MRY per qualifying historical
+population maximum; 1 MRY is 10,000,000 Nusa. D-01 combined bootstrap treatment and
+D-04 fees/rewards remain open and do not block this no-mint storage work. The legacy
+public Alice fixture is not a founder entitlement and must not be rewritten.
 
-Keys/evidence equality is not biological uniqueness; public review metadata is
-linkable. Raw or encrypted biometric archives, real keys, device secrets and personal
-records never belong on-chain or in GitHub. Real capture and device purchasing are
-outside this task. Existing easy PoW is not the final human-participation consensus.
+Key/evidence equality is not biological uniqueness; public review metadata is
+linkable. Fingerprint/ECG devices are interchangeable off-chain Ant Kiss instruments.
+Raw or encrypted biometric archives, real keys, device secrets and personal records
+never belong on-chain or in GitHub. No real capture or device purchase is needed.
+Current fixed easy PoW is not the final human-participation consensus.
 
 Before every Mirror final response refresh the-prompt and relevant checkpoints
 with actual results and next work, preserve newer source, publish with head guards

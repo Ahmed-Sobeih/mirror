@@ -16,10 +16,12 @@ component. B4 completes MB-01B; MB-02A supplies the transfer/block formats in
 [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). MB-02B now implements indexed membership
 staging and atomic combined execution in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md).
 MB-02C now establishes actual finite-branch block authority and complete MRB2
-replay in [CHAIN_V2.md](CHAIN_V2.md); durable storage/network integration remains
-MB-03. Membership-only behavior and MPS2 bytes/domains are preserved; section 5
-documents the explicit extension of MPS2's accepted inclusion-index range for
-mixed blocks.
+replay in [CHAIN_V2.md](CHAIN_V2.md). The implemented [MB-03A storage layer](STORAGE_V2.md)
+initializes an immutable selected chain and reopens it through complete MRB2
+replay under independent network/checkpoint pins. Continued tip updates, failure
+recovery, networking and reorganization remain later integration. Membership-only
+behavior and MPS2 bytes/domains are preserved; section 5 documents the explicit
+extension of MPS2's accepted inclusion-index range for mixed blocks.
 
 ## 1. State and trusted chain association
 
@@ -129,8 +131,11 @@ can free a pending slot, while Approve then Enroll cannot free it before finaliz
 These are development counters, not production monetary qualification. A future
 reorg must restore the chosen branch's snapshot and counters, not the maximum over
 every branch observed. Atomic mixed execution is now MB-02B behavior; actual
-finite-branch acceptance/replay is MB-02C behavior. Canonical branch selection,
-durable recovery and reorg integration remain MB-03.
+finite-branch acceptance/replay is MB-02C behavior. MB-03A storage reconstructs one
+immutable selected branch from that complete history. It neither combines
+counters from competing branches nor replaces the selection. Accepted-tip updates
+and their failure recovery are next in MB-03B; canonical branch selection and
+durable reorganization remain subsequent integration.
 
 ## 4. Bounded synthetic execution
 
@@ -252,8 +257,10 @@ Decoding internally coherent signed records does not prove their complete histor
 canonical tip or freshness. Snapshots remain disposable caches bound to a trusted
 validated block/root. B4 replay requires trusted configuration and candidate
 ancestry. MB-02C supplies actual block/root authority by executing full MRB2 history;
-durable storage authority remains MB-03. A peer-supplied snapshot must never gain
-authority merely because its individual signatures verify.
+MB-03A checked storage reopening uses the same complete replay with independent
+network/checkpoint pins. It does not restore authoritative state from MPS2. A
+peer-supplied snapshot must never gain authority merely because its individual
+signatures verify.
 
 ## 6. Historical B3 acceptance evidence
 
@@ -307,7 +314,8 @@ consistency alone do not establish history, canonical ancestry or latestness.
 Replay uses VerifiedBootstrap and the same B3 executor with the external trust
 checks in REPLAY_V2.md. The separate MB-02C chain API supplies actual block/root
 authority from pinned genesis and full accepted MRB2 history. It never restores
-authoritative runtime state from this cache. Durable recovery remains MB-03.
+authoritative runtime state from this cache. MB-03A reopens an immutable selected
+store through that full MRB2 replay path; it adds no cache-to-runtime conversion.
 
 The independent standard-library reference `tools/reference_state_v2.py --check`
 constructs five complete MPS2 snapshots from explicit synthetic record fixtures:
@@ -359,8 +367,12 @@ conservation. Membership activation and high-water counters release no funds.
 
 MB-02C now implements [actual block acceptance and complete MRB2 replay](CHAIN_V2.md)
 for a bounded in-memory branch selected by independent manifest/checkpoint pins.
-The next task is **MB-03 durable storage, synchronization and reorganization**,
-beginning with MB-03A's explicit identity/checkpoint, locking and recovery contract.
+The implemented [MB-03A storage contract](STORAGE_V2.md) adds immutable selected-chain
+initialization, exclusive reopening and shared read-only inspection. Every reopen
+reexecutes the whole chain under independently supplied network/checkpoint pins.
+**Next is MB-03B:** accepted-tip updates, generation authority, publication failure
+reconciliation and restart behavior. Peer reconstruction and durable membership-aware
+reorganization follow; the V2 node/API remains later work.
 Diagnostic group commitments are not MRB2 operation roots, MPH2 remains
 membership-only, and filtered indices must never replace original mixed-block
 positions. Combined staging and caller-supplied hash binding alone still do not
