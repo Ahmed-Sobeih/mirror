@@ -218,6 +218,7 @@ dependencies = [
 name = "mirror-storage"
 version = "0.1.0"
 dependencies = [
+ "mirror-chain",
  "mirror-core",
  "mirror-crypto",
 ]
