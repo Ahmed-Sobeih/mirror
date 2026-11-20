@@ -356,9 +356,10 @@ or authorizes an append.
 This slice deliberately has **strict clean-state reconciliation**: pending markers,
 extra tail blocks, partial files and unknown artifacts reject and remain in place.
 No data is deleted, pending candidate promoted, or generation selected merely to
-make recovery succeed. **Next is MB-03C: explicit interrupted-append staging
-recovery**, followed by reviewed canonical branch selection, durable membership
-reorganization and peer reconstruction. MB-03 remains in progress; MB-04's live
+make recovery succeed. **At the MB-03B checkpoint, next was MB-03C: explicit
+interrupted-append staging recovery**, followed by reviewed canonical branch
+selection, durable membership reorganization and peer reconstruction. MB-03
+remains in progress; MB-04's live
 V2 node/API and MB-06 human finality remain later work.
 
 The independent append reference derives new MSU2 bytes from pinned prior
@@ -367,3 +368,84 @@ membership fork. These synthetic checks do not establish reliable biometrics,
 anonymity, final consensus, universal crash safety or device readiness. No monetary
 policy, grant/mint API, nonzero fees, rewards, founder privilege or marketing reserve
 is introduced. D-01/D-04 remain open, and Gate A/B remain unmet.
+
+## MB-03C engineering choices — MIRROR-MB03C-001
+
+Published implementation:
+[`e8302052ab724f59ff4a212dc64aea9575a6d4b3`](https://github.com/Ahmed-Sobeih/mirror/commit/e8302052ab724f59ff4a212dc64aea9575a6d4b3).
+Source tree: `dc9eb2c02436f0952ac54593ba8d02317e9d9314`, identical to the locally
+tested tree. The source increment changes nine files, with 3,138 insertions and
+one deletion. Local verification passed 707 workspace tests (658 retained + 49
+new), with one explicitly ignored subprocess helper, and three retained
+compile-fail doctests. The new tests are 39 recovery integration tests, nine
+private fault/retry tests and one process-lock test. Release reruns passed core
+121, personhood 234 plus the same three doctests, state 49, consensus 23, chain 57
+and storage 194. All eight independent references and nine examples passed.
+Exact-source
+[push CI 44748718086](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086),
+job `136330677456`, and
+[PR CI 44748724632](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632)
+both **SUCCEEDED**. The complete 216,857-byte push-job log confirmed checkout
+`e8302052ab724f59ff4a212dc64aea9575a6d4b3`, the workspace/documentation/release
+counts above, all eight references, all nine examples and the allocation audit.
+This establishes **MB-03C VERIFIED_COMPONENT — bounded explicit interrupted-append
+recovery**. Later documentation-head CI must be checked separately; no result is
+inferred from these source runs.
+
+The [explicit recovery contract](STORAGE_RECOVERY_V2.md) adds narrowly authorized
+recovery to profile 2 without changing any existing encoding, checksum domain,
+ordinary opening rule, dependency or independently frozen fixture. Current source,
+local verification and exact-commit CI are recorded in CURRENT_STATUS.md and
+master-plan section 20; the MB-03B evidence above remains historical.
+
+The caller retains a parent checkpoint, candidate checkpoint and exact complete
+child independently, then explicitly selects Complete or RetainParent. The two
+checkpoints must describe one bounded child transition. Recovery replays the
+complete parent through ChainV2, accepts the exact requested child and matches its
+full resulting checkpoint before either action can mutate data. Signatures, state
+roots, work and all resource counters retain their existing acceptance rules.
+
+No on-disk journal or implicit discovery is introduced. A prefix match does not
+prove who created an artifact, especially an empty file. The trusted caller's
+specific retained request authorizes the two named paths; byte comparisons only
+constrain that authority. The selected marker must match the exact canonical
+parent or candidate. Only the single next-height block and candidate pending
+selector may be absent or exact canonical prefixes under the documented state
+table. Unknown bytes, unsupported combinations and unsafe paths reject unchanged.
+
+Complete extends only a missing suffix, synchronizes prerequisites and prepared
+files, compares the old marker/artifacts, publishes by the existing same-root
+rename, then performs strict clean replay and synchronization. An already selected
+clean candidate is idempotent success without another generation. RetainParent
+works only while the parent is still selected: remove the authorized pending file,
+synchronize the root, then remove the authorized unselected child and synchronize
+its directory. It never rolls back a selected candidate or deletes accepted history.
+
+Standalone recovery acquires exclusive ownership; consuming recovery keeps the
+same existing writer lock. Both return a usable writer only after complete final
+replay and synchronization; errors return no handle. Failure before publication is
+reported as incomplete recovery. Once publication may have occurred, or an already
+selected candidate cannot be reconciled, the outcome is explicitly uncertain.
+Retry always revalidates under the same independent request, with no automatic
+retry loop, higher-generation guess or arbitrary cleanup.
+
+The recognized encoded-input maximum is 19,559,412 bytes, including the full
+intended child and both selectors. A separate conservative 156,508,096-byte
+per-call allowance charges payload reads and growth sentinels, including repeated
+comparisons and final replay. Neither value is a resident-memory or write-volume
+limit. Existing 4,096-block, 16-MiB MRB2 and cumulative state/configuration limits
+remain unchanged. Cooperative Linux ownership and trusted local owners/parents
+remain explicit assumptions; these checks are not a power-loss certification.
+
+Missing/corrupt selected markers, corrupt accepted history, unexplained artifacts,
+multiple residual children and interrupted initialization remain outside recovery.
+The caller's request has no persistence or operator-selection UI in this slice.
+The new recovery example uses only public fixtures and newly owned temporary paths;
+all eight prior reference checks remain required and the example count becomes nine.
+
+**Next is MB-03D: canonical development fork-choice specification and implementation**,
+before durable membership-aware branch replacement and peer reconstruction.
+MB-03 remains in progress; the persistent V2 node/API and final human consensus
+remain subsequent work. No monetary formula, mint/grant/nonzero fee/reward API,
+founder privilege, marketing reserve, private biometric matching or actual-device
+support is added. D-01/D-04 remain open and Gate A/B remain unmet.

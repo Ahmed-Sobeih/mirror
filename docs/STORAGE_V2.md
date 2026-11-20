@@ -12,8 +12,10 @@ replacement, automatic repair, global fork-choice or V2 node-daemon API.** Those
 capabilities are outside this frozen profile. The separate
 [MB-03B append contract](STORAGE_APPEND_V2.md) now implements one-child publication,
 failure fencing and clean-state reconciliation under a distinct MSU2 profile 2.
-It does not reinterpret or upgrade an existing MSS2 store. Legacy `BlockStore` and
-node recovery are separate and unchanged; their automatic create/repair behavior
+It does not reinterpret or upgrade an existing MSS2 store. MB-03C's separately
+specified [explicit recovery](STORAGE_RECOVERY_V2.md) operates only on recognized
+one-child profile-2 staging and likewise cannot adopt or repair this profile 1.
+Legacy `BlockStore` and node recovery are separate and unchanged; their automatic create/repair behavior
 is never called by either V2 profile.
 
 ## 1. External authority and lifecycle
@@ -251,10 +253,14 @@ under continuous ownership. Its MSU2 envelope embeds these unchanged MSS2 bytes,
 and its outer generation requires independent selection. This profile 1 remains
 immutable and all of its exact bytes, APIs and limits remain unchanged.
 
-**Next MB-03C:** define explicit recovery of interrupted append staging. Pending,
-extra-tail and unexplained artifacts currently reject and remain untouched. Specify
-canonical development fork choice before branch replacement, then add durable
-membership-aware reorganization and peer reconstruction. MB-04 supplies the
-persistent V2 node/API.
+MB-03C now provides [explicit one-child staging recovery](STORAGE_RECOVERY_V2.md)
+for profile 2 under independently retained parent/candidate pins, exact child bytes
+and an explicit action. Its strict supported-state table does not apply to this
+immutable profile. Ordinary opening still rejects all staging, and unknown data
+is never automatically deleted or promoted.
+
+**Next MB-03D:** specify and implement canonical development fork choice before
+durable membership-aware branch replacement and peer reconstruction. MB-04 supplies
+the persistent V2 node/API.
 Human finality, real fingerprint/ECG admission and private matching remain later
 gates. No economics, founder privilege, fee, mint or grant is introduced here.

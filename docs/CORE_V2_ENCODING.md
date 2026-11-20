@@ -18,7 +18,9 @@ actual block authority within a bounded in-memory branch. The implemented
 reopens it through complete chain replay with independent network/checkpoint pins.
 The separate [MB-03B append profile](STORAGE_APPEND_V2.md) now adds one-child
 publication, failure fencing and clean-state reconciliation. Its MSU2 storage
-envelope does not change any MRB2 operation, header or body encoding.
+envelope does not change any MRB2 operation, header or body encoding. MB-03C adds
+[explicit interrupted-append recovery](STORAGE_RECOVERY_V2.md) using those same
+canonical bytes and independently retained parent/candidate authority.
 Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
@@ -191,6 +193,7 @@ The API boundaries are deliberately separate:
 | ChainV2 from_genesis/append/replay (MB-02C) | Pinned genesis, actual accepted branch ancestry, complete header/work/body/execution/root checks and atomic in-memory acceptance | Durable publication/recovery, fork choice/finality, network operation and real human admission |
 | StoreV2 initialize/open_writer/inspect (MB-03A) | Immutable generation-zero storage, lifetime exclusive/shared ownership, bounded exact MNM2/MRB2 reads and full replay against independent network/checkpoint pins | Continued tip publication, update/failure recovery, branch replacement, peer synchronization, V2 node operation and real human admission |
 | AppendStoreV2 initialize/append/reopen/reconcile (MB-03B) | Separate MSU2 profile, one accepted child per publication, continuous ownership, failure fencing and complete replay/resynchronization of clean externally selected states | Explicit recovery of interrupted staging, branch replacement, peer synchronization, V2 node operation, global freshness/finality and real human admission |
+| AppendStoreV2 recover_interrupted/recover (MB-03C) | Explicit Complete/RetainParent for recognized one-child staging; independent request pins/exact child; full parent/child validation; bounded reads; retained exclusive ownership and final strict replay/synchronization | Missing/corrupt selected-marker or initialization recovery, unknown artifacts, rollback of a selected child, global fork choice/finality, durable branch replacement, live V2 networking and real admission |
 
 No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
 publishes a canonical block, mines genesis, or opens a chain database. The separate
@@ -230,10 +233,13 @@ components through `ChainV2`, and does not trust a decoded state cache.
 around an unchanged MSS2 snapshot. Full accepted blocks are synchronized before
 selection publication and in-memory advancement. Failed writes fence further
 updates; clean selected states require independent generation/checkpoint pins and
-full replay/resynchronization. Unknown or partial staging is preserved and rejected.
+full replay/resynchronization. These ordinary paths preserve and reject residual
+staging. [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md) adds a separate explicit
+operation that may finish exact canonical candidate prefixes or retain the parent
+while it is still selected. Unknown bytes and unsupported states remain rejected.
+It changes no MRB2, MSS2, MSU2 or operation encoding.
 
-**Next is MB-03C:** explicit interrupted-append staging recovery, followed by
-reviewed canonical branch selection, durable membership reorganization and peer
-reconstruction. The V2 node/API remains later work; the existing node daemon and
-legacy paths have not been migrated.
+**Next is MB-03D:** canonical development fork-choice specification and implementation,
+before durable membership reorganization and peer reconstruction. The V2 node/API
+remains later work; the existing node daemon and legacy paths have not been migrated.
 Refer to CURRENT_STATUS.md for current source and acceptance evidence.

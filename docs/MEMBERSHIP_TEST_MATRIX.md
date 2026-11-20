@@ -1,15 +1,16 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MB-03B — VERIFIED_COMPONENT for bounded
-accepted-block append and clean-state reconciliation**. **MB-03 remains IN PROGRESS.**
+Current implementation checkpoint: **MB-03C — explicit interrupted-append recovery
+VERIFIED COMPONENT with exact-source CI**. **MB-03 remains IN PROGRESS.**
 These 35 rows are acceptance requirements, **not 35 passing tests**. B1–B4 and
 MB-02A/B/C are verified components; MB-02 supplies actual bounded in-memory branch
 acceptance. MB-03A adds explicit immutable-store initialization, cooperative
 ownership and complete selected-history reopening. MB-03B adds a separate append
 profile, one-child publication, failure fencing and clean-store reconciliation.
-Residual-staging repair, canonical reorganization, peer integration and the V2 node
-remain unfinished.
+MB-03C adds explicit recovery of recognized residual staging for one independently
+authorized child. Arbitrary corruption repair, canonical reorganization, peer
+integration and the V2 node remain unfinished.
 
 Historical counts and exact-source CI remain in sections 3–9: B1 added 31 cases,
 B2 39, B3 51, B4 69, and MB-02C added 61 to reach its **523-test baseline**. Those
@@ -31,9 +32,19 @@ and full job logs inspected. Section 11 and [CURRENT_STATUS.md](../CURRENT_STATU
 record that source evidence separately from later documentation-head checks.
 Neither local results nor historical green runs establish a newer head's CI.
 
-**Next implementation is MB-03C:** explicit residual-staging recovery. Canonical
-development fork choice must precede durable membership-aware reorganization and
-peer reconstruction. No global freshness, human finality, biological deduplication,
+MB-03C adds **49 test functions: 39 integration, nine private failure and one
+additional real-process case**. Local Rust 1.98.0 gates passed **707 workspace
+tests**, the same **three documentation tests**, **194 storage release tests**,
+all **eight independent references** and **nine examples**, with one ignored
+subprocess helper. Source `e8302052ab724f59ff4a212dc64aea9575a6d4b3` is published;
+exact-source push CI **44748718086** (job **136330677456**) and PR CI **44748724632**
+both passed. The full push log and exact checkout were inspected. Section 12
+records this implementation evidence separately from historical MB-03B results
+and later documentation-head checks.
+
+**Next is MB-03D:** canonical development fork-choice
+specification and implementation, before durable membership-aware branch replacement
+and peer reconstruction. No global freshness, human finality, biological deduplication,
 live economy or launch gate is inferred from these storage components.
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
@@ -48,42 +59,43 @@ root composition and the explicit MPS2 index extension:
 and complete replay: [CHAIN_V2.md](CHAIN_V2.md). Immutable selected storage,
 filesystem assumptions and publication boundaries: [STORAGE_V2.md](STORAGE_V2.md).
 Accepted-child publication, generation selection, fencing and clean-store
-reconciliation: [STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md).
+reconciliation: [STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md). Explicit one-child
+residual recovery: [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md).
 
 ## 1. Rule-to-assertion map
 
 | Case | Required assertion / proposed acceptance name | Owner and current coverage |
 |---|---|---|
-| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; MB-03A/B refuse legacy/foreign directories and cross-profile reinterpretation, with no implicit init, migration or cleanup; live V2 node integration remains MB-04 |
-| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; MB-03A/B require independently selected C and exact genesis during metadata decode and complete disk replay |
+| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; MB-03A/B refuse implicit adoption and MB-03C explicit recovery rejects missing, empty, legacy or immutable-profile stores; live V2 node integration remains MB-04 |
+| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; MB-03A/B/C require independently selected C and exact genesis, and recovery requires both complete parent/candidate checkpoints |
 | T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction, B3 ordinary seed runtime rights and MB-02C all-proof manifest construction/decoding VERIFIED; production bootstrap/admission policy remains gated |
 | T04/R04 | `v2_operations_have_exact_lengths`: prefix131; signed Transfer243/Enroll291/Approve227/Withdraw227; reject all truncations, versions/kinds, oversized/trailing bytes before mutation. | B2 membership plus MB-02A Transfer/unified codecs VERIFIED COMPONENTS; all four lengths and preserved membership bytes covered |
 | T05/R05 | `every_signed_field_is_bound`: altered kind/context/anchor/window/key/sequence/evidence/profile/target invalidates signature; malformed keys/signatures do not panic. | B2 membership plus MB-02A Transfer authentication, domain separation and strict signatures VERIFIED COMPONENTS |
 | T06/R06 | `approval_targets_complete_request`: changed request/window changes enrollment ID; approval cannot authorize it; exact request/key/evidence reuse rejected after active/revoked/expired outcomes. | B2 complete-request ID/signatures and B3 retained ID/key/evidence reuse rejection VERIFIED; fresh biometric duplicates remain external |
 | T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership, MB-02B account/member sequence separation and overflow checks, and MB-02C actual-block execution/replay of those rules VERIFIED IN MEMORY |
 | T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02B arithmetic/self-transfer/retained-zero rules and MB-02C actual-block conservation of explicit synthetic supply VERIFIED IN MEMORY; no mint/reward API or final economy |
-| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | Accepted ChainV2 ancestry and complete disk replay retain wrong-fork anchor rejection; MB-03B validates each complete child before publication; global canonical selection and durable reorganization remain later MB-03/06 work |
+| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | Accepted ChainV2 ancestry and complete replay retain wrong-fork anchor rejection; MB-03B/C validate the exact complete child through ordinary acceptance before publication/recovery; canonical development selection is MB-03D |
 | T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2/MB-02A height-window boundaries and B3/MB-02B execution checks retained through MB-02C acceptance; T11 covers record expiry; strict parent header timestamps are separate from operation lifetimes and use no local clock |
-| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | Prior expiry/tombstone rules retained; MB-03B appends an actual empty expiry block and reopens the exact resulting state; incomplete residual staging deliberately rejects and remains MB-03C repair work |
+| T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | Prior expiry/tombstone rules retained; MB-03B appends/reopens an actual empty expiry block, and MB-03C explicitly recovers that child with complete state equality; unknown residual shapes still reject |
 | T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 self-only ownership/status and authorization rules retained by actual MB-02C mixed execution and membership-fork replay; no founder override, recovery or death policy is added |
 | T13/R13 | `ordered_block_has_one_transition_result`: reject Approve before unknown Enroll; stage valid ordered pair; order committed, never decoder/executor sorted. | B3/B4 and MB-02A/B ordering retained; MB-02C accepts only the exact full-body commitment and executes original mixed order with first-failure precedence VERIFIED IN MEMORY |
 | T14/R14 | `newly_activated_member_cannot_approve_in_same_block`: A->B then B->C in same block rejects; B may approve only after active in committed parent. | B3/MB-02B parent-eligibility rule retained; MB-02C supplies actual accepted parent ancestry to the shared executor; no deployed human-consensus claim |
 | T15/R15 | `same_block_withdrawal_excludes_earlier_approval`: withdrawn A's earlier approval cannot cause end activation; reverse order approval rejects; already-active targets not cascade-revoked. | B3/MB-02B reviewer-survival/no-cascade rules retained; MB-02C actual membership-fork vectors show withdrawn earlier reviewers cannot activate a pending target |
 | T16/R16 | `activation_order_is_canonical`: multiple requests activate by original canonical inclusion position identically on replicas; ordinal once, no reuse; overflow rejects whole batch. | B3/B4 and MB-02B ordering/index rules retained; MB-02C independent actual-block/replay vectors preserve full mixed inclusion positions and activation metadata; global canonical choice/reorg publication remains MB-03/06 |
-| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | Executed membership/combined-root checks retained; MB-03A/B complete replay recovers all counters, and each successful append/reopen compares complete ChainV2 state without cached authority |
-| T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | Prior final-state high-water and genuine distinct membership branches retained; MB-03B append/reopen preserves the selected branch counters; canonical replacement and orphan-state recovery remain later MB-03 work |
-| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | Prior complete staged/accepted-chain rollback retained; MB-03B invalid children leave files and memory unchanged, while disk discrepancies or update errors fence further state access and writes |
-| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | B1–B4/MB-02A/B budgets retained; MB-02C prepare/append/replay enforce full-body preflight and finite aggregate branch count/bytes/state-work charges before staging; no unbounded history or availability guarantee |
-| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior codec limits retained; MB-03B exact MSU2/MSS2, manifest, per-file/count/aggregate bounds apply before block payload reads; residual files reject; network frame/stream/session limits remain later MB-03/04 work |
-| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | Permanent history, used identifiers and capacity accounting survive MB-03A/B complete replay and accepted-child append; no pruning, cache-restored counter or cap bypass |
+| T17/R17 | `record_counters_and_root_agree`: recompute active/pending/activations/indexes; change status/sequence/approval/counter/ordinal changes root or rejects invariant. | Executed membership/combined roots retained; full selected replay and MB-03C final replay reconstruct complete ChainV2 accounts, membership and resource counters without authoritative caches |
+| T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | Prior final-state high-water and genuine membership forks retained; MB-03C requires the independently selected branch even when account balances match; canonical branch replacement and orphan-state recovery remain later MB-03 work |
+| T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | Prior staged/accepted rollback and MB-03B invalid-child rejection retained; MB-03C validates both parent and candidate before mutation and returns complete selected state or no usable handle after failure |
+| T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | Prior execution/replay count, byte and state-work bounds retained; MB-03C counts the full intended child before payload reads even when only a prefix exists, and never prunes accepted history to restore capacity |
+| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior exact codecs remain frozen; MB-03C bounds recognized residual names, lengths, complete parent-plus-child bytes and repeated payload reads including sentinels; network session budgets remain later work |
+| T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | Permanent history and identity reservations survive complete MB-03A/B/C replay, append and explicit residual recovery; only authorized unselected staging may be removed, with no pruning or counter/cache bypass |
 | T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A bytes/hashes and MB-02B roots now joined by MB-02C exact genesis, configuration/height/parent/time/target/work/body/ledger-root acceptance VERIFIED IN MEMORY |
 | T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment retained; MB-02C recomputes it during actual acceptance and rejects wrong commitments despite valid work; global branch choice is separate |
 | T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | MB-02B canonical component/combined roots plus MB-02C accepted-header root comparison and independent actual-block vectors VERIFIED IN MEMORY; genuine forks with equal accounts and different membership commit differently |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 replay plus independent C/genesis/height/tip/root/generation pins reconstructs the selected clean store; append memory advances only after publication; global freshness and automatic residual-staging repair are not implemented |
-| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | Prior mixed execution and false-root rollback retained; MB-03B rejects an invalid complete child before disk writes and fences ambiguous publication without exposing old memory as durable selection |
-| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | MB-03A/B selected restart pins network and complete chain; MB-03B additionally pins local generation and resynchronizes validated clean files before writer reuse; stale pins/foreign forks reject and no global latestness is inferred |
-| T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | PARTIAL: MB-03A initial boundaries retained; MB-03B adds 11 append boundaries, eight reconciliation boundaries via two entry paths, nine initialization boundaries and partial artifact/fence tests; complete clean old/new state or explicit rejection; residual repair/reorganization and all physical failure modes remain open |
-| T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | MB-03A five substantive ownership cases retained plus three real append-profile process cases, bounded/corrupt-input tests and shared read-only inspection; one helper ignored standalone; hostile same-user races and active-writer status API remain outside scope |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 replay and independent C/genesis/height/tip/root/generation pins reconstruct the selected store; MB-03C final strict replay follows explicit recovery; global freshness and implicit automatic repair remain absent |
+| T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | Prior mixed execution and false-root rollback retained; MB-03C accepts the exact child before either action, preserves rejected unrelated bytes and does not expose a partial ledger through an error |
+| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | Selected restart/recovery pins network, complete chain and local generation; MB-03C additionally requires retained adjacent parent/candidate pins and exact child, not authority inferred from pending bytes |
+| T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | PARTIAL: retained MB-03A/B boundaries plus MB-03C completion, retention, repeated interruption, already-selected resync and original-append failure scenarios; complete expected state or rejection; arbitrary corruption, durable reorganization and physical failure guarantees remain open |
+| T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | Five original and three append-profile ownership tests retained; MB-03C adds a real recovered-writer process case, same-lock consuming recovery, safe managed-file checks and explicit input/read bounds; one standalone helper ignored; hostile same-user races and active-writer status API remain outside scope |
 | T31/R31 | `network_versions_do_not_fallback`: MIR2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | MB-03/04 PLANNED |
 | T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | MB-04 PLANNED |
 | T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 and MB-02A use fixed signed fields, no archive/URL schema; real custody/canary/privacy acceptance remains MB-08/09, fixed fields not a privacy proof |
@@ -519,7 +531,7 @@ consensus, economics, biometric matching, device recognition and Gate A/B remain
 unmet. Local passing tests are neither exact-source CI evidence nor an external
 security audit; use CURRENT_STATUS for the separately verified publication state.
 
-## 11. MB-03B accepted-child append, fencing and clean-store reconciliation
+## 11. Historical MB-03B accepted-child append, fencing and clean-store reconciliation
 
 Published implementation
 [`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c),
@@ -633,9 +645,137 @@ not total resident memory; the unchanged 4,096-block and cumulative state-work c
 also apply. Deployment still assumes cooperative Linux locks, trusted parent/local
 owner, stable root and correct atomic rename/synchronization semantics.
 
-**Next MB-03C:** an explicit reviewed repair procedure for residual staging. This
+**At the MB-03B checkpoint, next was MB-03C:** an explicit reviewed repair procedure for residual staging. This
 slice deliberately preserves and rejects those artifacts; it has not solved their
 availability or automatic recovery. Canonical fork choice, durable membership-aware
 reorganization and peer reconstruction follow under later MB-03 work. T29 remains
 partial in that broader scope, T31–T32 remain open, and no public-mainnet, biological
 uniqueness, anonymity, real-device or final human-consensus guarantee is inferred.
+
+## 12. MB-03C explicit interrupted-append recovery
+
+**VERIFIED COMPONENT on Rust 1.98.0 with exact-source CI.** The tested implementation
+is source commit `e8302052ab724f59ff4a212dc64aea9575a6d4b3`, tree
+`dc9eb2c02436f0952ac54593ba8d02317e9d9314`, published with an exact local tree match.
+Exact-source [push run 44748718086](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086)
+(job `136330677456`) and [PR run 44748724632](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632)
+both completed successfully at that source. The full 216,857-byte push log was
+inspected: exact checkout SHA; workspace **707 passed / one ignored**; **three
+doctests**; release core **121**, personhood **237 including the same three
+doctests**, state **49**, consensus plus chain **80**, and storage **194 / one
+ignored**; all **eight references**, **nine examples** and the audit step passed.
+These are reruns of the same assertions, not additional unique tests. These source
+runs do not establish a later documentation head's CI result.
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) owns current publication evidence; this
+matrix maps the new assertions.
+
+The [recovery contract](STORAGE_RECOVERY_V2.md) defines the explicit request and
+supported residual states. No format, profile, hash domain or prior fixture changes.
+The request owns independent adjacent parent/candidate checkpoints and the exact
+child. Its construction is structural; both actions still replay the parent and
+validate the child through actual ChainV2 acceptance. Empty/common prefixes do not
+prove provenance: the trusted external request authorizes the two named paths.
+Unknown, mismatched and unsupported artifacts remain preserved and rejected.
+
+There are **49 new unique test functions: 39 integration, nine private fault and
+one additional real-process ownership case**. Local execution passed **707 workspace
+tests (658 retained + 49 additions)**, the same **three documentation tests** and
+one intentionally ignored subprocess helper. Release gates passed **194 storage**,
+**121 core**, **234 personhood** plus the same three documentation tests, **49
+state**, **23 consensus** and **57 chain** tests. All **eight independent reference
+checks** and **nine examples** passed. Release reruns, doctest reruns and per-test
+parameterized scenarios are not additional unique tests. A byte comparison also
+confirmed **99 retained source, dependency, reference and fixture files unchanged**.
+
+In the table, `integration` means
+[recovery_v2.rs](../crates/mirror-storage/tests/recovery_v2.rs), `faults` means
+[append/recovery_tests.rs](../crates/mirror-storage/src/v2/append/recovery_tests.rs),
+and `process` means
+[storage_lock_v2.rs](../crates/mirror-storage/tests/storage_lock_v2.rs).
+
+| Requirement | Actual named test functions | Assertion and precise boundary |
+|---|---|---|
+| T01/T28 explicit recovery boundary | integration: `recovery_never_initializes_or_adopts_missing_empty_legacy_or_immutable_stores`, `ordinary_open_and_reconcile_remain_strict_until_explicit_recovery_is_requested` | Recovery is separate from initialization, migration and normal strict opening; immutable profile 1 is never adopted |
+| T02/T28 independent request authority | integration: `each_parent_and_candidate_pin_is_checked_before_mutation`, `identity_disagreement_cannot_create_or_initialize_a_missing_root`, `request_relationship_rejects_skipped_height_or_generation_and_wrong_child` | Independent complete endpoints and exact child/header relationships; checked adjacency/bounds; bad selection does not mutate or create a store |
+| T19/T27 full candidate acceptance | integration: `full_candidate_validation_rejects_valid_work_with_a_false_ledger_root`, `full_candidate_validation_rejects_incorrect_work_target_before_any_cleanup` | Both actions require actual ChainV2 execution/acceptance before mutation; valid work alone cannot authorize cleanup |
+| T29 completing absent/partial/full child | integration: `complete_can_materialize_an_independently_authorized_missing_child`, `complete_finishes_empty_and_partial_child_prefixes_without_changing_the_prefix`, `complete_publishes_a_full_child_without_a_pending_selector`, `complete_finishes_empty_partial_and_full_pending_selector_prefixes` | Only exact canonical missing suffixes are written, with complete child required before pending selector; original accepted files preserved |
+| T29 retaining the selected parent | integration: `retaining_a_clean_parent_is_idempotent_and_does_not_advance_generation`, `retain_parent_removes_only_the_named_matching_child_prefix`, `retain_parent_cleans_matching_pending_then_child_and_can_be_retried` | Explicit cleanup removes only independently authorized unselected staging, pending before tail; parent bytes/state and generation remain unchanged |
+| T28/T29 already-selected candidate | integration: `repeating_complete_after_new_selection_resynchronizes_without_a_second_advance`, `retain_parent_never_rolls_back_an_already_selected_candidate` | Complete is idempotent after selection; RetainParent cannot silently roll back selected history |
+| T11/T17/T22 complete ledger recovery | integration: `recovered_child_can_append_and_reopen_with_all_state_and_resource_counters`, `recovered_empty_block_applies_expiry_without_changing_account_bytes` | Whole ChainV2, account/membership bytes, permanent history and resource counters agree; recovered writer accepts a subsequent real child |
+| T18/T25 genuine membership branch | integration: `exact_independent_request_selects_membership_history_even_when_accounts_match`, `a_complete_membership_fork_is_not_overwritten_or_discarded_by_another_request` | Actual distinct membership histories with identical accounts remain distinct; other valid branch bytes are not repair authority |
+| T28 generation and stale intent | integration: `generation_tracks_append_count_independently_of_initial_height`, `a_stale_request_cannot_recover_after_a_later_successful_append` | Local publication generation is separate from initial height; a stale request cannot repair a later selection |
+| T29 exact-prefix and supported-shape checks | integration: `nonprefix_child_and_pending_files_are_preserved_for_both_actions`, `extra_trailing_bytes_do_not_become_authorized_prefix_data`, `pending_selector_with_missing_or_partial_child_is_unexplained_and_rejected`, `new_selection_with_pending_or_incomplete_child_is_not_silently_repaired` | Mismatched bytes and unsupported orderings reject with files intact; no truncation, best-effort repair or hole filling in selected history |
+| T21/T28 unknown/corrupt history | integration: `unknown_root_names_extra_heights_and_noncanonical_block_names_are_preserved`, `missing_or_corrupt_selected_history_cannot_be_hidden_by_good_staging`, `missing_partial_corrupt_or_foreign_selected_marker_is_preserved_and_rejected` | Unknown names, extra history, damaged parent/selection and foreign formats reject; pending metadata never substitutes for selected-history authority |
+| T20/T21 bounded intended bytes and metadata | integration: `sparse_oversized_residual_files_are_rejected_without_truncation_or_completion`, `combined_parent_and_candidate_size_is_checked_before_invalid_block_payloads_are_read`, `a_checksum_correct_selected_byte_total_must_match_the_replayed_history` | Limits apply to full intended candidate and aggregate history before block payload access; checksum-correct selected byte totals must equal re-derived metadata |
+| T30 safe managed files | integration: `symlinked_roots_directories_selected_files_and_residuals_are_never_followed`, `hardlinked_selected_files_and_residuals_keep_all_aliases_on_rejection`, `directory_in_place_of_a_managed_file_is_not_deleted_or_replaced` | Reject unsafe types/links before completion or deletion; preserve aliases and unexpected directories |
+| T29/T30 ownership and consuming API | integration: `a_live_writer_or_shared_inspectors_exclude_static_recovery`, `consuming_recovery_keeps_the_stable_root_and_returns_a_writer`, `consuming_recovery_rejects_read_only_or_unrelated_live_checkpoint_and_releases_lock`, `consuming_recovery_can_retain_parent_and_then_accept_the_original_child` | Same root/held exclusive descriptor through consuming recovery; read-only or unrelated handles reject; error returns no writer; accepted parent can append afterward |
+| T29 completion interruptions | faults: `completion_retries_after_each_boundary_from_absent_partial_and_pending_shapes` | 28 boundaries from each of three starting shapes, 84 iterations; parent files retained, uncertainty category correct, same request recovers and accepts another child |
+| T29 retention and already-selected interruptions | faults: `retain_parent_retries_after_each_cleanup_and_resynchronization_boundary`, `already_selected_candidate_sync_failures_retry_without_another_generation` | 21 retention boundaries and 16 already-selected synchronization boundaries; repeated independent retry reconstructs exact parent/candidate without a second generation advance |
+| T29/T30 original failures and same-lock recovery | faults: `every_original_append_failure_recovers_without_releasing_live_ownership` | Both actions after 11 original append boundaries; readers/writers remain excluded at each recovery callback; RetainParent rejects after candidate publication |
+| T29 observed changes before mutation/publication | faults: `changed_root_marker_or_unknown_layout_at_validation_is_not_mutated`, `changed_prefixes_are_never_overwritten_or_deleted_after_validation`, `postwrite_or_prepublication_changes_cannot_be_selected` | Changed root/marker/layout and changed intended bytes return no writer; altered bytes remain intact and the candidate is not selected |
+| T21/T30 opened alias and read allowance | faults: `descriptor_alias_created_after_open_blocks_prefix_completion`, `recovery_read_allowance_charges_sentinels_before_touching_payload` | A new hardlink after opening rejects before extension; read meter charges payload allowance plus sentinel before payload access and cannot reset on exhaustion |
+| T30 real recovered-writer ownership | process: `recovered_child_process_keeps_exclusive_ownership_until_drop_or_termination` | Independent child holds the recovered writer; Drop and termination release descriptor ownership, followed by checked reopen and another accepted append; existing fork isolation retained |
+
+### Failure scenarios versus test counts
+
+The completion test iterates **28 boundaries × three initial layouts = 84 scenarios**:
+no residual child, a partial authorized child, and a complete child with partial
+pending selector. Boundaries cover validation and parent prerequisite synchronization;
+opening, completing and synchronizing child/selector files; block-directory sync;
+publication attempt, selector rename and root sync; and final clean replay plus
+all selected-file/directory synchronization. Every iteration checks unchanged parent
+files, the error's publication uncertainty, exact recovered state and a subsequent
+accepted append.
+
+Retention iterates **21 boundaries**, including pending deletion/root sync before
+child deletion/block-directory sync, then final strict replay/resynchronization.
+The already-selected path iterates **16 boundaries** and cannot increment the
+candidate generation again. Original failed appends are exercised at **11 boundaries
+with both actions**; the two postpublication RetainParent cases must reject. These
+iterations are scenarios inside four private test functions, not hundreds of unique
+passing tests or proof that every possible operating-system failure was simulated.
+
+Other private tests deliberately change the root, selected marker or layout after
+validation; alter a prefix before extension/deletion; alter prepared bytes after
+writing or immediately before publication; introduce a hardlink after opening; and
+exhaust the read allowance before a bounded payload read. No rejected byte mismatch
+is overwritten, no unknown file is deleted and no partial ledger handle is returned.
+The actual child-process test retains the existing parent-test mutex isolation;
+it uses ordered pipes and Drop/termination, not timing sleeps or production retries.
+
+### Bounds, preserved bytes and residual scope
+
+Distinct recognized encoded input is at most **19,559,412 bytes**: manifest plus
+complete parent/candidate MRB2 history plus two 280-byte selectors. The full intended
+child counts even when only a prefix exists. The separately enforced repeated-read
+allowance is **156,508,096 charged bytes**, including sentinel reads and conservative
+charges for final strict loading and selector comparisons. These are not total
+resident-memory, actual-I/O, write-volume or metadata-operation limits. The unchanged
+4,096-block, 16-MiB history and 1,048,576 cumulative state/configuration-item caps
+remain enforced; no cache restore, pruning or capacity reset is introduced.
+
+Existing independent MRB2/MSU2 reference bytes supply expected blocks and selectors;
+there is no new serialized format to redefine. The
+[recovery_v2_demo](../crates/mirror-storage/examples/recovery_v2_demo.rs) uses only
+its own synthetic temporary directories and public fixtures. It demonstrates
+explicit completion and retention, clean reopening and continued accepted append,
+not a V2 daemon, real user database or biometric process.
+
+Normal open/inspection/clean reconciliation remains strict. Recovery refuses
+unknown files, nonprefix/corrupt bytes, missing/corrupt selected markers or parent
+history, pending data without a complete child, multi-child leftovers and interrupted
+initialization. A selected candidate cannot be rolled back by RetainParent. The
+caller must retain independent intent or explicitly reestablish trusted authority;
+a checksum or matching common prefix cannot supply it.
+
+Injected errors and fixture-created prefixes do not simulate torn kernel writes,
+physical power loss, firmware behavior or every syscall failure. Local cooperative
+Linux ownership, trusted owners/parents and correct sync/rename behavior remain
+assumptions. WSL/DrvFS, native Windows and network filesystems are not certified.
+
+**MB-03 remains IN PROGRESS. Next: MB-03D canonical
+development fork-choice specification and implementation**, before durable
+membership-aware branch replacement and peer reconstruction. T29 remains partial
+in that broader scope, T31–T32 remain open, and Gate A/B remain unmet. No new
+monetary rule, founder/marketing entitlement, real biometric intake, biological
+uniqueness, anonymity or human-finality guarantee follows from this component.

@@ -106,8 +106,9 @@ MRB2 replay is implemented by MB-02C's `ChainV2`. The separate implemented
 immutable selected history, with independent network/checkpoint pins. Continued
 tip updates now use the separate [MB-03B append profile](STORAGE_APPEND_V2.md),
 which stages complete children and reconciles clean selected states by full replay.
-Explicit interrupted-staging recovery remains MB-03C. The previous diagnostic
-replay budgets remain unchanged.
+The [MB-03C recovery operation](STORAGE_RECOVERY_V2.md) likewise replays the complete
+parent and accepts the exact requested child before completion or retention under
+independent request authority. The previous diagnostic replay budgets remain unchanged.
 
 ## 3. Execution and error order
 
@@ -256,10 +257,16 @@ access and further writes; a clean selected state must be independently pinned,
 fully replayed and resynchronized before a writer can resume. Cached account,
 membership, population or resource counters never become recovery authority.
 
-**Next is MB-03C:** explicit recovery of interrupted append staging, whose pending
-or unexplained artifacts are currently preserved and rejected. Reviewed canonical
-branch selection, durable membership reorganization and peer reconstruction follow;
-the V2 node/API remains later work. In-memory acceptance and
-bounded storage checks are not universal crash-safety or human-consensus
+The [MB-03C recovery contract](STORAGE_RECOVERY_V2.md) adds explicit recovery of
+recognized one-child staging. It requires independent parent/candidate checkpoints,
+the exact complete child and Complete or RetainParent. Both actions execute the
+same complete ledger rules before mutation, and final strict replay/synchronization
+must reproduce every account, membership and resource counter. Unknown artifacts
+remain preserved and rejected; a selected child cannot be rolled back by retention.
+
+**Next is MB-03D:** canonical development fork-choice specification and implementation,
+before durable membership reorganization and peer reconstruction. The V2 node/API
+remains later work. In-memory acceptance and bounded storage checks are not
+universal crash-safety or human-consensus
 guarantees. Private matching, biometric capture, privacy and real admission remain
 later gates.

@@ -9,11 +9,13 @@ Mirror is a Rust development blockchain exploring human-based participation.
 to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
 criteria. **MB-01B and MB-02A/B/C are verified components:** configuration, membership,
-atomic ledger execution and actual V2 block acceptance/replay. **MB-03A/B are
+atomic ledger execution and actual V2 block acceptance/replay. **MB-03A/B supply
 verified storage components:** immutable selected-chain initialization, lifetime
-ownership, checked reopening and bounded one-block append publication with failure fencing.
-Next is **MB-03C: explicit recovery of interrupted append staging**, followed by
-canonical branch selection, durable membership reorganization and peer reconstruction.
+ownership, checked reopening and bounded one-block append publication with failure
+fencing. MB-03C adds explicit recovery of one independently authorized interrupted
+append; current source and verification evidence are recorded below.
+Next is **MB-03D: canonical development fork choice**, followed by durable membership
+reorganization and peer reconstruction.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -62,8 +64,8 @@ final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.
 and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
 authority; a caller-supplied hash alone is not proof of actual block validity.
 Actual V2 validation and storage now exist in the separate layers below. Bounded
-tip updates are implemented; explicit staging recovery, peer messages and rewards
-remain later work.
+tip updates and explicit recovery of recognized one-child staging are implemented;
+V2 peer messages and rewards remain later work.
 
 `mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
 MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
@@ -95,29 +97,44 @@ discover global freshness. No decoded state cache becomes authority.
 
 An append I/O failure fences further writes and ordinary state access. Consuming
 reconciliation fully replays and resynchronizes a clean selected history before
-returning a writer. Pending selectors, extra tail blocks and unexplained artifacts
-are preserved and rejected; their explicit recovery is the next slice. See the
+returning a writer. Normal opening and reconciliation preserve and reject residual
+staging. The new explicit recovery API accepts independently retained parent and
+candidate checkpoints, the exact child and an action. It can complete recognized
+candidate prefixes or retain the still-selected parent by removing only authorized
+staging. It never rolls back an already selected candidate or repairs unexplained
+bytes. Full parent/child execution and final replay/synchronization remain required.
+See the
 [immutable storage contract](docs/STORAGE_V2.md) and
 [append storage contract](docs/STORAGE_APPEND_V2.md) for exact publication boundaries,
-Linux/cooperating-process assumptions and bounded-read rules. No automatic migration,
-repair, branch replacement or live V2 daemon is provided.
+Linux/cooperating-process assumptions and bounded-read rules. The separate
+[recovery contract](docs/STORAGE_RECOVERY_V2.md) specifies the supported failure
+states, caller authority, suffix-only completion, parent retention and finite read
+allowance. No automatic migration, implicit repair, branch replacement or live V2
+daemon is provided.
 
-Latest implementation source:
-[`ecf5e76`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c).
-Local verification
-passed **658 workspace tests** (**70 new**), with **one ignored subprocess helper**,
-and **3 compile-fail doctests**. Release reruns passed core **121**, personhood
-**234** plus the same **3** doctests, state **49**, consensus **23**, chain **57** and
-storage **145** tests. All **eight independent references** and **eight examples**
-passed locally. Exact-source [push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203)
-and [PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
-both passed. Full push-job logs confirmed the exact published checkout and every
-gate. [CURRENT_STATUS.md](CURRENT_STATUS.md) separates source verification from
-later documentation-head CI. Prior MB-03A acceptance remains in the master plan;
-reruns are not additional unique tests.
+The MB-03C implementation is published at
+[`e8302052ab724f59ff4a212dc64aea9575a6d4b3`](https://github.com/Ahmed-Sobeih/mirror/commit/e8302052ab724f59ff4a212dc64aea9575a6d4b3),
+with source tree `dc9eb2c02436f0952ac54593ba8d02317e9d9314`, matching the locally
+tested tree. Local gates passed **707 workspace tests** (658 retained + 49 new),
+three retained compile-fail doctests, all required release suites, **eight
+independent references** and **nine synthetic examples**. The release storage
+suite passed 194 tests. Release reruns and scenarios inside a test are not
+additional unique tests. Recovery adds no format or hash domain.
 
-Both storage examples create temporary synthetic stores. The append demonstration
+Exact-source
+[push CI 44748718086](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086)
+and [PR CI 44748724632](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632)
+both **SUCCEEDED**. The complete push-job log confirmed checkout of the source
+commit above and every required verification step. **MB-03C is a verified bounded
+recovery component.** [CURRENT_STATUS.md](CURRENT_STATUS.md) records the detailed
+acceptance evidence separately from later documentation heads. The master plan
+retains historical MB-03A/B acceptance.
+
+All three storage examples create temporary synthetic stores. The append example
 adds accepted mixed and empty blocks, then reopens and checks the complete state.
+The recovery example constructs known partial-write shapes, completes an append,
+repeats it idempotently, retains another parent, and then performs an ordinary next
+append. These are controlled software scenarios, not physical power-loss tests.
 They do not start a persistent V2 network; that integration remains MB-03/04.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
@@ -164,6 +181,7 @@ cargo run -p mirror-state --example ledger_v2_demo --locked
 cargo run -p mirror-chain --example chain_v2_demo --locked
 cargo run -p mirror-storage --example storage_v2_demo --locked
 cargo run -p mirror-storage --example append_v2_demo --locked
+cargo run -p mirror-storage --example recovery_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

@@ -9,10 +9,12 @@ belongs to CURRENT_STATUS.md and MASTER_PLAN.md, not to this format specificatio
 
 The scope is explicit initialization, one accepted child per append, checked
 reopening, read-only inspection and reconciliation of a complete selected store.
-It does not replace branches, repair residual staging, choose global finality,
-automatically adopt an immutable store, or launch a V2 network daemon. A failed
-append may leave a store that this slice deliberately refuses to reopen. Its files
-are preserved for a later explicitly specified repair operation.
+These ordinary entry points do not replace branches, repair residual staging,
+choose global finality, automatically adopt an immutable store, or launch a V2
+network daemon. A failed append may leave a store that ordinary opening refuses.
+MB-03C now supplies a separate explicit recovery API under
+[STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md); this does not alter any format,
+append ordering or strict clean-state opening/reconciliation rule below.
 
 ## 1. Selection authority and compatibility
 
@@ -293,14 +295,15 @@ Read-only inspection does not perform this durability preparation.
 | Complete old clean selection; caller selects old checkpoint | Full validation and writer resynchronization may return the old store |
 | Complete new clean selection; caller selects candidate checkpoint | Full validation and writer resynchronization may return the new store |
 | Marker and supplied generation/branch pins disagree | Reject; never infer a replacement expectation from disk |
-| Old marker plus extra new-height block or pending marker | Reject and preserve; staging repair is not implemented here |
+| Old marker plus extra new-height block or pending marker | Reject and preserve; use the separate explicit recovery contract only with independent request authority |
 | New marker with missing, partial or invalid required data | Reject; never expose a mixed or partial ledger |
 | Foreign, legacy, unknown or noncanonical layout | Reject and preserve; no automatic adoption or deletion |
 
 In particular, a prepublication interruption can make the old otherwise-valid
-prefix unavailable through this strict opening API until a future explicit repair
-procedure resolves the residual artifacts. This availability limitation is
-intentional and must not be described as automatic crash recovery.
+prefix unavailable through this strict opening API. MB-03C's separate explicit
+operation can resolve only the authorized states specified in its
+[recovery contract](STORAGE_RECOVERY_V2.md). Unsupported or unexplained data still
+rejects. None of these ordinary entry points performs automatic crash recovery.
 
 ## 8. Verification scope and remaining work
 
@@ -319,11 +322,14 @@ references, examples and tests remain required gates. Injected errors and proces
 ownership checks are not torn-write, filesystem power-loss or disk-firmware tests,
 nor an external security audit. Exact results are recorded in the checkpoints.
 
-Remaining storage work includes explicitly authorized partial-staging repair,
-canonical development fork choice, durable membership-aware branch replacement,
-and peer reconstruction. These need separately reviewed selection, publication,
-retention and recovery rules. MB-03 remains in progress after this append slice;
-MB-04 supplies the persistent V2 node, pool, wallet and operator interfaces.
+MB-03C adds bounded explicit completion/retention of one independently authorized
+append, using the unchanged selectors and full ChainV2 execution. It does not
+recover missing/corrupt selected markers, interrupted initialization or arbitrary
+unknown data. **Next is MB-03D: canonical development fork choice**, before durable
+membership-aware branch replacement and peer reconstruction. Those transitions
+need their own selection, publication, retention and recovery rules. MB-03 remains
+in progress after these components. MB-04 supplies the persistent V2 node, pool,
+wallet and operator interfaces.
 
 No extra founder allocation, marketing reserve, bootstrap payout, population mint,
 fee/reward formula, biometric archive, real device capture or biological uniqueness

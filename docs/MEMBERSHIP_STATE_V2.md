@@ -20,10 +20,11 @@ replay in [CHAIN_V2.md](CHAIN_V2.md). The implemented [MB-03A storage layer](STO
 initializes an immutable selected chain and reopens it through complete MRB2
 replay under independent network/checkpoint pins. The separate
 [MB-03B append profile](STORAGE_APPEND_V2.md) adds one-child publication, failure
-fencing and complete replay/resynchronization of clean selected states. Explicit
-interrupted-staging recovery, networking and reorganization remain later integration.
-Membership-only
-behavior and MPS2 bytes/domains are preserved; section 5 documents the explicit
+fencing and complete replay/resynchronization of clean selected states. MB-03C adds
+[explicit one-child staging recovery](STORAGE_RECOVERY_V2.md), preserving the same
+full execution rules. Canonical branch selection, networking and durable
+reorganization remain later integration. Membership-only behavior and MPS2
+bytes/domains are preserved; section 5 documents the explicit
 extension of MPS2's accepted inclusion-index range for mixed blocks.
 
 ## 1. State and trusted chain association
@@ -138,9 +139,12 @@ finite-branch acceptance/replay is MB-02C behavior. MB-03A storage reconstructs 
 immutable selected branch from that complete history. MB-03B's separate append
 profile advances a complete accepted child and its ledger together after durable
 publication. Neither combines counters from competing branches or replaces a branch.
-Pending or unexplained interrupted staging is preserved and rejected; its explicit
-recovery is next in MB-03C. Canonical branch selection and durable reorganization
-remain subsequent integration.
+Ordinary opening preserves and rejects interrupted staging. MB-03C's explicit
+recovery may complete one independently authorized candidate or retain its
+still-selected parent; it validates full membership state and counters for both
+before mutation and never combines branch counters. Unexplained bytes reject.
+MB-03D canonical development fork choice and durable reorganization remain
+subsequent work.
 
 ## 4. Bounded synthetic execution
 
@@ -264,8 +268,9 @@ validated block/root. B4 replay requires trusted configuration and candidate
 ancestry. MB-02C supplies actual block/root authority by executing full MRB2 history;
 MB-03A checked reopening and MB-03B append-store reopening/reconciliation use the
 same complete replay with independent network/checkpoint pins. Profile 2 also
-requires a separately retained local generation. Neither restores authoritative
-state from MPS2. A
+requires a separately retained local generation. MB-03C's explicit recovery
+additionally requires retained parent/candidate endpoints and the exact child,
+then executes both before mutation. None restores authoritative state from MPS2. A
 peer-supplied snapshot must never gain authority merely because its individual
 signatures verify.
 
@@ -323,7 +328,8 @@ checks in REPLAY_V2.md. The separate MB-02C chain API supplies actual block/root
 authority from pinned genesis and full accepted MRB2 history. It never restores
 authoritative runtime state from this cache. MB-03A reopens immutable stores and
 MB-03B reopens or reconciles clean append-store selections through that full MRB2
-replay path; neither adds a cache-to-runtime conversion.
+replay path. MB-03C's separate recovery likewise replays the parent and executes
+the exact requested child; none adds a cache-to-runtime conversion.
 
 The independent standard-library reference `tools/reference_state_v2.py --check`
 constructs five complete MPS2 snapshots from explicit synthetic record fixtures:
@@ -382,9 +388,14 @@ The separate [MB-03B append contract](STORAGE_APPEND_V2.md) publishes one accept
 child at a time, fences failed updates and requires full replay/resynchronization
 before returning a writer over a clean selected state. MSU2 generations identify
 local publications, not global freshness, identity uniqueness or consensus weight.
-**Next is MB-03C:** explicit interrupted-append staging recovery, followed by
-reviewed canonical branch selection, durable membership reorganization and peer
-reconstruction. The V2 node/API remains later work.
+The [MB-03C recovery contract](STORAGE_RECOVERY_V2.md) defines explicit completion
+or retention of recognized one-child staging under independent request authority.
+Both actions validate complete membership effects before mutation and reproduce
+the selected state through final strict replay/synchronization. Unknown artifacts
+remain rejected, and retention never rolls back an already selected child.
+**Next is MB-03D:** canonical development fork-choice specification and implementation,
+before durable membership reorganization and peer reconstruction. The V2 node/API
+remains later work.
 Diagnostic group commitments are not MRB2 operation roots, MPH2 remains
 membership-only, and filtered indices must never replace original mixed-block
 positions. Combined staging and caller-supplied hash binding alone still do not

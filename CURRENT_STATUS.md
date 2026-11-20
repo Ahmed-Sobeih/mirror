@@ -1,146 +1,139 @@
 # Current status
 
 Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md), MIRROR-PLAN-001.
-Checkpoint: **MIRROR-MB03B-001 — bounded accepted-block append and clean-state reconciliation**.
-Updated: **2026-11-20**. MB-01A, MB-01B/B1–B4, MB-02A/B/C and MB-03A remain
-verified components. MB-03B is **VERIFIED_COMPONENT — bounded append and clean-state reconciliation**.
-Local gates and exact-source CI passed. **MB-03 remains IN PROGRESS.**
-**Next: MB-03C — explicit interrupted-append staging recovery. READY.**
+Checkpoint: **MIRROR-MB03C-001 — explicit interrupted-append recovery**.
+Updated **2026-11-20**. MB-01A, MB-01B/B1–B4, MB-02A/B/C and MB-03A/B remain
+verified components. **MB-03C: VERIFIED_COMPONENT — EXPLICIT ONE-CHILD RECOVERY.**
+**MB-03 remains IN PROGRESS. Next: MB-03D — canonical development fork choice.**
 
 ## Exact source and publication
 
-Active branch: `work/personhood-register-v0.1`; [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1)
-is open and unmerged. Main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
-Published MB-03B implementation:
-[`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c).
-Source tree: `06d7c3f4fa24d96c844e2301c76c01f804151192`, identical to the locally checked source tree.
-The implementation increment changes **14 files, 3,568 insertions and 11 deletions**.
-It adds the separate append profile, contract, reference, fixtures, tests and example;
-all dependencies and prior format fixtures remain unchanged.
+Active branch: work/personhood-register-v0.1.
+[PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) is open and unmerged.
+Main remains ad7ffd120fb451fe44cf59cb909176785b33bf8f.
 
-[Source push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203),
-job `135999222947`, and [source PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
-both **SUCCEEDED**. Full push-job logs were inspected and confirmed checkout
-`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c` and every workspace, documentation,
-release, reference, example and audit gate. These are exact published-source results,
-separate from the successful local checks. Verification date: 2026-11-20.
+Published source: **e8302052ab724f59ff4a212dc64aea9575a6d4b3**.
+Tested tree: **dc9eb2c02436f0952ac54593ba8d02317e9d9314**, identical to the locally checked tree.
+Source increment: **9 files, 3,138 insertions and 1 deletion**.
+[Source push CI 44748718086](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086)
+and [source PR CI 44748724632](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632).
+Both runs **SUCCEEDED**. The full push-job log, job **136330677456**, was inspected:
+its checkout is exactly the published source above. Workspace/doctest/release counts,
+all eight references, all nine examples and the allocation/runtime-data audit passed.
 
-The previous MB-03A source `528c8912c5a50cfd2e86856d345b29d6bb79d2c5` and its
-corrected source CI remain recorded in master-plan section 18. The previously
-published handoff `61a71018ced5263c47fb85186ebcca73200e4807` passed push CI
-44639960912 (full job 135968176444 inspected) and PR CI 44639971028. New checkpoint
-documents follow the current implementation and require separate exact-head CI.
-Do not reset newer work or merge merely to publish handoffs.
+The preceding documentation checkpoint 6c53f188ef7d5052f96577ed04f5f909f56966c1
+passed push CI 44650139143 (full job 136002692765 inspected) and PR CI 44650145750.
+Current documentation follows the new implementation. Its exact-head CI is checked
+separately and recorded in PR #1; recheck that live head when continuing. Never
+confuse an older successful run with a later head.
 
-## What MB-03B implements
+## What this increment implements
 
-**A distinct appendable store.** `mirror_storage::v2::AppendStoreV2` initializes an
-absent or empty directory from a fully accepted ChainV2, appends one complete child,
-reopens with exclusive ownership, or inspects with shared ownership. The existing
-immutable StoreV2/MSS2 profile remains separate and unchanged. There is no implicit
-migration or adoption of an existing directory.
+The [recovery contract](docs/STORAGE_RECOVERY_V2.md) adds two explicit operations
+to AppendStoreV2: recover_interrupted acquires exclusive ownership of an existing
+store; consuming recover retains the same writer lock, including after an append
+has fenced that writer. Neither operation initializes or adopts a foreign store.
 
-**An explicit local generation.** MSU2 is a new 280-byte profile-2 envelope containing
-one exact unchanged 232-byte MSS2 snapshot plus a local generation and domain-separated
-checksum. Initialization begins at generation zero at any accepted height. Each
-published child advances height and generation together. An uncertain call may
-already have published that generation even though it returned an error. Generation
-never exceeds selected height and is not global freshness or consensus weight.
-Every open requires independent network pins and full chain-plus-generation selection.
+**Independent intent.** AppendRecoveryRequestV2 contains independently retained
+parent and candidate checkpoints plus the exact candidate BlockV2. The checkpoints
+must be adjacent in both height and local generation. Recovery replays every parent
+block, accepts the child through normal ChainV2 rules, and derives exact old/new
+MSU2 selectors before changing data. Complete candidate validation also applies
+when retaining the parent.
 
-**Validation before writes.** Append clones the private accepted chain and validates
-the complete proposed block through normal ChainV2 acceptance. Invalid candidates
-leave disk and memory unchanged and the handle usable. Before writing, it also fully
-replays the current selected disk history against retained expectations and compares
-the complete state with memory. Disk disagreement fences the handle.
+**Two explicit actions.** Complete fills only a missing canonical suffix of the
+authorized child or pending selector, synchronizes preparation, publishes the
+candidate and fully replays/resynchronizes the result. RetainParent is allowed
+only while the parent remains selected; it removes only matching authorized
+pending/tail files, synchronizes removal in the specified order, then replays
+and resynchronizes the parent. A selected candidate is never rolled back.
 
-**Publication before memory advancement.** Under the same exclusive directory lock,
-append creates and synchronizes the new block, synchronizes its directory, writes
-and synchronizes a pending selector, compares the old selector again, renames the
-pending selector and synchronizes the root. Only then does it publish the candidate
-chain and generation in memory and return the checkpoint. The root inode remains
-stable; no populated directory is swapped.
+**Narrow supported states.** Parent selection permits no staging, an empty/partial/
+complete child with no pending marker, or a complete child with an empty/partial/
+complete intended pending selector. Candidate selection requires its exact complete
+child and no pending marker, and allows idempotent Complete only. A pending marker
+with a missing/partial child is rejected. Missing/corrupt selected history, unknown
+files, mismatched bytes and unsupported layouts remain preserved and rejected.
 
-**Failure fencing and checked reconciliation.** A mutation error preserves artifacts
-and prevents further append. Once selector publication may have been attempted,
-the error explicitly reports uncertainty. Chain/selection/checkpoint getters reject
-while fenced; last_confirmed_checkpoint is labeled as old memory, not disk authority.
-Consuming reconcile keeps the same lock, validates an independently selected complete
-on-disk chain, synchronizes its files/directories, and returns a usable writer only
-on success. Writer reopening does the same resynchronization. Read-only inspection
-never synchronizes or changes stored bytes.
+**Caller authority is explicit.** Even an empty or common prefix cannot prove who
+created a file. Prefix matching constrains bytes; the external request authorizes
+only these named staging paths. The component does not store that request durably
+or choose it from a peer, checksum, pending marker or highest generation.
 
-**A precise recovery limit.** This slice reconciles only a complete clean selected
-layout. An extra next-height block, pending selector, partial file or unknown artifact
-is preserved and rejected. It never automatically promotes staging, deletes files,
-chooses the largest generation or substitutes stored counters for full replay.
-Resolving those interrupted preparation states is MB-03C.
+**Ordering and ownership.** The validated parent history and marker are synchronized
+before mutation. Completion checks exact bytes and safe current file identity
+before synchronization and rechecks preparation before publication. Retention
+removes pending first and synchronizes the root before removing the tail and
+synchronizing blocks/. The root inode stays stable. Every error returns no usable
+handle; uncertain publication is distinct from incomplete cleanup/preparation.
+Final success requires strict clean loading, complete ledger/counter equality and
+file/directory synchronization.
 
-The normative [append contract](docs/STORAGE_APPEND_V2.md) specifies exact bytes,
-error boundaries, write order and filesystem assumptions. The frozen
-[immutable contract](docs/STORAGE_V2.md) and [actual-chain contract](docs/CHAIN_V2.md)
-remain authoritative within their respective scopes.
+Normal open_writer, inspect and clean-state reconcile remain strict. Immutable
+StoreV2 and all MNM2/MRB2/MSS2/MSU2 bytes, domains and existing fixtures are unchanged.
+There is no new journal, storage profile, automatic repair or branch-selection rule.
 
-## Observed local and exact-source CI verification
+## Observed local verification
 
 | Check | Result |
 |---|---|
-| Workspace/all-target tests | **658 passed = 588 retained + 70 new** |
-| New cases | **28 selector + 31 append integration + 8 private failure/recovery + 3 process tests** |
-| Documentation tests | **3 retained compile-fail cases passed** |
-| Subprocess helper | **1 intentionally ignored entry**, invoked by parent tests and not counted as another pass |
-| Release core/personhood | **121 / 234 passed**, plus the same 3 personhood doctests |
+| Workspace/all-target tests | **707 passed = 658 retained + 49 new** |
+| New cases | **39 recovery integration + 9 private interruption + 1 process test** |
+| Doctests | **3 retained compile-fail cases passed** |
+| Subprocess helper | **1 intentionally ignored entry**, invoked by parent tests |
+| Release core/personhood | **121 / 234 passed**, plus the same 3 doctests |
 | Release state/consensus/chain | **49 / 23 / 57 passed** |
-| Release storage | **145 passed**, with the same 1 helper ignored in normal enumeration |
-| Independent references | **All 8 passed**, including reference_append_storage_v2.py |
-| Synthetic examples | **All 8 passed**, including append_v2_demo |
-| Focused format, diff and preservation checks | **Passed**; 90 retained source/dependency/reference/fixture files compared byte-for-byte |
+| Release storage | **194 passed**, with the same 1 helper ignored |
+| Independent references | **All 8 passed**; no new encoding required a ninth |
+| Synthetic examples | **All 9 passed**, including recovery_v2_demo |
+| Focused formatting, diff, dependencies | **Passed** |
+| Preservation | **99 retained source/dependency/reference/fixture files identical** |
 
-The final workspace run also passed after the last documentation-comment/example
-wording edits. Release reruns are not new unique tests. The eight private tests cover
-11 append boundaries, eight synchronization boundaries through both reopen and
-consuming reconciliation, nine initialization boundaries, partial block/selector
-files, ownership continuity, stale pins, compare-before-publication and root replacement.
-Scenarios inside a test are not additional tests.
+The nine private tests include 28 completion boundaries across three initial shapes
+(84 scenarios), 21 retention boundaries, 16 already-selected reconciliation
+boundaries, and all 11 original append boundaries with both actions. Other cases
+check mutations before writing/deleting/publishing, root replacement, new aliases
+after opening and sentinel budget exhaustion. These are scenarios within nine
+tests; release repeats and examples are not extra unique tests.
 
-The independent Python reference derives MSU2 vectors from unchanged frozen chain
-and MSS2 data before Rust comparison. New fixture SHA-256:
-`d6e597fdac8c5be081a54019149ebbe79651817848139d51bc691681b96df668`.
-The example appends/reopens each main-history block, verifies every complete state,
-rejects a wrong-height candidate and a second writer, and performs consuming clean
-reconciliation. Its final tip is `33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d`.
-All example inputs and temporary directories are synthetic and invocation-owned.
+The new process parent test has two release scenarios: child handle drop while
+the child stays alive, and child termination. The child performs recovery and
+holds its returned writer; parent recovery/writer/inspection calls require Busy.
+After release, the parent checks the selected state and stable root, then appends
+and reopens the next actual block. The same helper and test isolation are retained.
 
-Three new real subprocess tests retain the existing parent-test isolation. They
-cover an exclusive child dropping its handle, process termination and shared child/
-local inspection, followed by checked reopening and a successful next append.
-No sleeps, retries or weaker assertions were added. Two source/contract reviews found
-no blocking mismatch; these tests/reviews are not an external security audit or
-power-loss/disk-firmware certification.
+The new example completes a partial child, retries Complete without another
+generation, retains the parent from a fenced writer with matching pending staging,
+and performs an ordinary next append and reopening. Final tip:
+36b8ccbfdaa75ae33f3e522f7f636ddf02ff2c6b4c23df4ea694d207ada01c6b.
+Final ledger root:
+3f0c9f7ef212a7cae71717004d7a0206f027109490be8dcd07cba032ce32f86e.
+Only synthetic fixtures and invocation-owned temporary directories are used.
 
-## Exact boundary and next work
+## Limits and next task
 
-**Next MB-03C:** specify independently authorized recovery of interrupted append
-staging, including exact ownership/provenance of residual files, bounded inspection,
-explicit complete-or-abandon decisions, synchronization and idempotent retries.
-Preserve both existing formats and reject unknown data. Freeze any new intent/metadata
-format before implementing it; checksum validity cannot authorize a branch or deletion.
-Then specify canonical development fork choice and durable membership-aware branch
-replacement, followed by peer reconstruction. MB-04 supplies the persistent V2 node,
-pool, wallet and operator API; MB-06 supplies final human consensus.
+Recognized recovery inputs are bounded to **19,559,412 encoded bytes**, including
+the full proposed child and both selectors. A shared conservative allowance charges
+every bounded payload read and sentinel, including repeated comparisons/final replay:
+**156,508,096 bytes per call**. Neither number is a resident-memory limit.
+The unchanged chain caps are 4,096 blocks, 16 MiB of MRB2 and 1,048,576 cumulative
+state/configuration items. No history pruning or stored-cache authority is added.
 
-Chain caps remain **4,096 blocks**, **16 MiB of complete MRB2**, and **1,048,576 cumulative
-state/configuration items**. Maximum selected encoded payload for profile 2 is
-**19,559,132 bytes**, separately from decoded-memory/staging overhead. No cache authority,
-history pruning, cap increase or network consensus rule was introduced. Linux
-cooperative directory locks and trusted local owners/parent directories remain explicit
-assumptions. WSL2/DrvFS and network filesystems are not verified by the local Linux/Ubuntu
-checks. Inherited descriptors can prolong a lock until their last reference closes.
+**Next MB-03D:** specify and implement canonical development fork comparison over
+already accepted V2 branches, with independent network identity, exact work/score
+and tie rules, without conflating storage generation, population or hash luck with
+branch validity. Durable branch replacement and membership-aware peer reconstruction
+follow. Storage recovery alone does not complete MB-03 or the persistent V2 node.
 
-Accepted monetary policy is unchanged: no extra founder allocation or privileged
-marketing reserve; equal 10-MRY bootstrap policy for the first 1,000 qualifying humans,
-including the founder; separate ordinary 0.2-MRY allowance per historical qualifying
-population maximum; 10,000,000 Nusa per MRY. No payout/mint/nonzero fee/reward API is
-introduced. D-01/D-04 remain open. Fingerprint/ECG intake, private matching, real
-admission and anonymity remain later work. No raw or encrypted biometric archive
-belongs on-chain or in GitHub. **Gate A and Gate B remain UNMET.**
+No recovery is promised for interrupted initialization, missing/corrupt selection,
+damage to selected blocks or lost independent request authority. Cooperative Linux
+processes, trusted local owners/parents and correct locking/rename/synchronization
+remain assumptions. WSL2/DrvFS, native Windows and network mounts are not established
+by Ubuntu CI. The tests do not simulate physical power loss or certify disk firmware.
+Two source/contract reviews found no blocking discrepancy within that scope.
+
+Accepted monetary/admission/privacy policies remain unchanged: no founder bonus or
+marketing reserve; equal first-1,000 10-MRY bootstrap policy; separate 0.2-MRY historical
+population allowance; no combined formula, mint/grant/nonzero fee/reward API. D-01/D-04
+remain open. Real admission, fingerprint/ECG intake, private matching, anonymity and
+final human consensus are later work. **Gate A and Gate B remain UNMET.**

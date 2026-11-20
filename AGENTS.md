@@ -26,11 +26,11 @@ crash-proof, audited, or unconditionally immutable from passing unit tests.
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
 core/personhood/state/consensus/chain/storage tests, all eight independent reference
 checks (including `tools/reference_storage_v2.py --check` and
-`tools/reference_append_storage_v2.py --check`) and all eight synthetic examples
+`tools/reference_append_storage_v2.py --check`) and all nine synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
-chain chain_v2_demo and storage storage_v2_demo/append_v2_demo). Include
+chain chain_v2_demo and storage storage_v2_demo/append_v2_demo/recovery_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
-both storage examples in the gates.
+all three storage examples in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -38,7 +38,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03C.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03D.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -48,15 +48,17 @@ complete validated MRB2 replay. MB-02 is complete within its in-memory component
 scope. MB-03A implements immutable selected-chain storage, explicit initialization,
 exclusive reopening, shared inspection and complete checked reconstruction.
 MB-03B adds a separate append profile, bounded one-child publication, write fencing
-and full replay/resynchronization of clean selected states. Next is MB-03C explicit
-interrupted-append staging recovery, followed by canonical branch selection,
-durable membership reorganization and peer reconstruction.
+and full replay/resynchronization of clean selected states. MB-03C adds explicit
+bounded recovery of recognized one-child staging under independent parent/candidate
+pins, exact child bytes and an explicit completion/retention action. Next is MB-03D
+canonical development fork choice, followed by durable membership reorganization
+and peer reconstruction.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/STORAGE_V2.md,
-docs/STORAGE_APPEND_V2.md,
+docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
@@ -144,11 +146,22 @@ normal chain/selection access and further writes. last_confirmed_checkpoint then
 reports only the last successful memory state, not a current-disk assertion.
 Writer reopen and consuming reconcile require full replay and resynchronization;
 they accept only a clean complete layout and never release/reacquire ownership
-during consuming reconciliation. MB-03C must specify explicit handling of retained
-interrupted staging before adding recovery mutation. Pending selectors, extra
-tail blocks and unknown artifacts currently reject and remain untouched. Do not
-silently promote pending metadata, clean partial stores, overwrite foreign/legacy
-data, or free capacity by discarding history.
+during consuming reconciliation. Normal open/inspect/reconcile still reject and
+preserve all staging. MB-03C's separate explicit recovery requires independently
+retained parent and candidate checkpoints, the exact child, and Complete or
+RetainParent. Fully replay the parent and accept the child for either action before
+mutation. Only exact authorized prefixes may be extended without truncation or
+removed while retaining the still-selected parent. A pending selector requires a
+complete candidate block; a selected candidate requires a complete clean layout.
+Never roll it back via RetainParent. Missing/corrupt selected markers, interrupted
+initialization, unknown bytes and other layouts reject and remain untouched.
+Prefix equality does not prove origin; the trusted caller request authorizes these
+specific paths. Keep the same root and exclusive lock throughout consuming recovery,
+revalidate/synchronize before returning a writer, and return no handle on error.
+Preserve the 19,559,412-byte distinct encoded-input ceiling and enforced conservative
+156,508,096-byte per-call payload-read allowance, including comparisons/sentinels.
+These are not RSS limits. No format or journal was introduced. Do not silently
+promote pending metadata, overwrite foreign/legacy data, or discard accepted history.
 Reuse ChainV2's complete MRB2 replay for validity, including all transfers and
 membership effects. No cached state or stored counter can replace reexecution
 and its resource accounting; in-memory rollback does not establish crash recovery.

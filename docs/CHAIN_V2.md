@@ -30,8 +30,10 @@ Reopening requires independent network and full checkpoint pins and reconstructs
 every complete MRB2 block through this API. The separate
 [MB-03B append profile](STORAGE_APPEND_V2.md) now publishes one accepted child at a
 time, fences writes after failures, and replays/resynchronizes clean selected
-states. Its local generation also requires independent selection. Explicit recovery
-of retained interrupted staging is next in MB-03C.
+states. Its local generation also requires independent selection. MB-03C's
+[explicit recovery API](STORAGE_RECOVERY_V2.md) replays the parent and accepts the
+exact independently retained child through these same rules before either completing
+that candidate or retaining its still-selected parent. It does not select a branch.
 
 ## 2. Public network manifest — MNM2
 
@@ -180,10 +182,11 @@ parent, work and signature otherwise pass. Two separately accepted branches can
 be valid simultaneously. MB-03A can persist and reopen either explicitly selected
 immutable branch; MB-03B can append accepted children in its separate versioned
 store and reconcile clean selected states. Neither supplies global fork choice,
-branch replacement or automatic recovery of pending artifacts. MB-03C will define
-explicit interrupted-staging recovery before canonical branch selection, durable
-membership reorganization and peer reconstruction. The later human-finality
-profile remains MB-06.
+branch replacement or automatic recovery of pending artifacts. MB-03C separately
+handles bounded recognized staging under an explicit retained request; a pending
+file never chooses authority. MB-03D next specifies canonical development fork
+choice, before durable membership reorganization and peer reconstruction. The later
+human-finality profile remains MB-06.
 
 ## 7. Explicit finite resource profile
 
@@ -252,12 +255,16 @@ independently selected local generation. Each append stages through `ChainV2`,
 checks the complete current disk history, and advances memory only after block
 and selector publication have been synchronized. Failed writes fence the handle;
 writer reopen or consuming reconciliation fully replays and resynchronizes a clean
-selected state before allowing another update. Partial or unexplained staging is
-preserved and rejected. Neither storage profile changes these chain rules.
+selected state before allowing another update. Ordinary entry points preserve and
+reject partial staging. The [MB-03C recovery contract](STORAGE_RECOVERY_V2.md) adds
+explicit Complete/RetainParent actions for one independently authorized child;
+both fully replay the parent and validate the child before mutation. Final strict
+replay reproduces the complete selected ledger and counters. Unknown data remains
+rejected, and no storage operation changes these chain rules.
 
-**Next is MB-03C:** explicit interrupted-append staging recovery. Reviewed canonical
-branch selection, durable membership-aware reorganization and peer reconstruction
-follow; the V2 node/API remains later work.
+**Next is MB-03D:** canonical development fork-choice specification and implementation.
+Durable membership-aware branch replacement and peer reconstruction follow; the
+V2 node/API remains later work.
 No founder or marketing reserve, grant, mint, fee/reward formula, real biometric
 enrollment or device integration is enabled by these contracts. D-01/D-04 remain
 open and Gate A/B remain unmet.

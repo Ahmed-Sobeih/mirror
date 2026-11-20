@@ -16,8 +16,9 @@ implemented [MB-03A storage layer](STORAGE_V2.md) initializes an immutable selec
 history and reopens it by replaying every complete MRB2 block under independent
 network/checkpoint pins. The separate [MB-03B append profile](STORAGE_APPEND_V2.md)
 adds one-child publication and checked reconciliation of clean selected histories.
-Neither uses this diagnostic transcript as storage authority or alters its frozen
-bytes.
+MB-03C adds [explicit interrupted-append recovery](STORAGE_RECOVERY_V2.md) under
+independent parent/candidate pins and exact requested child bytes. None uses this
+diagnostic transcript as storage authority or alters its frozen bytes.
 CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
@@ -45,8 +46,9 @@ It does not implement an automatic MPH2 `ReplayChainViewV2` adapter. MB-03A stor
 reopening uses actual MRB2 replay with separately selected pins, not a diagnostic
 view inferred from this log. MB-03B now applies the same complete replay to append
 publication prechecks and clean-state reconciliation, with separately pinned local
-generations. Explicit interrupted-staging recovery is next in MB-03C; global branch
-choice remains later integration.
+generations. MB-03C applies actual-chain replay and acceptance to both independently
+selected endpoints before its explicit recovery actions. Canonical development
+fork choice is next in MB-03D; no diagnostic transcript chooses that authority.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -71,9 +73,10 @@ ledger execution. MB-02B supplies indexed execution within the full mixed body,
 but does not change this replay representation. Actual mixed-chain replay uses
 MB-02C's complete validated MRB2 histories, preserving their original positions
 and combined state semantics. That API requires independently selected C, genesis,
-height, tip and ledger root. MB-03A and MB-03B use that API when reopening exact
-stored MNM2/MRB2 history, retaining the same external selection requirement. Do not
-reinterpret MPH2 as such an integration or replace its diagnostic group roots
+height, tip and ledger root. MB-03A/B use that API when reopening exact stored
+MNM2/MRB2 history; MB-03C also uses it during explicit recovery, retaining the same
+external selection requirement. Do not reinterpret MPH2 as such an integration
+or replace its diagnostic group roots
 with MRB2 roots.
 
 MPS2's MB-02B structural enrollment-index bound is explicitly extended to
@@ -180,7 +183,8 @@ unbounded whole-chain history. Exceeding a budget returns an error; it never
 truncates the history, deletes tombstones/approvals, lowers quorum, or claims a
 partial result is current. MB-03A's immutable store and MB-03B's separate append
 store preserve the complete-chain budgets; neither streams MPH2 into authority or
-enlarges this diagnostic profile. Explicit interrupted-staging recovery and larger
+enlarges this diagnostic profile. MB-03C's separate recovery retains those limits
+and adds its own finite residual-input and repeated-read allowances. Larger
 production profiles require their own later design and acceptance.
 
 ## 5. Replay procedure and failure behavior
@@ -241,8 +245,10 @@ not an external security audit or proof of later block/disk integration. MB-03A'
 separate implemented storage boundary is specified in [STORAGE_V2.md](STORAGE_V2.md);
 its source verification and publication evidence belong to the current checkpoint.
 The separate [MB-03B contract](STORAGE_APPEND_V2.md) adds bounded accepted-tip
-publication, failure fencing and clean-state replay/resynchronization. The next
-slice is MB-03C explicit interrupted-append staging recovery, followed by reviewed
-canonical branch selection, durable membership reorganization and peer reconstruction.
-No V2 node service,
-real human admission or monetary issuance follows from this diagnostic API.
+publication, failure fencing and clean-state replay/resynchronization. The separate
+[MB-03C contract](STORAGE_RECOVERY_V2.md) adds explicit recovery of recognized
+one-child staging, requiring full parent/child execution under independent pins
+and final clean replay/synchronization. Unknown bytes remain preserved and rejected.
+Next is **MB-03D: canonical development fork-choice specification and implementation**,
+before durable membership reorganization and peer reconstruction. No V2 node
+service, real human admission or monetary issuance follows from this diagnostic API.

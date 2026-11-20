@@ -9,7 +9,8 @@ MB-02A supplies codecs/commitments; MB-02B implements atomic combined ledger
 execution/commitments; MB-02C implements pinned actual block acceptance and
 complete finite MRB2 replay; MB-03A now implements immutable selected-chain
 initialization, ownership and checked reopening; MB-03B adds a separate append
-profile with one-child publication, failure fencing and clean-state reconciliation**.
+profile with one-child publication, failure fencing and clean-state reconciliation;
+MB-03C adds explicit recovery of independently authorized one-child staging**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
 [REPLAY_V2.md](REPLAY_V2.md) specifies bounded membership-only MPH2 grouped replay.
@@ -22,9 +23,10 @@ encoding/commitments with independent vectors; the frozen contract is
 is [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); actual in-memory branch acceptance is
 [CHAIN_V2.md](CHAIN_V2.md). The implemented immutable storage contract is
 [STORAGE_V2.md](STORAGE_V2.md); the separate append contract is
-[STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md). **Next is MB-03C: explicit recovery
-of interrupted append staging**, followed by reviewed canonical branch selection,
-durable membership reorganization and peer reconstruction. MB-03 remains in progress.
+[STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md). Its separate explicit recovery contract
+is [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md). **Next is MB-03D: canonical
+development fork-choice specification and implementation**, before durable membership
+reorganization and peer reconstruction. MB-03 remains in progress.
 Staging a ledger alone does not establish block authority. The MB-02 in-memory
 component is verified; durable/node integration, finality and Gate A/B remain
 unfinished. The historical design-status statements below describe the original
@@ -357,9 +359,11 @@ replay/resynchronization of clean selected states. Both require independently
 retained network and full checkpoint pins; profile 2 additionally requires its
 local generation. Neither a checksum nor a greater generation establishes latestness.
 Snapshots remain disposable caches tied to a trusted block/root. Interrupted
-pending/tail artifacts currently reject without deletion or promotion; explicit
-staging recovery is MB-03C. Both profiles preserve the stable locked root rather
-than swapping the directory. The legacy directory-swap mechanism is not claimed
+pending/tail artifacts still reject through ordinary opening without deletion or
+promotion. MB-03C separately accepts an explicit retained parent/candidate/exact-child
+request and fully validates the parent and child before narrowly scoped completion
+or parent retention. Unknown data remains untouched. Both profiles preserve the
+stable locked root rather than swapping the directory. The legacy directory-swap mechanism is not claimed
 to be a globally atomic transaction.
 
 Planned transport integration must use a distinct V2 handshake (magic MIR2,
@@ -403,8 +407,9 @@ Static design review was not evidence that those behaviors existed. The historic
 slice plan below has now been completed for the standalone membership component;
 MB-02A adds full mixed block representation and MB-02B adds atomic ledger
 execution. MB-02C now adds pinned actual block authority and full finite-branch
-replay; MB-03A/B now add selected storage and bounded append publication. Explicit
-staging recovery, reorganization, peers and node integration remain unfinished.
+replay; MB-03A/B now add selected storage and bounded append publication. MB-03C
+adds explicit recognized-staging recovery. Canonical branch selection, durable
+reorganization, peers and node integration remain unfinished.
 
 Original MB-01B slices:
 
@@ -436,15 +441,20 @@ independent references and four synthetic examples passed.
 and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
 passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
 for the detailed acceptance record.
-The precise next slice is **MB-03C**: explicit interrupted-append staging recovery,
-preserving unknown artifacts and requiring independently selected complete state.
+The precise next slice is **MB-03D**: canonical development fork-choice specification
+and implementation, before durable branch replacement or peer reconstruction.
 MB-03A now supplies explicit immutable initialization, cooperative ownership and
 full checked reopening under independent network/checkpoint pins; its contract is
 [STORAGE_V2.md](STORAGE_V2.md). MB-03B's separate
 [append profile](STORAGE_APPEND_V2.md) stages one accepted child, synchronizes block
 and selector publication, fences failed updates, and reconciles only clean selected
-states by full replay and resynchronization. MB-02B's atomic execution is specified in
-[LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); MB-02C's finite in-memory acceptance and
+states by full replay and resynchronization. MB-03C's separate
+[recovery operation](STORAGE_RECOVERY_V2.md) requires independent parent and candidate
+pins, the exact complete child and an explicit action. It validates both histories,
+completes only authorized byte prefixes or retains the still-selected parent, and
+performs final strict replay/synchronization without trusting caches. It cannot
+roll back a selected child or repair unknown data. MB-02B's atomic execution is
+specified in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); MB-02C's finite in-memory acceptance and
 complete replay are specified in [CHAIN_V2.md](CHAIN_V2.md). CURRENT_STATUS.md records
 current source and acceptance evidence. An MRB2 body-integrity check or a successful
 staged ledger alone still does not establish actual block authority; ChainV2 adds
