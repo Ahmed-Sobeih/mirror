@@ -8,7 +8,8 @@ Current implementation update: **MB-01B/B1–B4 supply standalone membership;
 MB-02A supplies codecs/commitments; MB-02B implements atomic combined ledger
 execution/commitments; MB-02C implements pinned actual block acceptance and
 complete finite MRB2 replay; MB-03A now implements immutable selected-chain
-initialization, ownership and checked reopening**.
+initialization, ownership and checked reopening; MB-03B adds a separate append
+profile with one-child publication, failure fencing and clean-state reconciliation**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
 [REPLAY_V2.md](REPLAY_V2.md) specifies bounded membership-only MPH2 grouped replay.
@@ -20,9 +21,10 @@ encoding/commitments with independent vectors; the frozen contract is
 [CORE_V2_ENCODING.md](CORE_V2_ENCODING.md). The implemented combined state contract
 is [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); actual in-memory branch acceptance is
 [CHAIN_V2.md](CHAIN_V2.md). The implemented immutable storage contract is
-[STORAGE_V2.md](STORAGE_V2.md). **Next is MB-03B: accepted-tip updates, generation
-authority and failure reconciliation**, followed by peer reconstruction and durable
-membership reorganization. MB-03 remains in progress.
+[STORAGE_V2.md](STORAGE_V2.md); the separate append contract is
+[STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md). **Next is MB-03C: explicit recovery
+of interrupted append staging**, followed by reviewed canonical branch selection,
+durable membership reorganization and peer reconstruction. MB-03 remains in progress.
 Staging a ledger alone does not establish block authority. The MB-02 in-memory
 component is verified; durable/node integration, finality and Gate A/B remain
 unfinished. The historical design-status statements below describe the original
@@ -51,7 +53,7 @@ enrollment and no historical state root changes meaning.
 configuration, genesis, protocol version and data directory. Preserve V1 APIs and
 fixtures while V2 is built in new modules. Do not silently upgrade old databases.
 
-| Input | Legacy V1 path | V2 library path; transport/storage integration is planned |
+| Input | Legacy V1 path | V2 library path; live transport integration remains planned |
 |---|---|---|
 | MRB1 blocks, version-1 header/transfer | Unchanged; existing tests/data preserved | Reject, never reinterpret |
 | MPH1 standalone logs and signatures | Existing library/demo only | Reject as V2 events; no import granting rights |
@@ -60,8 +62,8 @@ fixtures while V2 is built in new modules. Do not silently upgrade old databases
 | Existing Alice/Bob development keys | Public fixtures, not founder credentials | Never converted into real users or grants |
 | Fingerprint/ECG recordings or archives | No enrollment payload | Off-chain only; no archive field |
 
-Planned MB-03 explicit V2 storage initialization must refuse a nonempty legacy
-directory; current in-memory ChainV2 opens or migrates no directory. Its implemented
+Both implemented V2 storage profiles refuse initialization in a nonempty legacy
+directory; in-memory ChainV2 itself opens or migrates no directory. Its implemented
 network manifest pins config hash and exact genesis hash. A different genesis
 nonce is not accepted merely because it also satisfies the easy target. Existing
 mainnet language in V1 comments is not evidence of a launched mainnet. Do not merge
@@ -334,7 +336,8 @@ while the ledger executes the complete ordered body. MPS2's accepted runtime
 enrollment-index range is explicitly extended from `< max_membership_operations`
 to `< max_operations`; serialized fields and domains are unchanged. Older decoders
 may reject newly possible mixed positions. MPH2 remains membership-only. MB-02C
-implements actual validated mixed-block replay; durable authority remains MB-03.
+implements actual validated mixed-block replay; MB-03A/B now use that same replay
+to reconstruct selected stored state without a cache-authority shortcut.
 
 ## 8. Persistence, transport and dependency boundaries (R28–R32)
 
@@ -347,13 +350,17 @@ later node integration coordinates storage/transport. Do not create a
 core/state/personhood dependency cycle.
 
 MB-02 implements deterministic in-memory mixed execution, actual finite-branch
-acceptance and full replay. Planned MB-03 storage will persist selected MRB2 blocks
-with explicit store metadata (format, C, expected genesis, height, tip and ledger
-root), single-writer locking and tested publication recovery. Snapshots are
-disposable caches tied to a trusted block/root. No old log
-or snapshot can claim to be the latest state merely by having valid signatures.
-On ambiguous I/O failure stop writing, reopen/reconcile durable tip, revalidate,
-and only then continue. Do not claim the current directory swap is globally atomic.
+acceptance and full replay. MB-03A now persists an immutable selected MRB2 history
+with explicit metadata and continuous directory ownership. MB-03B adds a separate
+versioned append profile with one-child publication, failure fencing and complete
+replay/resynchronization of clean selected states. Both require independently
+retained network and full checkpoint pins; profile 2 additionally requires its
+local generation. Neither a checksum nor a greater generation establishes latestness.
+Snapshots remain disposable caches tied to a trusted block/root. Interrupted
+pending/tail artifacts currently reject without deletion or promotion; explicit
+staging recovery is MB-03C. Both profiles preserve the stable locked root rather
+than swapping the directory. The legacy directory-swap mechanism is not claimed
+to be a globally atomic transaction.
 
 Planned transport integration must use a distinct V2 handshake (magic MIR2,
 protocol version 2) with C, pinned genesis, height/tip and ledger root. Separate
@@ -396,7 +403,8 @@ Static design review was not evidence that those behaviors existed. The historic
 slice plan below has now been completed for the standalone membership component;
 MB-02A adds full mixed block representation and MB-02B adds atomic ledger
 execution. MB-02C now adds pinned actual block authority and full finite-branch
-replay; durable/node integration remains pending in MB-03.
+replay; MB-03A/B now add selected storage and bounded append publication. Explicit
+staging recovery, reorganization, peers and node integration remain unfinished.
 
 Original MB-01B slices:
 
@@ -428,15 +436,19 @@ independent references and four synthetic examples passed.
 and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
 passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
 for the detailed acceptance record.
-The precise next slice is **MB-03B**: specify a separately versioned update profile,
-then implement durable accepted-tip advancement and failure/restart reconciliation.
+The precise next slice is **MB-03C**: explicit interrupted-append staging recovery,
+preserving unknown artifacts and requiring independently selected complete state.
 MB-03A now supplies explicit immutable initialization, cooperative ownership and
 full checked reopening under independent network/checkpoint pins; its contract is
-[STORAGE_V2.md](STORAGE_V2.md). MB-02B's atomic execution is specified in
+[STORAGE_V2.md](STORAGE_V2.md). MB-03B's separate
+[append profile](STORAGE_APPEND_V2.md) stages one accepted child, synchronizes block
+and selector publication, fences failed updates, and reconciles only clean selected
+states by full replay and resynchronization. MB-02B's atomic execution is specified in
 [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); MB-02C's finite in-memory acceptance and
 complete replay are specified in [CHAIN_V2.md](CHAIN_V2.md). CURRENT_STATUS.md records
 current source and acceptance evidence. An MRB2 body-integrity check or a successful
 staged ledger alone still does not establish actual block authority; ChainV2 adds
-the complete checks. Updating an existing durable selection, peer/node operation
-and final human consensus remain later work. Zero-fee/no-mint synthetic execution introduces no
+the complete checks. Reviewed canonical branch selection, durable membership
+reorganization, peer/node operation and final human consensus remain later work.
+Zero-fee/no-mint synthetic execution introduces no
 founder allocation, marketing reserve, population issuance or bootstrap payout.

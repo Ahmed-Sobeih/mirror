@@ -1,7 +1,8 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MIRROR-MB03A-001**, below.
+and V2 design. Current implementation update: **MB-03B append storage —
+VERIFIED_COMPONENT within bounded append/clean-state reconciliation**, below.
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
 review. This is an engineering review, not an audit certification.
@@ -12,12 +13,13 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+MB-02A/B/C, MB-03A and MB-03B evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
-branch acceptance, complete-block replay and immutable selected-store reopening
-now exist. Evolving durable tips, canonical replacement, peer integration and
-human finality remain unfinished; source publication/CI is tracked separately.
+branch acceptance, complete-block replay, immutable selected-store reopening and
+one-block append publication now exist. Residual-staging repair, canonical
+replacement, peer integration and human finality remain unfinished; source
+publication/CI is tracked separately.
 
 ## Historical B3 implementation update
 
@@ -285,7 +287,7 @@ establish durable recovery, a live V2 daemon, global canonical choice or finalit
 The following MB-03A update records its later storage increment. F08–F11 retain
 their remaining scope; neither Gate A nor Gate B is met.
 
-## MB-03A immutable selected-store implementation update
+## Historical MB-03A immutable selected-store implementation update
 
 Contract [STORAGE_V2.md](STORAGE_V2.md) freezes storage profile 1: an explicitly
 selected finite chain, generation zero, with separate initialization, exclusive
@@ -360,12 +362,122 @@ rename or synchronization failure, torn writes or power loss. Checked reopening
 can validate a complete visible selection after an uncertain result; it does not
 retroactively prove a failed sync became durable.
 
-**Next: MB-03B**, durable generation/accepted-tip updates and explicit failure
-reconciliation. Canonical development fork choice must precede durable branch
+**At the MB-03A checkpoint, next was MB-03B**, durable generation/accepted-tip
+updates and explicit failure reconciliation. Its bounded implementation is
+recorded below. Canonical development fork choice must precede durable branch
 replacement, then membership-aware reorganization and peer reconstruction follow.
-F08 is not globally closed: legacy behavior and all later publication cases remain.
+F08 is not globally closed: legacy behavior and later publication cases remain.
 F09 network sessions, F10 biological uniqueness/privacy, F11 final rewards/economics,
 human finality, real-device evidence and both launch gates remain open.
+
+## MB-03B append publication and checked reconciliation update
+
+Published implementation
+[`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c),
+tree `06d7c3f4fa24d96c844e2301c76c01f804151192`, matches the locally tested source.
+Its increment changes 14 files, with 3,568 insertions and 11 deletions. Publication
+and verification are separate facts.
+[Exact-source push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203)
+and [PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
+both **SUCCEEDED**. Full push job `135999222947` logs confirmed checkout
+`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c` and all workspace, documentation,
+release, reference, example and allocation/runtime-data audit gates. Later
+documentation-head CI must be checked separately; these source results do not
+claim an untested documentation head passed.
+
+**MB-03B is VERIFIED_COMPONENT for bounded accepted-child append and clean-state
+reconciliation. MB-03 remains IN PROGRESS.**
+
+The separate [append contract](STORAGE_APPEND_V2.md) specifies `AppendStoreV2` and
+MSU2 storage profile 2. Immutable StoreV2/profile 1, legacy BlockStore and previous
+network/block/state encodings remain unchanged. Initialization requires an absent
+or empty directory and an already accepted complete ChainV2. There is no automatic
+adoption, profile conversion, branch replacement or cleanup.
+
+The increment adds **70 unique cases: 28 selector/vector, 31 filesystem integration,
+eight private fault tests and three additional real-process ownership tests**.
+Local Rust 1.98.0 verification passed **658 workspace tests**, one intentionally
+ignored subprocess helper, and the same **three documentation tests**. Release
+reruns passed core 121, personhood 234 plus the same three doctests, state 49,
+consensus 23, chain 57 and storage 145. All eight independent references and eight
+examples passed. These reruns and scenario iterations are not additional unique
+tests. The independently inspected exact-source CI above passed the same gates;
+CURRENT_STATUS.md records publication and subsequent checkpoint evidence.
+Test-matrix section 11 maps the actual cases and distinguishes scenarios from
+test counts. This is component verification, not an external security audit.
+
+MSU2 is a new 280-byte envelope containing one unchanged 232-byte MSS2 snapshot,
+an append generation and a separate integrity checksum. Each open requires the
+independently chosen network, full height/tip/ledger-root checkpoint and generation.
+Generation starts at zero for a newly initialized store, even if its initial
+history has nonzero height. It increases once per local child publication and
+cannot exceed selected height. A checksum, higher generation or pending marker
+cannot choose its own authority. Old complete rolled-back state can still satisfy
+old deliberately selected external pins; no global rollback/freshness discovery
+or economic/human participation meaning is assigned to generation.
+
+F08 gains bounded one-block publication. The candidate first passes actual
+ChainV2 acceptance on a clone, with original mixed operations and all budgets.
+An invalid child leaves memory and files unchanged and the writer usable. Before
+preparation, the complete selected disk history is replayed against retained pins
+and compared with the whole in-memory chain, ledger and counters. A disk mismatch
+fences the handle. The private directory lock and stable root remain held.
+
+The writer creates and synchronizes the new complete MRB2 file, synchronizes the
+blocks directory, then creates and synchronizes a pending next-generation selector.
+It verifies the root still names the held inode and compares the old selector's
+exact bytes immediately before publication. Only after selector rename and root
+synchronization succeed does memory advance and the fence clear. Preparation
+errors retain artifacts and report incomplete update; after publication is attempted,
+errors report uncertainty. An error may mean disk already selects the candidate.
+
+Every mutating failure retains the fence. Normal chain/selection/checkpoint access
+and subsequent appends reject while fenced; `last_confirmed_checkpoint` is explicitly
+only the last confirmed memory state. This avoids presenting old memory as the
+current durable selection after an uncertain rename. The candidate checkpoint in
+an error identifies a locally validated candidate, not a completed publication.
+No sleep, retry, stale-PID takeover or weaker ownership assertion bypasses the fence.
+
+Writer open and consuming reconciliation fully validate the independently selected
+clean store and synchronize the validated manifest, every block, block directory,
+selected marker and root before returning a usable writer. Consuming reconciliation
+retains the same directory descriptor throughout. Its failures return no handle.
+Shared inspection is read-only and performs no resynchronization. These distinctions
+avoid treating visible read-back after an earlier failed sync as sufficient permission
+for blind continued writes; they do not retroactively prove what survived that sync.
+
+**Residual staging remains an explicit availability limitation.** An old marker
+plus a complete or partial unselected block, any pending marker, or unexplained
+files rejects through normal open and reconciliation. Artifacts are retained;
+no marker is automatically promoted, old history truncated or unknown file removed.
+Thus the tested restart outcomes are a complete independently selected old/new clean
+history or explicit rejection, not universal automatic crash recovery. MB-03C must
+specify and verify an explicit repair operation before resolving those leftovers.
+
+Bounds carry forward: at most 4,096 complete blocks, 16 MiB MRB2 and 1,048,576
+cumulative state/configuration items. Successful selected encoded payload rises
+only by the 48-byte envelope difference to **19,559,132 bytes**; it is not a resident
+memory limit. An in-progress append can additionally retain a 280-byte pending marker.
+Strict reopen rejects residual files before treating them as selected payload.
+Nonregular files, static symlinks, hardlinks and accidental root replacement reject;
+trusted parents/cooperating local processes remain assumptions rather than hostile
+same-user namespace protection. Linux support is not certification of all mounts.
+
+Private tests cover eleven append boundaries, eight reconciliation boundaries via
+both consuming recovery and writer reopen, and nine initialization boundaries.
+Other cases explicitly retain partial block/selector bytes, detect changed markers
+and roots, check stale-pin rejection, and continue with another valid child only
+after clean recovery. Three new pipe-ordered process cases check append-profile
+writer Drop, process termination and shared-reader exclusion. The prior process
+tests and ignored helper remain; parent test isolation preserves actual child
+concurrency. These scenarios are not extra unique tests or actual power-loss,
+torn-write, disk-firmware or comprehensive syscall-failure simulations.
+
+**Next: MB-03C explicit residual-staging recovery**, then reviewed canonical
+development fork choice, durable membership-aware reorganization and peer
+reconstruction. F08 remains partly open in those scopes and for legacy behavior.
+F09–F11, final human consensus, private matching, actual devices and Gate A/B remain
+unmet. No founder reserve, marketing allocation, mint, fee or reward is enabled.
 
 ## 1. Assets and trust boundaries
 
@@ -410,8 +522,8 @@ local chain files have not been accessed or modified.
 | F11 | Account executor deducts transfer fees and returns totals; it does not implement the agreed future reward distribution | Reusing that behavior as the final fee economy would silently choose monetary behavior. V2 integration uses explicitly zero-fee test transfers until MB-07 decisions. | MB-07, R08/R34–35 |
 
 These rows preserve the original findings. In particular, F08 still describes the
-unchanged legacy `BlockStore`; the separate MB-03A V2 mitigation above does not
-retroactively close legacy findings or later durable-update requirements.
+unchanged legacy `BlockStore`; the separate MB-03A/B V2 mitigations above do not
+retroactively close legacy findings or later repair/reorganization requirements.
 
 Source anchors (relative links show current branch; original revision above fixes
 which contents were reviewed):
@@ -455,12 +567,14 @@ controls in MB-08/09. A hash/signature alone does not establish capture provenan
 A matcher outage must not translate to NO_MATCH or automatic approval.
 
 **Storage/process failure or competing writer:** crashes between publication steps,
-loads an older valid snapshot, corrupts a file or races the writer. MB-03A provides
-cooperative directory locking, bounded inputs, immutable selected-tip metadata and
-complete pinned reconstruction. Initial-publication error tests cover nine selected
-boundaries. Evolving tips, all I/O-failure cases, durable reorganization and hostile
-local-owner defenses are not implemented. A valid old record is not proof of
-latestness; the trusted caller must retain its independently selected checkpoint.
+loads an older valid snapshot, corrupts a file or races the writer. MB-03A/B provide
+cooperative directory locking, bounded inputs, independently selected metadata,
+full reconstruction and one-block append publication with failure fencing. Complete
+clean selections can be revalidated and synchronized before further writes. Residual
+staging deliberately rejects and is retained; explicit repair, all I/O-failure modes,
+durable reorganization and hostile local-owner defenses remain unfinished. A valid
+old record is not proof of latestness; the trusted caller must retain its independent
+full branch and generation checkpoint.
 
 **Observer:** links applicant/reviewer keys, timing and recurring commitments.
 This prototype has public relationships. Do not claim total anonymity or publish
@@ -485,9 +599,12 @@ this register; the ledger cannot verify how an opaque commitment was produced.
 - Disk metadata, peers and caches cannot choose their own trusted C/genesis or
   final height/tip/ledger root. Reopen must reconstruct the complete selected
   history within existing byte, count and state-work budgets.
-- An uncertain storage-publication error returns no owning handle. Visible
-  selected data must be checked against retained external pins before reuse;
-  an error must not be relabeled proof that nothing reached disk.
+- An uncertain storage-publication error yields no usable writer. Initialization
+  and reconciliation failures return no handle; append failure retains ownership
+  but fences chain/selection access and further writes. Complete visible selection
+  must be checked against retained external pins and resynchronized before writing;
+  an error must not be relabeled proof that nothing reached disk. Partial staging
+  is preserved and explicitly rejected until reviewed repair exists.
 - No runtime operation in this integration scope can mint or distribute grants.
   Unknown operation kinds cannot be treated as harmless payloads.
 - No raw/encrypted biometric archive is intentionally accepted by the client/wire
@@ -518,12 +635,14 @@ genesis, blocks and complete externally selected replay. **MB-02 is a
 VERIFIED_COMPONENT within that bounded in-memory scope.** Local and inspected
 exact-source CI evidence is recorded above; later documentation checkpoints are
 tracked separately in [CURRENT_STATUS.md](../CURRENT_STATUS.md).
-MB-03A now implements immutable selected-store initialization, cooperative writer
+MB-03A implements immutable selected-store initialization, cooperative writer
 ownership, bounded pinned reopening and selected initialization-failure cases.
-Its local results are above; source publication and exact CI remain separate
+MB-03B adds the distinct append profile, complete one-child publication, failure
+fencing and checked clean-store resynchronization. Implementation/test scope is
+recorded above; exact publication/CI remains separate
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) evidence.
-**Current next implementation: MB-03B**, durable generation/tip updates and failure
-reconciliation, followed by membership-aware reorganization and peer reconstruction.
+**Current next implementation: MB-03C**, explicit residual-staging repair, then
+reviewed canonical fork choice, membership-aware reorganization and peer reconstruction.
 Global canonical selection, human finality, a live V2 daemon and Gate A/Gate B
 remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests

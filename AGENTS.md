@@ -24,12 +24,13 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state/consensus/chain/storage tests, all seven independent reference
-checks (including `tools/reference_storage_v2.py --check`) and all seven synthetic
-examples (three personhood examples, core block_v2_demo, state ledger_v2_demo,
-chain chain_v2_demo and storage storage_v2_demo). Include
+core/personhood/state/consensus/chain/storage tests, all eight independent reference
+checks (including `tools/reference_storage_v2.py --check` and
+`tools/reference_append_storage_v2.py --check`) and all eight synthetic examples
+(three personhood examples, core block_v2_demo, state ledger_v2_demo,
+chain chain_v2_demo and storage storage_v2_demo/append_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
-`cargo run -p mirror-storage --example storage_v2_demo --locked` in the gates.
+both storage examples in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -37,7 +38,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03B.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03C.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -46,13 +47,16 @@ manifests, actual block/genesis/work/root validation, private accepted ancestry 
 complete validated MRB2 replay. MB-02 is complete within its in-memory component
 scope. MB-03A implements immutable selected-chain storage, explicit initialization,
 exclusive reopening, shared inspection and complete checked reconstruction.
-Next is MB-03B accepted-tip updates, generation authority and failure/restart
-reconciliation, followed by peer reconstruction and durable reorganization.
+MB-03B adds a separate append profile, bounded one-child publication, write fencing
+and full replay/resynchronization of clean selected states. Next is MB-03C explicit
+interrupted-append staging recovery, followed by canonical branch selection,
+durable membership reorganization and peer reconstruction.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/STORAGE_V2.md,
+docs/STORAGE_APPEND_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
@@ -107,19 +111,24 @@ in CHAIN_V2.md. No pruning, cap bypass or silent profile change in storage/recov
 Preserve MB-03A's separate explicit initialization, exclusive open and shared
 read-only inspection APIs. MSS2 is exactly 232 bytes: encoding version 2, storage
 profile 1, generation zero only. This immutable profile has no append, replacement
-or repair API; MB-03B must specify reviewed update/generation/restart semantics
-without silently reinterpreting old records. Preserve exact MNM2/MRB2 files and
-all prior wire bytes. Checksum validity is not selection authority: independently
-retained network and full checkpoint pins remain mandatory on every reopen.
+or repair API. MB-03B's separate AppendStoreV2 uses exact 280-byte MSU2 version 2,
+profile 2, with an outer generation and the unchanged embedded MSS2 snapshot.
+Generation starts at zero at any accepted initialization height and advances once
+per accepted append; it never exceeds selected height. Preserve exact MNM2/MRB2
+files and all prior wire bytes. Checksum validity is not selection authority:
+independently retained network, full checkpoint and, for profile 2, generation
+pins remain mandatory on every reopen. A local generation is not global freshness.
 
-Profile 1 uses Linux nonblocking kernel locks on the root directory inode for the
+Both V2 profiles use Linux nonblocking kernel locks on the root directory inode for the
 handle lifetime. All processes must cooperate; parent directories and the local
 owner are trusted. Never rename/remove/replace a live root inode, infer ownership
 from a PID/lock-file payload, or claim hostile same-user race protection. WSL,
 DrvFS and other untested filesystems must not be described as verified. Preserve
-bounded metadata/enumeration and length-plus-one sentinel reads, the 19,559,084-byte
-successful encoded-payload ceiling, and all separate replay/resource caps. That
-ceiling is not a total resident-memory limit.
+bounded metadata/enumeration and length-plus-one sentinel reads, the profile-1
+19,559,084-byte successful encoded-payload ceiling, and all separate replay/resource
+caps. Profile 2's larger selector makes its corresponding successful selected-read
+ceiling 19,559,132 bytes. Neither ceiling is a total resident-memory limit or the
+combined I/O of preflight, publication and reconciliation.
 
 Closing a handle releases its own descriptor; inherited fork descriptors may
 briefly prolong the kernel lock until they also close. Keep subprocess ownership
@@ -127,10 +136,19 @@ tests isolated from unrelated test forks while retaining actual concurrent child
 checks. Do not hide failed ownership assertions with sleeps or production retries.
 
 Initial selection is published only after prepared files and directories are
-synchronized. Ambiguous I/O requires reconciliation before further writes; future
-mutable handles must fence writes until restart/reconciliation establishes the
-selected complete state. Do not silently promote pending metadata, clean partial
-stores, overwrite foreign/legacy data, or free capacity by discarding history.
+synchronized. AppendStoreV2 stages through actual ChainV2 acceptance, rechecks its
+complete selected disk history, synchronizes the new block and directory, stages
+the new selector, compares the old selection, renames the marker, and synchronizes
+the stable root before advancing memory. Disk discrepancy or I/O failure fences
+normal chain/selection access and further writes. last_confirmed_checkpoint then
+reports only the last successful memory state, not a current-disk assertion.
+Writer reopen and consuming reconcile require full replay and resynchronization;
+they accept only a clean complete layout and never release/reacquire ownership
+during consuming reconciliation. MB-03C must specify explicit handling of retained
+interrupted staging before adding recovery mutation. Pending selectors, extra
+tail blocks and unknown artifacts currently reject and remain untouched. Do not
+silently promote pending metadata, clean partial stores, overwrite foreign/legacy
+data, or free capacity by discarding history.
 Reuse ChainV2's complete MRB2 replay for validity, including all transfers and
 membership effects. No cached state or stored counter can replace reexecution
 and its resource accounting; in-memory rollback does not establish crash recovery.

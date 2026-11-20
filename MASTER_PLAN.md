@@ -2,25 +2,26 @@
 
 Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-20).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB03A-001 — immutable V2 storage and checked reopening**.
-MB-01B/B1–B4, MB-02A/B/C and MB-03A are complete within their component scope.
-**MB-03 is IN PROGRESS.** Updating an existing store's accepted tip, durable
+Latest implementation: **MIRROR-MB03B-001 — bounded append and clean-state reconciliation**.
+MB-01B/B1–B4, MB-02A/B/C and MB-03A/B are complete within their component scope.
+**MB-03 is IN PROGRESS.** Interrupted staging recovery, durable membership
 reorganization, peer reconstruction and final human consensus remain unfinished.
 
 ## Start here: current position and next action
 
-**Next task: MB-03B — durable accepted-tip updates and failure reconciliation. READY.**
+**Next task: MB-03C — explicit interrupted-append staging recovery. READY.**
 
-MB-03A source: `528c8912c5a50cfd2e86856d345b29d6bb79d2c5`.
-Source tree: `65004e73f4c19deedafdb8cf2874939df0ab367a`, matching local verification.
-Local Rust 1.98.0: **588 workspace tests**, **3 compile-fail doctests**, one explicitly
-ignored subprocess-only helper; release core 121/personhood 234/state 49/consensus 23/
-chain 57/storage 75, with the same 3 doctests. All **7 references and 7 examples**,
-focused formatting and preservation checks passed. Source push CI **44639322362**
-and PR CI **44639329630** both passed. Full push job **135965942902** logs confirmed
-the exact corrected checkout and every gate. Section 18 records this increment; section 17 retains
-MB-02C evidence. Gate A/B remain unmet. Later documentation-head CI must be inspected
-separately from implementation evidence.
+MB-03B source: `ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c`.
+Source tree: `06d7c3f4fa24d96c844e2301c76c01f804151192`, matching local verification.
+Local Rust 1.98.0 and exact-source CI passed **658 workspace tests**, **3 compile-fail
+doctests**, and one intentionally ignored subprocess-only helper. Release checks:
+core 121 / personhood 234 / state 49 / consensus 23 / chain 57 / storage 145, plus
+the same three doctests. All **8 references and 8 examples** passed. Focused formatting,
+preservation and dependency checks passed locally. Source push CI **44649111203**,
+job **135999222947**, and PR CI **44649119266** both succeeded. Full push-job logs
+confirmed the exact published checkout and every gate. Section 19 records this
+increment; sections 17–18 retain actual-chain and immutable-storage evidence.
+Gate A/B remain unmet. Later documentation-head CI is checked separately.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -31,7 +32,8 @@ Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
 [threat review](docs/THREAT_MODEL.md), [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md),
 [configuration](docs/CONFIG_V2_ENCODING.md), [signed membership](docs/OPERATIONS_V2_ENCODING.md),
 [transfers/blocks](docs/CORE_V2_ENCODING.md), [atomic ledger](docs/LEDGER_STATE_V2.md),
-[accepted chain](docs/CHAIN_V2.md), [storage](docs/STORAGE_V2.md), [membership state](docs/MEMBERSHIP_STATE_V2.md),
+[accepted chain](docs/CHAIN_V2.md), [immutable storage](docs/STORAGE_V2.md),
+[append storage](docs/STORAGE_APPEND_V2.md), [membership state](docs/MEMBERSHIP_STATE_V2.md),
 [diagnostic replay](docs/REPLAY_V2.md).
 
 The roadmap leads toward software that accepts device readings; it does not
@@ -95,11 +97,12 @@ Plan commit `db2861930cc0f01f735ccfba80a4f530f4d1ddd6` passed run 44189324502;
 that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10fea478440874b`
 passed run 44194994506. B1/B2/B3/B4 evidence is in sections 11/12/13/14;
 MB-02A evidence is in section 15; MB-02B in section 16; MB-02C in section 17;
-MB-03A in section 18.
+MB-03A in section 18; MB-03B in section 19.
 
 Historical suite: 133 workspace tests. B1 added 31 (164 total), B2 added 39 (203),
 B3 added 51 (254), B4 added 69 (323), MB-02A added 80 (403), and MB-02B added
-59 (462); MB-02C adds 61 (523); MB-03A adds 65 (588). The subprocess-only storage
+59 (462); MB-02C adds 61 (523); MB-03A adds 65 (588); MB-03B adds 70 (658).
+The subprocess-only storage
 helper is explicitly ignored and not counted as a passed test. B4 added the first compile-fail doctest; MB-02B adds two consuming-stage
 compile-fail cases, bringing documentation tests to three.
 Release reruns are NOT additional unique tests. Both device-readiness gates remain UNMET.
@@ -122,7 +125,9 @@ independent sequences and combined roots. MB-02C now validates actual complete
 blocks from a pinned manifest/genesis, uses its accepted branch for ancestry, and
 replays complete MRB2 histories against external selected checkpoints. MB-03A now
 initializes and reopens those immutable selected histories with bounded disk inputs,
-cooperative directory ownership and full accounts/membership replay.
+cooperative directory ownership and full accounts/membership replay. MB-03B adds
+a separately versioned accepted-child append API, write fencing and checked
+resynchronization of complete selected histories. Residual staging is still rejected.
 
 NOT implemented: biological deduplication, persistent networked V2 membership blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -174,9 +179,10 @@ For design-only work this means design acceptance, NOT runtime implementation.
 | MB-02A | TransferV2, unified envelope, BlockV2 codecs/commitments | VERIFIED_COMPONENT — FORMAT LAYER | 35ad0cf, CI 44428924399, section 15 |
 | MB-02B | Atomic accounts + membership with full mixed-operation indices | VERIFIED_COMPONENT — STAGED LEDGER | 420d711, CI 44619155972, section 16 |
 | MB-02C | Pinned V2 genesis, actual block acceptance and replay | VERIFIED_COMPONENT — ACCEPTED BRANCH | db2cb58, CI 44623282448, section 17 |
-| MB-03 | Durable state, synchronization and membership reorg/replay | IN PROGRESS — NEXT MB-03B | Immutable selected-store lifecycle complete; updates, peers and reorg still open |
+| MB-03 | Durable state, synchronization and membership reorg/replay | IN PROGRESS — NEXT MB-03C | Immutable and append profiles verified; staging repair, peers and reorg still open |
 | MB-03A | Explicit V2 storage identity, writer ownership and initial publication | VERIFIED_COMPONENT — IMMUTABLE STORE | 528c891; independent pins, complete replay, Linux directory ownership; section 18 |
-| MB-03B | Durable accepted-tip updates and failure reconciliation | READY — NEXT | Freeze explicit updatable profile/generation authority; append publication, write fencing and restart tests |
+| MB-03B | Durable accepted-tip updates and failure reconciliation | VERIFIED_COMPONENT — APPEND / CLEAN STATE | ecf5e76; separate MSU2, accepted-child publication, fencing and selected-state resynchronization; section 19 |
+| MB-03C | Explicit interrupted-append staging recovery | READY — NEXT | Freeze recovery authority, artifact provenance, bounded inspection, publication and retry rules before implementation |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
 | MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
 | MB-06 | Human-limited rounds, certificates and easy-PoW participation | TODO | MB-03/04/05; D-03 |
@@ -287,12 +293,21 @@ generation-zero selection publication. Partial data is retained; ambiguous resul
 return no owning handle and require checked reconciliation. The stable root inode
 provides cooperative Linux ownership. Legacy recovery is never invoked.
 
-**Next slice — MB-03B (READY):** define an explicit updatable profile/generation
-contract without reinterpreting immutable profile1 or legacy data. Implement one
-actual accepted-block advancement with coherent durable selection and memory,
-write fencing on uncertain I/O, bounded restart reconciliation and meaningful
-publication failure injection. Preserve private ChainV2 authority and stable root
-ownership. NEXT_SESSION.md gives the exact continuation.
+**Second slice — MB-03B (VERIFIED_COMPONENT):** a separate explicit append profile
+uses 280-byte MSU2 around unchanged MSS2 metadata and an independently selected local
+generation. One complete child is validated, the old disk chain rechecked, and new
+block/selector publication synchronized before memory advances. Errors fence the
+handle. Writer reopening and consuming reconciliation resynchronize fully validated
+clean selected history while retaining stable ownership. Strict normal opening
+preserves and rejects residual tail/pending/unknown data; it does not repair it.
+
+**Next slice — MB-03C (READY):** specify and implement explicit interrupted-append
+staging recovery. Preserve both existing formats. Establish independently selected
+old/candidate authority and exact managed-artifact provenance before any modification;
+freeze bounded reads, publication, uncertainty and idempotent restart semantics.
+Introduce separately versioned intent metadata only with a reviewed contract and
+independent vectors. Unknown or ambiguous artifacts remain preserved/rejected.
+NEXT_SESSION.md gives the exact continuation.
 
 Later slices add peer reconstruction and canonical reorganization with different
 membership histories. Initializing two separate valid fork stores does not satisfy
@@ -487,11 +502,13 @@ Refresh the-prompt for every Mirror response, including discussion-only changes.
 Do not count documentation publication as runtime evidence or chase self-referential
 checkpoint SHAs. No background-work promise; disclose failed publication.
 
-**Immediate next:** MB-03B durable accepted-tip updates and failure reconciliation.
-Reuse B1–B4, MB-02A/B/C and MB-03A's immutable store, actual ChainV2 authority,
-independent pins and complete MRB2 replay. Freeze generation/update/restart semantics
-before implementing existing-store advancement. Preserve all previous formats,
-legacy directories, root ownership and user policy. No minting or hardware work now.
+**Immediate next:** MB-03C explicit interrupted-append staging recovery.
+Reuse B1–B4, MB-02A/B/C, immutable StoreV2 and append-profile AppendStoreV2.
+Freeze artifact ownership and independently selected recovery choices before adding
+repair. Preserve stable root locking, all previous encodings, actual ChainV2 replay,
+finite resource budgets, legacy directories and user policy. Do not turn normal
+open into undisclosed cleanup, promote pending metadata from its checksum, or choose
+a fork from stored counters. No minting or hardware work is needed now.
 
 ## 8. Engineering references, not user policy
 
@@ -950,8 +967,126 @@ then the corrected workspace/docs/storage-release gates and the full exact-sourc
 CI passed. Repetitions are not additional unique tests. Last-descriptor ownership,
 including fork inheritance, is now explicit in the storage contract and handoff.
 
-**MB-03A VERIFIED_COMPONENT — IMMUTABLE STORE. MB-03 IN PROGRESS. Next: MB-03B.**
+**At the MB-03A checkpoint: VERIFIED_COMPONENT — IMMUTABLE STORE; next was MB-03B.**
 No accepted-tip advancement, durable reorg, V2 peer/node integration, mint, reward,
 real device admission or anonymity has been delivered by this slice. D-01/D-04
 remain open; no founder bonus or privileged marketing reserve was added.
 **Gate A and Gate B remain UNMET.**
+
+
+## 19. MB-03B acceptance — MIRROR-MB03B-001
+
+Implemented source **ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c**, tree
+**06d7c3f4fa24d96c844e2301c76c01f804151192**, on `work/personhood-register-v0.1`.
+PR #1 remains open/unmerged; main remains ad7ffd120fb451fe44cf59cb909176785b33bf8f.
+[Source push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203),
+job **135999222947**, and [PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
+both SUCCEEDED. Full push-job logs were inspected and confirmed this exact source
+checkout and all test/reference/example/audit gates. The published tree matches the
+locally checked tree. Documentation follows this source with separate exact-head CI.
+
+### Delivered behavior and authority
+
+The [append contract](docs/STORAGE_APPEND_V2.md) and `AppendStoreV2` introduce explicit
+profile-2 initialization, one-child append, exclusive writer reopen, shared inspection
+and consuming clean-state reconciliation. They preserve the immutable StoreV2 profile
+and all prior network, transaction, block, ledger, membership and manifest bytes.
+Initialization accepts only an absent or empty root from a fully accepted ChainV2.
+No legacy/profile-1 adoption or in-place migration occurs.
+
+MSU2 is exactly **280 bytes**: magic, version 2, profile 2, local u64 generation, exact
+unchanged 232-byte MSS2 snapshot, and a SHA256d checksum under the new
+MIRROR_STORAGE_APPEND_SELECTION_V2 domain. The outer generation starts at zero even
+for a nonzero initial chain height, then advances with every published child. It
+never exceeds height. An uncertain return may already have selected that generation.
+Expected generation and full C/genesis/height/tip/root pins are independent caller
+inputs; no checksum, pending file or highest generation chooses trust or freshness.
+
+Append validates a cloned complete child through ChainV2 before disk mutation, then
+fully replays the current selected disk history under the held lock against retained
+pins and compares all state/counters with memory. Bad candidate validation leaves the
+store usable and unchanged; disk discrepancy fences it. Publication creates/writes/
+synchronizes the new block, synchronizes blocks/, creates/writes/synchronizes the
+pending selector, compares the old marker, renames the pending marker and synchronizes
+root. Only after that does memory advance. The locked root inode is never replaced.
+
+Any uncertain write leaves the owning handle fenced and blocks normal chain/selection/
+checkpoint access and further append. The explicitly named last_confirmed_checkpoint
+is prior confirmed memory, not a claim about disk after failure. Error values distinguish
+incomplete preparation from publication uncertainty and carry the locally validated
+candidate checkpoint for the caller to retain. Consuming reconcile retains the same
+exclusive lock while fully replaying the independently selected history and syncing
+all selected files/directories; it returns an unfenced writer only after success.
+Writer reopen likewise resynchronizes. Shared inspection performs no application write,
+sync or repair. Unknown and partially prepared states are preserved and rejected.
+
+### Actual verification
+
+**658 workspace passes = 588 retained + 70 new**, plus three retained compile-fail
+doctests and one intentionally ignored subprocess helper. The new tests are:
+
+- 28 exact selector/independent-vector and negative-format cases.
+- 31 filesystem/append integration cases using previously frozen actual blocks.
+- Eight private initialization, append, failure-fencing and reconciliation tests.
+- Three real subprocess ownership cases added to the five retained parent tests.
+
+The private tests exercise 11 append boundaries, eight reconciliation boundaries
+through both writer-reopen and consuming-reconcile entry points, nine initialization
+boundaries, partial block/selector files, stale pins, root replacement and concurrent
+selector changes before publication. These scenarios and release repeats are not
+additional unique tests. Cases assert complete old/new selected state or rejection,
+retained bytes, fence persistence and no memory advancement before successful sync.
+
+Release reruns passed core (121), personhood (234 plus the same three doctests),
+state (49), consensus (23), chain (57) and storage (145), with the same helper
+ignored during ordinary enumeration.
+All **eight independent references** and **eight synthetic examples** passed locally
+and in exact-source CI. The final workspace check passed after the last comment/
+example wording edits. Focused formatting and diff checks passed. Ninety retained
+source/dependency/reference/fixture files were compared byte-for-byte; all dependencies,
+prior fixtures and runtime data remain unchanged.
+
+The new Python reference generated MSU2 genesis, sequential main-history, selected
+nonzero-height initialization and membership-fork vectors independently before Rust
+comparison. Fixture SHA-256 is
+`d6e597fdac8c5be081a54019149ebbe79651817848139d51bc691681b96df668`.
+No expected value was changed to agree with Rust output. New example append_v2_demo
+publishes and reopens heights 1–4, reproducing complete accounts/membership/counters,
+rejects a wrong-height candidate and second writer, and performs consuming clean
+reconciliation. It uses only new owned temporary directories and public fixtures.
+
+The three new process cases cover a child writer dropping its store while remaining
+alive, writer termination and shared child/local inspection, each followed by checked
+reopen and a real accepted child append. All eight parent tests retain the mutex
+isolation required by the earlier fork-descriptor issue. No sleep, production retry,
+assertion weakening or explicit unlock was added. Two source/contract reviews found
+no blocking discrepancy under the stated assumptions; this is component verification,
+not an independent security audit or a power-loss/storage-firmware certification.
+
+### Preserved boundaries and continuation
+
+Source increment: **14 files, 3,568 insertions and 11 deletions**. No dependency change.
+Existing storage locking gains only a private stable-root identity check used by the
+new profile. Old immutable example wording now points to the separate append profile;
+its behavior is unchanged. The old immutable executable store and all prior wire/hash
+semantics are retained. CI adds the eighth reference and eighth example.
+
+The selected profile-2 input ceiling is **19,559,132 bytes**, distinct from resident
+memory and staging overhead. Chain limits remain 4,096 blocks, 16 MiB of MRB2 bytes
+and 1,048,576 cumulative state/configuration items. There is no history eviction, authoritative account/cache
+restore or change to consensus/economic rules. Linux cooperating processes and trusted
+local owners/parents, correct locking/atomic rename/file+directory sync remain explicit
+assumptions; WSL, DrvFS, native Windows and network mounts are not established by Ubuntu CI.
+Inherited fork descriptors can keep a lock alive until their last reference closes.
+
+**MB-03B VERIFIED_COMPONENT — BOUNDED APPEND / CLEAN-STATE RECONCILIATION.**
+**MB-03 remains IN PROGRESS. Next: MB-03C explicit interrupted-append staging recovery.**
+Extra tail blocks, pending markers and partial/unknown files are still rejected and
+preserved. An interrupted preparation can therefore make a selected prefix unavailable
+through normal open until explicit recovery is specified and performed. MB-03C must
+resolve artifact provenance, recovery authority, bounded inspection and interruption/
+retry semantics without silently reinterpreting MSU2 or deleting unexplained data.
+Canonical fork selection, durable membership-aware reorganization and peer reconstruction
+follow. MB-04 node/pool/wallet/operator APIs and MB-06 human finality remain later work.
+No founder/marketing privilege, mint, grant, nonzero fee/reward, real biometric capture,
+private matching or anonymity was added. D-01/D-04 remain OPEN; Gate A/B remain UNMET.

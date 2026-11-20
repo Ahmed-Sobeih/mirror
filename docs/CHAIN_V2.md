@@ -27,8 +27,11 @@ remove this protection. An application must retain its trusted selection separat
 [MB-03A storage layer](STORAGE_V2.md) initializes one immutable selected history,
 reopens it under exclusive ownership, or inspects it under shared ownership.
 Reopening requires independent network and full checkpoint pins and reconstructs
-every complete MRB2 block through this API. Continued accepted-tip publication
-and recovery during updates remain MB-03B.
+every complete MRB2 block through this API. The separate
+[MB-03B append profile](STORAGE_APPEND_V2.md) now publishes one accepted child at a
+time, fences writes after failures, and replays/resynchronizes clean selected
+states. Its local generation also requires independent selection. Explicit recovery
+of retained interrupted staging is next in MB-03C.
 
 ## 2. Public network manifest — MNM2
 
@@ -175,10 +178,12 @@ external freshness. Parent lookup uses the private block at each real height in
 that candidate branch; another branch's operation anchor fails even if the header
 parent, work and signature otherwise pass. Two separately accepted branches can
 be valid simultaneously. MB-03A can persist and reopen either explicitly selected
-immutable branch; it supplies no global fork choice or branch replacement.
-Continued tip publication and failure recovery remain MB-03B, with peer
-reconstruction and reorganization in subsequent integration. The later
-human-finality profile remains MB-06.
+immutable branch; MB-03B can append accepted children in its separate versioned
+store and reconcile clean selected states. Neither supplies global fork choice,
+branch replacement or automatic recovery of pending artifacts. MB-03C will define
+explicit interrupted-staging recovery before canonical branch selection, durable
+membership reorganization and peer reconstruction. The later human-finality
+profile remains MB-06.
 
 ## 7. Explicit finite resource profile
 
@@ -242,9 +247,17 @@ It does not install account or membership caches as authority or change the
 finite resource profile above. Current source verification and publication
 evidence remain in the repository checkpoint files.
 
-**Next is MB-03B:** continued accepted-tip publication, generation authority,
-failure reconciliation and restart behavior. Peer reconstruction and durable
-membership-aware reorganization follow; the V2 node/API remains later work.
+The separate [MB-03B contract](STORAGE_APPEND_V2.md) adds MSU2 profile 2 with an
+independently selected local generation. Each append stages through `ChainV2`,
+checks the complete current disk history, and advances memory only after block
+and selector publication have been synchronized. Failed writes fence the handle;
+writer reopen or consuming reconciliation fully replays and resynchronizes a clean
+selected state before allowing another update. Partial or unexplained staging is
+preserved and rejected. Neither storage profile changes these chain rules.
+
+**Next is MB-03C:** explicit interrupted-append staging recovery. Reviewed canonical
+branch selection, durable membership-aware reorganization and peer reconstruction
+follow; the V2 node/API remains later work.
 No founder or marketing reserve, grant, mint, fee/reward formula, real biometric
 enrollment or device integration is enabled by these contracts. D-01/D-04 remain
 open and Gate A/B remain unmet.

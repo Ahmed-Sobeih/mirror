@@ -14,8 +14,10 @@ not an accepted block or an MPH2 replay. MB-02C now implements the separate
 branches; it does not change MPH2 or make an MPS2 cache authoritative. The
 implemented [MB-03A storage layer](STORAGE_V2.md) initializes an immutable selected
 history and reopens it by replaying every complete MRB2 block under independent
-network/checkpoint pins. It does not use this diagnostic transcript as storage
-authority or alter its frozen bytes.
+network/checkpoint pins. The separate [MB-03B append profile](STORAGE_APPEND_V2.md)
+adds one-child publication and checked reconciliation of clean selected histories.
+Neither uses this diagnostic transcript as storage authority or alters its frozen
+bytes.
 CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
@@ -41,8 +43,10 @@ synthetic independently executed fixtures. MB-02C's separate `ChainV2` now valid
 actual MRB2 headers, roots and pinned genesis using its own accepted ancestry.
 It does not implement an automatic MPH2 `ReplayChainViewV2` adapter. MB-03A storage
 reopening uses actual MRB2 replay with separately selected pins, not a diagnostic
-view inferred from this log. Continued accepted-tip publication and its failure
-recovery are next in MB-03B; global branch choice remains later integration.
+view inferred from this log. MB-03B now applies the same complete replay to append
+publication prechecks and clean-state reconciliation, with separately pinned local
+generations. Explicit interrupted-staging recovery is next in MB-03C; global branch
+choice remains later integration.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -67,8 +71,8 @@ ledger execution. MB-02B supplies indexed execution within the full mixed body,
 but does not change this replay representation. Actual mixed-chain replay uses
 MB-02C's complete validated MRB2 histories, preserving their original positions
 and combined state semantics. That API requires independently selected C, genesis,
-height, tip and ledger root. MB-03A uses that API when reopening exact stored
-MNM2/MRB2 history, retaining the same external selection requirement. Do not
+height, tip and ledger root. MB-03A and MB-03B use that API when reopening exact
+stored MNM2/MRB2 history, retaining the same external selection requirement. Do not
 reinterpret MPH2 as such an integration or replace its diagnostic group roots
 with MRB2 roots.
 
@@ -174,10 +178,10 @@ CPU-time or memory measurement. It adds no enrollment privilege or monetary rule
 These finite limits make MPH2 a bounded diagnostic transcript, not storage for
 unbounded whole-chain history. Exceeding a budget returns an error; it never
 truncates the history, deletes tombstones/approvals, lowers quorum, or claims a
-partial result is current. MB-03A's immutable MRB2 store preserves the separate
-chain budgets; it neither streams MPH2 into authority nor enlarges this profile.
-Continued publication/recovery and larger production profiles require their own
-later design and acceptance.
+partial result is current. MB-03A's immutable store and MB-03B's separate append
+store preserve the complete-chain budgets; neither streams MPH2 into authority or
+enlarges this diagnostic profile. Explicit interrupted-staging recovery and larger
+production profiles require their own later design and acceptance.
 
 ## 5. Replay procedure and failure behavior
 
@@ -236,6 +240,9 @@ test counts, publication commit and CI result. These tests are component evidenc
 not an external security audit or proof of later block/disk integration. MB-03A's
 separate implemented storage boundary is specified in [STORAGE_V2.md](STORAGE_V2.md);
 its source verification and publication evidence belong to the current checkpoint.
-The next storage slice is MB-03B accepted-tip publication and failure recovery,
-followed by peer reconstruction and durable reorganization. No V2 node service,
+The separate [MB-03B contract](STORAGE_APPEND_V2.md) adds bounded accepted-tip
+publication, failure fencing and clean-state replay/resynchronization. The next
+slice is MB-03C explicit interrupted-append staging recovery, followed by reviewed
+canonical branch selection, durable membership reorganization and peer reconstruction.
+No V2 node service,
 real human admission or monetary issuance follows from this diagnostic API.

@@ -16,6 +16,9 @@ a complete mixed body; the separate [MB-02C chain layer](CHAIN_V2.md) now establ
 actual block authority within a bounded in-memory branch. The implemented
 [MB-03A storage layer](STORAGE_V2.md) initializes an immutable selected history and
 reopens it through complete chain replay with independent network/checkpoint pins.
+The separate [MB-03B append profile](STORAGE_APPEND_V2.md) now adds one-child
+publication, failure fencing and clean-state reconciliation. Its MSU2 storage
+envelope does not change any MRB2 operation, header or body encoding.
 Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
@@ -187,6 +190,7 @@ The API boundaries are deliberately separate:
 | LedgerV2 stage_operations (MB-02B) | Atomic account/member execution, parent association, separate sequences, balances, conservation and computed roots | Actual header/genesis/work/time validation, claimed-root comparison and canonical block/chain authority |
 | ChainV2 from_genesis/append/replay (MB-02C) | Pinned genesis, actual accepted branch ancestry, complete header/work/body/execution/root checks and atomic in-memory acceptance | Durable publication/recovery, fork choice/finality, network operation and real human admission |
 | StoreV2 initialize/open_writer/inspect (MB-03A) | Immutable generation-zero storage, lifetime exclusive/shared ownership, bounded exact MNM2/MRB2 reads and full replay against independent network/checkpoint pins | Continued tip publication, update/failure recovery, branch replacement, peer synchronization, V2 node operation and real human admission |
+| AppendStoreV2 initialize/append/reopen/reconcile (MB-03B) | Separate MSU2 profile, one accepted child per publication, continuous ownership, failure fencing and complete replay/resynchronization of clean externally selected states | Explicit recovery of interrupted staging, branch replacement, peer synchronization, V2 node operation, global freshness/finality and real human admission |
 
 No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
 publishes a canonical block, mines genesis, or opens a chain database. The separate
@@ -222,8 +226,14 @@ immutable selected-chain initialization, exclusive reopening and shared read-onl
 inspection. It retains exact MNM2 and complete MRB2 bytes, reconstructs both ledger
 components through `ChainV2`, and does not trust a decoded state cache.
 
-**Next is MB-03B:** continued accepted-tip publication, generation authority,
-failure reconciliation and restart behavior. Peer reconstruction and durable
-reorganization follow. The V2 node/API remains later work; the existing node daemon
-and legacy paths have not been migrated.
+[STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md) adds a separate MSU2 append envelope
+around an unchanged MSS2 snapshot. Full accepted blocks are synchronized before
+selection publication and in-memory advancement. Failed writes fence further
+updates; clean selected states require independent generation/checkpoint pins and
+full replay/resynchronization. Unknown or partial staging is preserved and rejected.
+
+**Next is MB-03C:** explicit interrupted-append staging recovery, followed by
+reviewed canonical branch selection, durable membership reorganization and peer
+reconstruction. The V2 node/API remains later work; the existing node daemon and
+legacy paths have not been migrated.
 Refer to CURRENT_STATUS.md for current source and acceptance evidence.

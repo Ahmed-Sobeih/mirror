@@ -9,8 +9,12 @@ This slice initializes a new store from an already accepted `ChainV2`, exclusive
 reopens it, or inspects it with shared ownership. Every reopen reconstructs the
 complete chain through normal acceptance. **It has no append, tip-update,
 replacement, automatic repair, global fork-choice or V2 node-daemon API.** Those
-remain MB-03B and subsequent integration work. Legacy `BlockStore` and node recovery
-are separate and unchanged; their automatic create/repair behavior is never called.
+capabilities are outside this frozen profile. The separate
+[MB-03B append contract](STORAGE_APPEND_V2.md) now implements one-child publication,
+failure fencing and clean-state reconciliation under a distinct MSU2 profile 2.
+It does not reinterpret or upgrade an existing MSS2 store. Legacy `BlockStore` and
+node recovery are separate and unchanged; their automatic create/repair behavior
+is never called by either V2 profile.
 
 ## 1. External authority and lifecycle
 
@@ -228,7 +232,7 @@ post-publication boundaries. These deterministic injected errors and killed lock
 holders do **not** emulate power loss, torn kernel writes, disk firmware failures
 or every filesystem. No universal crash-safety certification is claimed.
 
-The five parent lock tests are serialized against each other with a test-local
+The parent lock tests are serialized against each other with a test-local
 mutex so one test's process fork cannot temporarily inherit another test's lock.
 Each intended cross-process test still runs its real child concurrently and uses
 pipe acknowledgments, not sleeps or weakened ownership assertions. Linux's
@@ -241,10 +245,16 @@ rejection, complete reopening and independently selected membership-fork recover
 in newly created temporary directories. It never opens user runtime stores and
 does not update the legacy node.
 
-**Next MB-03B:** define and implement accepted-tip updates/generation authority,
-staging, failure reconciliation and restart behavior under continued single-writer
-ownership. Preserve this profile and all old bytes. Specify canonical development
-fork choice before any branch replacement, then add durable membership-aware
-reorganization and peer reconstruction. MB-04 supplies the persistent V2 node/API.
+The separate [MB-03B append profile](STORAGE_APPEND_V2.md) now implements bounded
+one-child publication, failure fencing and clean-state replay/resynchronization
+under continuous ownership. Its MSU2 envelope embeds these unchanged MSS2 bytes,
+and its outer generation requires independent selection. This profile 1 remains
+immutable and all of its exact bytes, APIs and limits remain unchanged.
+
+**Next MB-03C:** define explicit recovery of interrupted append staging. Pending,
+extra-tail and unexplained artifacts currently reject and remain untouched. Specify
+canonical development fork choice before branch replacement, then add durable
+membership-aware reorganization and peer reconstruction. MB-04 supplies the
+persistent V2 node/API.
 Human finality, real fingerprint/ECG admission and private matching remain later
 gates. No economics, founder privilege, fee, mint or grant is introduced here.

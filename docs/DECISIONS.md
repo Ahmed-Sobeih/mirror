@@ -139,7 +139,7 @@ Verified replay still depends on a trusted caller supplying actual history; B4
 does not implement the chain, durable tip or consensus that establishes that trust.
 At the B4 checkpoint, MB-02A was next. Its subsequent implementation and MB-02B/C's
 completed atomic ledger and actual block validation are recorded below. Durable
-persistence was left to MB-03; the implemented MB-03A slice is recorded below.
+persistence was left to MB-03; the implemented MB-03A/B slices are recorded below.
 No grant, fee, monetary exception formula, private matching, anonymity, real
 admission policy or final human-consensus decision was selected by B4.
 
@@ -284,13 +284,11 @@ selected marker is published. An uncertain publication returns no writable handl
 reconciliation requires retained independent pins. Partial stores are neither
 silently repaired nor deleted, and legacy stores are never migrated automatically.
 
-The profile has no append, tip replacement, automatic repair, global fork-choice
-or V2 node-daemon API. **Next is MB-03B:** accepted-tip updates and generation
-authority, write fencing after ambiguous I/O, failure reconciliation and restart
-behavior. Peer reconstruction and durable membership-aware reorganization follow;
-the V2 node/API and final human consensus remain later work. A reviewed update
-contract must preserve this immutable profile and cannot recover capacity by
-discarding retained history or restoring an untrusted cache.
+The immutable profile has no append, tip replacement, automatic repair, global
+fork-choice or V2 node-daemon API. At the MB-03A checkpoint, MB-03B accepted-tip
+updates and failure reconciliation were next; that separate implementation is
+recorded below. The immutable profile remains frozen. Later integration cannot
+recover capacity by discarding retained history or restoring an untrusted cache.
 
 Only internal workspace dependencies were added; no external dependency changed.
 All inputs remain public synthetic test material. No founder allocation, marketing
@@ -299,3 +297,73 @@ archive, device support, anonymity or biological uniqueness was introduced.
 Accepted user policies above are unchanged; D-01/D-04 remain OPEN and Gate A/B
 remain unmet. MB-03A is a bounded storage component, not completion of MB-03 or a
 universal crash-safety or mainnet-security guarantee.
+
+## MB-03B engineering choices — MIRROR-MB03B-001
+
+Published implementation:
+[`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c).
+Source tree: `06d7c3f4fa24d96c844e2301c76c01f804151192`, identical to the locally
+tested tree. The source increment changes 14 files, with 3,568 insertions and
+11 deletions. Local verification passed
+658 workspace tests (588 retained + 70 new), with one explicitly ignored subprocess
+helper, and three retained compile-fail doctests. The new cases are 28 selector,
+31 append integration, eight private fault/reconciliation and three process tests.
+Release reruns passed core 121, personhood 234 plus the same three doctests,
+state 49, consensus 23, chain 57 and storage 145 tests. All eight independent
+references and eight examples passed. Exact-source
+[push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203),
+job `135999222947`, and
+[PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
+both **SUCCEEDED**. The full push-job log confirmed checkout
+`ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c` and all workspace, documentation,
+release, reference, example and audit gates. This establishes **MB-03B
+VERIFIED_COMPONENT — bounded append and clean-state reconciliation**.
+Subsequent documentation-head CI must be checked separately; no result is inferred
+from this source run. The prior MB-03A acceptance record above remains historical evidence.
+
+The [append storage contract](STORAGE_APPEND_V2.md) adds a separate `AppendStoreV2`
+lifecycle while preserving immutable `StoreV2` and every existing wire encoding.
+MSU2 is a 280-byte envelope with version 2/profile 2, an outer local generation,
+the exact 232-byte MSS2 snapshot, and a new domain-separated integrity checksum.
+The nested MSS2 remains version 2/profile 1/generation zero. Initialization in an
+absent or empty directory starts the outer generation at zero, including when the
+input is an already accepted multi-block history. No existing profile is silently
+adopted or migrated. Each subsequent accepted child advances height and generation
+once, preserving the existing chain budgets.
+
+The independently supplied `AppendCheckpointV2` selects both a complete chain
+checkpoint and its local generation. It is not learned from an untrusted marker,
+peer, pending file or largest observed height. Checksums and generation ordering
+provide neither global freshness nor fork choice. All reopened accounts, membership,
+approval history and resource counters come from complete actual-chain replay.
+
+One-child append validates and stages the complete block before filesystem writes,
+replays the current disk selection under retained pins, synchronizes the new MRB2
+file and block directory, and writes/synchronizes the next MSU2 marker. It rechecks
+the old selector before publishing the new marker by same-root rename, then
+synchronizes the stable root before advancing memory. Directory ownership remains
+continuous; the root is never swapped or removed.
+
+Disk discrepancies and update I/O failures fence further writes and ordinary
+chain/selection access. `last_confirmed_checkpoint` identifies only the last
+successful memory publication. Errors after a publication attempt disclose that
+disk may already select the candidate. Consuming `reconcile` retains the same
+lock and returns an unfenced writer only after complete replay and resynchronization
+of an independently selected clean history. A failed reconciliation returns no
+usable handle. Writer reopening also resynchronizes; shared inspection never writes
+or authorizes an append.
+
+This slice deliberately has **strict clean-state reconciliation**: pending markers,
+extra tail blocks, partial files and unknown artifacts reject and remain in place.
+No data is deleted, pending candidate promoted, or generation selected merely to
+make recovery succeed. **Next is MB-03C: explicit interrupted-append staging
+recovery**, followed by reviewed canonical branch selection, durable membership
+reorganization and peer reconstruction. MB-03 remains in progress; MB-04's live
+V2 node/API and MB-06 human finality remain later work.
+
+The independent append reference derives new MSU2 bytes from pinned prior
+chain/storage fixtures, including successive mixed/empty blocks and a distinct
+membership fork. These synthetic checks do not establish reliable biometrics,
+anonymity, final consensus, universal crash safety or device readiness. No monetary
+policy, grant/mint API, nonzero fees, rewards, founder privilege or marketing reserve
+is introduced. D-01/D-04 remain open, and Gate A/B remain unmet.

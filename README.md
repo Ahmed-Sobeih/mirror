@@ -9,10 +9,11 @@ Mirror is a Rust development blockchain exploring human-based participation.
 to an integrated blockchain/enrollment stack ready for
 supported fingerprint and ECG inputs. Each task has dependencies and acceptance
 criteria. **MB-01B and MB-02A/B/C are verified components:** configuration, membership,
-atomic ledger execution and actual V2 block acceptance/replay. **MB-03A is now
-implemented:** immutable selected-chain storage, lifetime ownership and checked
-reopening. Next is **MB-03B: accepted-tip updates, generation authority and failure
-recovery**, followed by peer reconstruction and durable membership reorganization.
+atomic ledger execution and actual V2 block acceptance/replay. **MB-03A/B are
+verified storage components:** immutable selected-chain initialization, lifetime
+ownership, checked reopening and bounded one-block append publication with failure fencing.
+Next is **MB-03C: explicit recovery of interrupted append staging**, followed by
+canonical branch selection, durable membership reorganization and peer reconstruction.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -60,8 +61,8 @@ configuration, hashes, exact operation groups, intermediate roots and the reques
 final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.md)
 and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
 authority; a caller-supplied hash alone is not proof of actual block validity.
-Actual V2 validation now exists in the separate chain layer below. Immutable V2
-storage is also implemented; continued tip updates, peer messages and rewards
+Actual V2 validation and storage now exist in the separate layers below. Bounded
+tip updates are implemented; explicit staging recovery, peer messages and rewards
 remain later work.
 
 `mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
@@ -83,29 +84,41 @@ the same validator and an external expected checkpoint. A false final root with
 valid mining work is rejected without changing the chain. The
 [chain contract](docs/CHAIN_V2.md) records exact rules, resource caps and trust.
 
-`mirror_storage::v2` now initializes one immutable accepted chain in a separate
-explicit store. Exclusive reopening and shared read-only inspection retain an
-operating-system directory lock and require independently chosen network and full
-checkpoint pins. Exact MNM2 manifests, complete MRB2 blocks and bounded MSS2
-selection metadata are stored; reopening executes the whole history through
-`ChainV2`. No decoded account or membership cache becomes authority. The
-[storage contract](docs/STORAGE_V2.md) specifies Linux/cooperating-process and
-trusted-parent assumptions, bounded reads, initial publication ordering and error
-reconciliation. It provides no append, replacement, automatic repair or V2 daemon.
+`mirror_storage::v2` supplies two explicitly selected storage profiles. Immutable
+`StoreV2` retains its frozen MSS2 generation-zero contract. The separate
+`AppendStoreV2` uses MSU2 profile 2 to publish one completely accepted child at a
+time. It synchronizes the new block and selector before advancing the in-memory
+chain. Both profiles retain directory ownership and reconstruct complete MNM2/MRB2
+history under independently chosen network and full checkpoint pins. Append-store
+reopening also requires the separately retained local generation; it does not
+discover global freshness. No decoded state cache becomes authority.
+
+An append I/O failure fences further writes and ordinary state access. Consuming
+reconciliation fully replays and resynchronizes a clean selected history before
+returning a writer. Pending selectors, extra tail blocks and unexplained artifacts
+are preserved and rejected; their explicit recovery is the next slice. See the
+[immutable storage contract](docs/STORAGE_V2.md) and
+[append storage contract](docs/STORAGE_APPEND_V2.md) for exact publication boundaries,
+Linux/cooperating-process assumptions and bounded-read rules. No automatic migration,
+repair, branch replacement or live V2 daemon is provided.
 
 Latest implementation source:
-[`528c891`](https://github.com/Ahmed-Sobeih/mirror/commit/528c8912c5a50cfd2e86856d345b29d6bb79d2c5).
-Local verification passed **588 workspace tests** (**65 new**), with **one ignored
-subprocess helper**, and **3 compile-fail doctests**. Release reruns passed core
-**121**, personhood **234** plus the same **3** doctests, state **49**, consensus
-**23**, chain **57** and storage **75** tests. All **seven independent references**
-and **seven examples** passed locally. Release reruns are not additional unique
-tests. Exact-source CI and publication evidence are tracked separately in
-[CURRENT_STATUS.md](CURRENT_STATUS.md).
+[`ecf5e76`](https://github.com/Ahmed-Sobeih/mirror/commit/ecf5e7621bd39f6d2dff6a2f8d89f749a55b0d3c).
+Local verification
+passed **658 workspace tests** (**70 new**), with **one ignored subprocess helper**,
+and **3 compile-fail doctests**. Release reruns passed core **121**, personhood
+**234** plus the same **3** doctests, state **49**, consensus **23**, chain **57** and
+storage **145** tests. All **eight independent references** and **eight examples**
+passed locally. Exact-source [push CI 44649111203](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649111203)
+and [PR CI 44649119266](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44649119266)
+both passed. Full push-job logs confirmed the exact published checkout and every
+gate. [CURRENT_STATUS.md](CURRENT_STATUS.md) separates source verification from
+later documentation-head CI. Prior MB-03A acceptance remains in the master plan;
+reruns are not additional unique tests.
 
-The storage demonstration creates temporary synthetic stores, checks competing
-ownership and reopens complete independently selected histories. It does not
-start a persistent V2 network; that integration remains MB-03/04.
+Both storage examples create temporary synthetic stores. The append demonstration
+adds accepted mixed and empty blocks, then reopens and checks the complete state.
+They do not start a persistent V2 network; that integration remains MB-03/04.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -142,6 +155,7 @@ python3 tools/reference_blocks_v2.py --check
 python3 tools/reference_ledger_v2.py --check
 python3 tools/reference_chain_v2.py --check
 python3 tools/reference_storage_v2.py --check
+python3 tools/reference_append_storage_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
@@ -149,6 +163,7 @@ cargo run -p mirror-core --example block_v2_demo --locked
 cargo run -p mirror-state --example ledger_v2_demo --locked
 cargo run -p mirror-chain --example chain_v2_demo --locked
 cargo run -p mirror-storage --example storage_v2_demo --locked
+cargo run -p mirror-storage --example append_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

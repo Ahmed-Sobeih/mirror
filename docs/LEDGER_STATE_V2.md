@@ -104,7 +104,9 @@ Transfer=0. It cannot replay a mixed ledger by omitting transfers; complete vali
 MRB2 replay is implemented by MB-02C's `ChainV2`. The separate implemented
 [MB-03A storage layer](STORAGE_V2.md) uses that full replay when reopening an
 immutable selected history, with independent network/checkpoint pins. Continued
-tip updates and their failure recovery remain MB-03B. The previous diagnostic
+tip updates now use the separate [MB-03B append profile](STORAGE_APPEND_V2.md),
+which stages complete children and reconciles clean selected states by full replay.
+Explicit interrupted-staging recovery remains MB-03C. The previous diagnostic
 replay budgets remain unchanged.
 
 ## 3. Execution and error order
@@ -247,9 +249,17 @@ pins and rebuild both ledger components by replaying every complete MRB2 block.
 No cached account or membership state becomes a second authority. Exact source
 verification and publication evidence are recorded in the checkpoint files.
 
-**Next is MB-03B:** accepted-tip updates, generation authority, publication failure
-reconciliation and restart behavior. Peer reconstruction and durable branch
-replacement follow; the V2 node/API remains later work. In-memory acceptance and
+The separate [MB-03B append contract](STORAGE_APPEND_V2.md) stages one complete
+child through `ChainV2`, synchronizes block and selector publication, then advances
+the accepted chain and its entire ledger together. Failure fences ordinary state
+access and further writes; a clean selected state must be independently pinned,
+fully replayed and resynchronized before a writer can resume. Cached account,
+membership, population or resource counters never become recovery authority.
+
+**Next is MB-03C:** explicit recovery of interrupted append staging, whose pending
+or unexplained artifacts are currently preserved and rejected. Reviewed canonical
+branch selection, durable membership reorganization and peer reconstruction follow;
+the V2 node/API remains later work. In-memory acceptance and
 bounded storage checks are not universal crash-safety or human-consensus
 guarantees. Private matching, biometric capture, privacy and real admission remain
 later gates.
