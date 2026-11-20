@@ -19,7 +19,8 @@ use std::{
 };
 
 use mirror_storage::v2::{
-    AppendCheckpointV2, AppendStorageErrorV2, AppendStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
+    AppendCheckpointV2, AppendRecoveryActionV2, AppendRecoveryErrorV2, AppendRecoveryRequestV2,
+    AppendStorageErrorV2, AppendStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
 };
 use support_v2::{fixture_identity, main_chain, main_expectation};
 
@@ -135,6 +136,15 @@ fn append_and_reopen_fourth_block(root: &Path, mut store: AppendStoreV2) {
     let reopened =
         AppendStoreV2::open_writer(root, fixture_identity(), append_checkpoint(4, 1)).unwrap();
     assert_eq!(reopened.chain().unwrap(), &expected);
+}
+
+fn recovery_request() -> AppendRecoveryRequestV2 {
+    AppendRecoveryRequestV2::new(
+        append_checkpoint(2, 0),
+        append_checkpoint(3, 1),
+        main_chain(3).block_at(3).unwrap().clone(),
+    )
+    .unwrap()
 }
 
 /// A pipe handshake, not a scheduling delay, proves that a child has its lock.
@@ -262,6 +272,7 @@ fn lock_process_probe() {
     enum ProbeStore {
         Immutable(StoreV2),
         Append(AppendStoreV2),
+        Recovered(AppendStoreV2),
     }
     let access = std::env::var(CHILD_ACCESS).unwrap();
     let profile = std::env::var(CHILD_PROFILE).unwrap_or_else(|_| "immutable".into());
@@ -270,6 +281,15 @@ fn lock_process_probe() {
         ("immutable", "reader") => ProbeStore::Immutable(reader(&root).unwrap()),
         ("append", "writer") => ProbeStore::Append(append_writer(&root).unwrap()),
         ("append", "reader") => ProbeStore::Append(append_reader(&root).unwrap()),
+        ("recovery", "writer") => ProbeStore::Recovered(
+            AppendStoreV2::recover_interrupted(
+                &root,
+                fixture_identity(),
+                &recovery_request(),
+                AppendRecoveryActionV2::Complete,
+            )
+            .unwrap(),
+        ),
         other => panic!("unknown child lock profile/mode: {other:?}"),
     };
     match &store {
@@ -279,6 +299,12 @@ fn lock_process_probe() {
         ProbeStore::Append(store) => {
             assert_eq!(store.chain().unwrap(), &main_chain(3));
             assert_eq!(store.checkpoint().unwrap(), append_checkpoint(3, 0));
+        }
+        ProbeStore::Recovered(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(3));
+            assert_eq!(store.checkpoint().unwrap(), append_checkpoint(3, 1));
+            assert_eq!(store.access(), StoreAccessV2::Writer);
+            assert!(!store.is_fenced());
         }
     }
     println!("\n{READY}");
@@ -442,4 +468,86 @@ fn append_shared_child_and_local_reader_exclude_writer_until_both_drop() {
     let reopened = append_writer(&directory.store).unwrap();
     append_and_reopen_fourth_block(&directory.store, reopened);
     child.finish();
+}
+
+#[test]
+fn recovered_child_process_keeps_exclusive_ownership_until_drop_or_termination() {
+    let _isolation = isolate_parent_test();
+    for terminate in [false, true] {
+        let directory = TestDirectory::new();
+        drop(AppendStoreV2::initialize(&directory.store, &main_chain(2)).unwrap());
+        let inode = fs::metadata(&directory.store).unwrap();
+        let expected = main_chain(3);
+        let candidate = expected
+            .block_at(3)
+            .unwrap()
+            .encode(expected.config())
+            .unwrap();
+        let tail = directory.store.join("blocks/00000000000000000003.mrb2");
+        fs::write(&tail, &candidate[..100]).unwrap();
+
+        // READY is emitted only after the child completes explicit recovery and
+        // retains the returned writer. A pipe handshake proves this boundary;
+        // no scheduling sleeps or weaker ownership assertions are used.
+        let mut child =
+            ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, "recovery");
+        assert_eq!(fs::read(&tail).unwrap(), candidate);
+        assert!(!directory.store.join("selection.pending").exists());
+        assert!(matches!(
+            AppendStoreV2::recover_interrupted(
+                &directory.store,
+                fixture_identity(),
+                &recovery_request(),
+                AppendRecoveryActionV2::Complete,
+            ),
+            Err(AppendRecoveryErrorV2::Storage(StorageErrorV2::Busy))
+        ));
+        assert_append_busy(AppendStoreV2::open_writer(
+            &directory.store,
+            fixture_identity(),
+            append_checkpoint(3, 1),
+        ));
+        assert_append_busy(AppendStoreV2::inspect(
+            &directory.store,
+            fixture_identity(),
+            append_checkpoint(3, 1),
+        ));
+
+        let living_child = if terminate {
+            child.kill_and_wait();
+            None
+        } else {
+            child.drop_store();
+            Some(child)
+        };
+        let mut reopened = AppendStoreV2::open_writer(
+            &directory.store,
+            fixture_identity(),
+            append_checkpoint(3, 1),
+        )
+        .unwrap();
+        assert_eq!(reopened.chain().unwrap(), &expected);
+        let current_inode = fs::metadata(&directory.store).unwrap();
+        assert_eq!(
+            (inode.dev(), inode.ino()),
+            (current_inode.dev(), current_inode.ino())
+        );
+        let next = main_chain(4);
+        assert_eq!(
+            reopened.append(next.block_at(4).unwrap().clone()).unwrap(),
+            append_checkpoint(4, 2)
+        );
+        assert_eq!(reopened.chain().unwrap(), &next);
+        drop(reopened);
+        let final_store = AppendStoreV2::open_writer(
+            &directory.store,
+            fixture_identity(),
+            append_checkpoint(4, 2),
+        )
+        .unwrap();
+        assert_eq!(final_store.chain().unwrap(), &next);
+        if let Some(child) = living_child {
+            child.finish();
+        }
+    }
 }

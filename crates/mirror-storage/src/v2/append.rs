@@ -5,6 +5,8 @@
 //! complete chain checkpoint. No pending file, checksum or larger generation
 //! chooses authority, repairs staging, or establishes global freshness.
 
+pub mod recovery;
+
 use std::{
     fmt,
     fs::{self, File, OpenOptions},

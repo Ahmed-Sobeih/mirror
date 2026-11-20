@@ -56,6 +56,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example storage_v2_demo --locked
       - name: V2 durable append and reconciliation demonstration
         run: cargo +1.98.0 run -p mirror-storage --example append_v2_demo --locked
+      - name: V2 explicit interrupted-append recovery demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example recovery_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
       - name: V2 atomic ledger demonstration

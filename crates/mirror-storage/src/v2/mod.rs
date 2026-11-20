@@ -29,6 +29,10 @@ use mirror_core::v2::{BlockErrorV2, MIN_ENCODED_BLOCK_LEN_V2};
 
 use lock::DirectoryLockV2;
 pub use append::{AppendStorageErrorV2, AppendStoreV2};
+pub use append::recovery::{
+    AppendRecoveryActionV2, AppendRecoveryErrorV2, AppendRecoveryRequestV2,
+    MAX_APPEND_RECOVERY_INPUT_BYTES_V2, MAX_APPEND_RECOVERY_READ_BYTES_V2,
+};
 pub use append_selection::{
     APPEND_SELECTION_LEN_V2, AppendCheckpointV2, AppendSelectionErrorV2, AppendSelectionV2,
 };
