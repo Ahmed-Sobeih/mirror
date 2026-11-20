@@ -4,6 +4,9 @@
 //! Proof of Humanity will later constrain how human participants
 //! interact with consensus.
 
+/// Fixed-target V2 header validation and bounded development mining.
+pub mod v2;
+
 use core::fmt;
 
 use mirror_core::BlockHeader;

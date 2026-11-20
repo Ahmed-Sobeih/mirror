@@ -4,6 +4,7 @@ pub mod block;
 pub mod merkle;
 pub mod signed_transaction;
 pub mod transaction;
+pub mod monetary_policy;
 
 pub use block::{BLOCK_HEADER_LEN, BLOCK_VERSION, BlockHeader};
 
@@ -25,3 +26,6 @@ pub mod codec;
 pub use codec::{
     BLOCK_ENCODING_MAGIC, CodecError, MIN_ENCODED_BLOCK_LEN, decode_block, encode_block,
 };
+
+/// Explicit V2 formats; legacy consensus types remain available unchanged.
+pub mod v2;

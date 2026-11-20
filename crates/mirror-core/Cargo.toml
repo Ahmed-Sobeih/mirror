@@ -7,3 +7,4 @@ repository.workspace = true
 
 [dependencies]
 mirror-crypto = { path = "../mirror-crypto" }
+mirror-personhood = { path = "../mirror-personhood" }

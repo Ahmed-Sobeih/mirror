@@ -3,6 +3,9 @@
 //! This crate determines whether transactions are economically valid
 //! and calculates the state commitment placed into each block header.
 
+/// Explicit V2 mixed-ledger execution; legacy state APIs retain their meanings.
+pub mod v2;
+
 use std::collections::BTreeMap;
 
 use mirror_core::{
