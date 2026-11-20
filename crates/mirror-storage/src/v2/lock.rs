@@ -72,6 +72,25 @@ impl DirectoryLockV2 {
     pub(super) fn sync(&self) -> Result<(), StorageErrorV2> {
         self.directory.sync_all().map_err(StorageErrorV2::Io)
     }
+
+    /// Check that subsequent operations still name the locked root inode.
+    /// This detects accidental replacement, not hostile same-user path races.
+    pub(super) fn verify_root(&self, root: &Path) -> Result<(), StorageErrorV2> {
+        #[cfg(target_os = "linux")]
+        {
+            let current = checked_path_metadata(root)?;
+            let held = self.directory.metadata().map_err(StorageErrorV2::Io)?;
+            if current.dev() != held.dev() || current.ino() != held.ino() {
+                return Err(StorageErrorV2::UnsafePath("locked store root was replaced"));
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = root;
+            Err(StorageErrorV2::UnsupportedPlatform)
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]

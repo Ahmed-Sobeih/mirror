@@ -18,11 +18,14 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use mirror_storage::v2::{StorageErrorV2, StoreAccessV2, StoreV2};
+use mirror_storage::v2::{
+    AppendCheckpointV2, AppendStorageErrorV2, AppendStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
+};
 use support_v2::{fixture_identity, main_chain, main_expectation};
 
 const CHILD_ROOT: &str = "MIRROR_STORAGE_V2_LOCK_PROBE_ROOT";
 const CHILD_ACCESS: &str = "MIRROR_STORAGE_V2_LOCK_PROBE_ACCESS";
+const CHILD_PROFILE: &str = "MIRROR_STORAGE_V2_LOCK_PROBE_PROFILE";
 const READY: &str = "MIRROR_STORAGE_V2_LOCK_READY";
 const DROPPED: &str = "MIRROR_STORAGE_V2_LOCK_DROPPED";
 const READY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -67,6 +70,10 @@ impl TestDirectory {
     fn initialize(&self) -> StoreV2 {
         StoreV2::initialize(&self.store, &main_chain(3)).unwrap()
     }
+
+    fn initialize_append(&self) -> AppendStoreV2 {
+        AppendStoreV2::initialize(&self.store, &main_chain(3)).unwrap()
+    }
 }
 
 impl Drop for TestDirectory {
@@ -92,6 +99,44 @@ fn assert_busy(result: Result<StoreV2, StorageErrorV2>) {
     );
 }
 
+fn append_checkpoint(height: u64, generation: u64) -> AppendCheckpointV2 {
+    AppendCheckpointV2 {
+        generation,
+        chain: main_expectation(height),
+    }
+}
+
+fn append_writer(root: &Path) -> Result<AppendStoreV2, AppendStorageErrorV2> {
+    AppendStoreV2::open_writer(root, fixture_identity(), append_checkpoint(3, 0))
+}
+
+fn append_reader(root: &Path) -> Result<AppendStoreV2, AppendStorageErrorV2> {
+    AppendStoreV2::inspect(root, fixture_identity(), append_checkpoint(3, 0))
+}
+
+fn assert_append_busy(result: Result<AppendStoreV2, AppendStorageErrorV2>) {
+    assert!(
+        matches!(
+            result,
+            Err(AppendStorageErrorV2::Storage(StorageErrorV2::Busy))
+        ),
+        "independent append-profile handle must report Busy"
+    );
+}
+
+fn append_and_reopen_fourth_block(root: &Path, mut store: AppendStoreV2) {
+    let expected = main_chain(4);
+    assert_eq!(
+        store.append(expected.block_at(4).unwrap().clone()).unwrap(),
+        append_checkpoint(4, 1),
+    );
+    assert_eq!(store.chain().unwrap(), &expected);
+    drop(store);
+    let reopened =
+        AppendStoreV2::open_writer(root, fixture_identity(), append_checkpoint(4, 1)).unwrap();
+    assert_eq!(reopened.chain().unwrap(), &expected);
+}
+
 /// A pipe handshake, not a scheduling delay, proves that a child has its lock.
 /// The guard also kills/waits the helper if an assertion in the parent fails.
 struct ChildHolder {
@@ -102,6 +147,10 @@ struct ChildHolder {
 
 impl ChildHolder {
     fn spawn(root: &Path, access: StoreAccessV2) -> Self {
+        Self::spawn_profile(root, access, "immutable")
+    }
+
+    fn spawn_profile(root: &Path, access: StoreAccessV2, profile: &str) -> Self {
         let mut child = Command::new(std::env::current_exe().unwrap())
             .args([
                 "--ignored",
@@ -111,6 +160,7 @@ impl ChildHolder {
                 "--test-threads=1",
             ])
             .env(CHILD_ROOT, root)
+            .env(CHILD_PROFILE, profile)
             .env(
                 CHILD_ACCESS,
                 match access {
@@ -209,12 +259,28 @@ fn lock_process_probe() {
         return;
     };
     let root = PathBuf::from(root);
-    let store = match std::env::var(CHILD_ACCESS).unwrap().as_str() {
-        "writer" => writer(&root).unwrap(),
-        "reader" => reader(&root).unwrap(),
-        other => panic!("unknown child lock mode: {other}"),
+    enum ProbeStore {
+        Immutable(StoreV2),
+        Append(AppendStoreV2),
+    }
+    let access = std::env::var(CHILD_ACCESS).unwrap();
+    let profile = std::env::var(CHILD_PROFILE).unwrap_or_else(|_| "immutable".into());
+    let store = match (profile.as_str(), access.as_str()) {
+        ("immutable", "writer") => ProbeStore::Immutable(writer(&root).unwrap()),
+        ("immutable", "reader") => ProbeStore::Immutable(reader(&root).unwrap()),
+        ("append", "writer") => ProbeStore::Append(append_writer(&root).unwrap()),
+        ("append", "reader") => ProbeStore::Append(append_reader(&root).unwrap()),
+        other => panic!("unknown child lock profile/mode: {other:?}"),
     };
-    assert_eq!(store.chain().checkpoint(), main_expectation(3));
+    match &store {
+        ProbeStore::Immutable(store) => {
+            assert_eq!(store.chain().checkpoint(), main_expectation(3));
+        }
+        ProbeStore::Append(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(3));
+            assert_eq!(store.checkpoint().unwrap(), append_checkpoint(3, 0));
+        }
+    }
     println!("\n{READY}");
     io::stdout().flush().unwrap();
 
@@ -319,5 +385,61 @@ fn shared_locks_in_separate_processes_coexist_and_exclude_a_writer() {
     child.drop_store();
     let reopened = writer(&directory.store).unwrap();
     assert_eq!(reopened.chain().checkpoint(), main_expectation(3));
+    child.finish();
+}
+
+#[test]
+fn append_writer_child_excludes_handles_until_drop_then_parent_can_commit() {
+    let _isolation = isolate_parent_test();
+    let directory = TestDirectory::new();
+    drop(directory.initialize_append());
+    let mut child = ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, "append");
+    assert_append_busy(append_writer(&directory.store));
+    assert_append_busy(append_reader(&directory.store));
+    child.drop_store();
+    let reopened = append_writer(&directory.store).unwrap();
+    assert_eq!(reopened.chain().unwrap(), &main_chain(3));
+    append_and_reopen_fourth_block(&directory.store, reopened);
+    child.finish();
+}
+
+#[test]
+fn killed_append_writer_releases_root_for_checked_reopen_and_append() {
+    let _isolation = isolate_parent_test();
+    let directory = TestDirectory::new();
+    drop(directory.initialize_append());
+    let inode = fs::metadata(&directory.store).unwrap();
+    let selected_before = fs::read(directory.store.join("selection.v2")).unwrap();
+    let child = ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, "append");
+    assert_append_busy(append_writer(&directory.store));
+    child.kill_and_wait();
+    let reopened = append_writer(&directory.store).unwrap();
+    assert_eq!(reopened.chain().unwrap(), &main_chain(3));
+    assert_eq!(
+        fs::read(directory.store.join("selection.v2")).unwrap(),
+        selected_before
+    );
+    let reopened_inode = fs::metadata(&directory.store).unwrap();
+    assert_eq!(
+        (inode.dev(), inode.ino()),
+        (reopened_inode.dev(), reopened_inode.ino())
+    );
+    append_and_reopen_fourth_block(&directory.store, reopened);
+}
+
+#[test]
+fn append_shared_child_and_local_reader_exclude_writer_until_both_drop() {
+    let _isolation = isolate_parent_test();
+    let directory = TestDirectory::new();
+    drop(directory.initialize_append());
+    let mut child = ChildHolder::spawn_profile(&directory.store, StoreAccessV2::ReadOnly, "append");
+    let local = append_reader(&directory.store).unwrap();
+    assert_eq!(local.chain().unwrap(), &main_chain(3));
+    assert_append_busy(append_writer(&directory.store));
+    drop(local);
+    assert_append_busy(append_writer(&directory.store));
+    child.drop_store();
+    let reopened = append_writer(&directory.store).unwrap();
+    append_and_reopen_fourth_block(&directory.store, reopened);
     child.finish();
 }

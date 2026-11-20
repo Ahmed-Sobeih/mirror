@@ -2,10 +2,14 @@
 //!
 //! Initialization, exclusive reopening and shared read-only inspection are
 //! separate operations. Every reopen requires independently selected network and
-//! checkpoint pins and replays all actual blocks through `ChainV2`. This first
-//! profile has generation zero and no append, replacement or automatic repair.
-//! See `docs/STORAGE_V2.md` for publication boundaries and filesystem assumptions.
+//! checkpoint pins and replays all actual blocks through `ChainV2`. `StoreV2`
+//! preserves immutable profile 1, with generation zero and no update API.
+//! `AppendStoreV2` supplies separately versioned profile 2 accepted-child updates
+//! and checked clean-state reconciliation. See `docs/STORAGE_V2.md` and
+//! `docs/STORAGE_APPEND_V2.md` for exact boundaries and filesystem assumptions.
 
+pub mod append;
+pub mod append_selection;
 mod lock;
 pub mod selection;
 
@@ -24,6 +28,10 @@ use mirror_chain::v2::{
 use mirror_core::v2::{BlockErrorV2, MIN_ENCODED_BLOCK_LEN_V2};
 
 use lock::DirectoryLockV2;
+pub use append::{AppendStorageErrorV2, AppendStoreV2};
+pub use append_selection::{
+    APPEND_SELECTION_LEN_V2, AppendCheckpointV2, AppendSelectionErrorV2, AppendSelectionV2,
+};
 pub use selection::{STORAGE_SELECTION_LEN_V2, SelectionErrorV2, SelectionRecordV2};
 
 const MANIFEST_NAME: &str = "manifest.v2";

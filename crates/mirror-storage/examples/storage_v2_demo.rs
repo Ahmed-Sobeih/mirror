@@ -68,6 +68,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Different membership branch: independently replayed; wrong branch pin rejected");
     drop(recovered_fork);
     println!("Storage initialization and checked reopening: VALID");
-    println!("Generation updates, durable reorgs and live V2 networking remain later work.");
+    println!(
+        "This immutable profile has no update API; the separate append profile accepts children."
+    );
     Ok(())
 }
