@@ -21,21 +21,51 @@ hands. The proposed approach is:
 
 Three is a proposed committee size, not an agreed approval threshold. The user has
 not selected unanimity, two-of-three voting, reviewer qualifications, appointment
-rules, particular alternative evidence or a public medical-data field.
+rules or a public medical-data field.
+
+### Latest clarification — preferred initial combinations, 2026-11-26
+
+The user is relying on the combined evidence; no individual ingredient is expected
+to establish uniqueness by itself. Preserve the following preferred starting designs:
+
+| Route | Proposed combination |
+|---|---|
+| Standard | ECG + one designated pinky fingerprint + human-supervised Ant Kiss |
+| Fingerprint unavailable | ECG + a description of the observed capture limitation, such as no hands or unavailable pinky + human-supervised Ant Kiss and the proposed exceptional review |
+
+The earlier possible left-pinky selection is not yet a frozen capture specification.
+The user believes these combinations can be sufficient for an initial launch and
+suggests possibly adding more fingerprints, even all fingers, as the population
+grows. This is a design preference and sufficiency hypothesis, not measured launch
+acceptance. No ten-finger requirement, upgrade trigger, approval quorum or actual
+launch authorization is introduced. Keep the description minimal and private as
+recommended below. Evaluate both complete procedures without assuming either equal
+performance or that the accessibility route must be inadequate.
 
 ## 2. Proposed interpretation — an alternative verification route
 
 An accommodation records why the ordinary capture procedure cannot be followed.
-It does not itself distinguish a unique person: multiple people can share the
-same limitation. The alternative route still needs a defined duplicate-enrollment
-check and continuity with any existing membership.
+Observed details can support a reviewer's consistency checks and choice of procedure.
+They do not themselves distinguish a unique person: multiple people can share the
+same limitation. Evaluate the combined procedure; do not require each ingredient
+to solve uniqueness independently. The alternative route still needs a defined
+duplicate-enrollment check and continuity with any existing membership.
 
-Examples for later evaluation include a different designated finger where usable,
-or a separately reviewed procedure where fingerprint capture is unavailable.
-Keep any other usable required modality under the selected profile. Do not assume
-ECG alone, a description of a disability, or three signatures establishes uniqueness.
-No replacement biometric, medical certificate, government identity document or
-additional collection requirement is selected by this proposal.
+The user's proposed alternative is ECG plus observed capture limitations and human
+review. A different designated finger where usable can also be evaluated, but is
+not a selected substitute. Keep other usable required modalities under the chosen
+profile. No additional biometric, medical certificate or government identity
+document is selected. The ECG capture arrangement must work for the actual applicant;
+performance from finger-contact recordings does not establish performance for
+other contact positions. See the acquisition studies in the
+[device draft's evidence section](DEVICE_INPUT_CONTRACT.md#9-engineering-evidence-for-this-draft).
+
+Human supervision can witness capture and provide recognition/context; reviewers
+who have not met someone before still need the shared duplicate-checking process.
+Details such as "no hands" must not become an exclusive search filter: descriptions
+can differ and physical circumstances can change. Uncertain or conflicting evidence
+needs a defined review outcome. For example, a possible fingerprint duplicate must
+not automatically become a new person merely because the ECG differs.
 
 Unsupported or unusable input enters an explicit unresolved/retry/review pathway;
 it must never be silently translated into a successful no-duplicate result. A
@@ -112,6 +142,21 @@ These are recommendations for review, not new runtime guarantees.
   correction requests and understandable status.
 - **MB-12:** evaluate actual alternative procedures under their tested conditions;
   synthetic scenarios alone do not establish biological uniqueness.
+
+For each complete proposed route, evaluate the same person returning with a fresh
+wallet on another day to different reviewers, genuine new applicants, coordinated
+reviewer abuse, and attempts across standard/exception profiles. Measure missed
+repeat enrollments and wrongful duplicate flags separately, along with acquisition
+failures and review outcomes. Combined performance must be measured; do not multiply
+component error rates under an untested independence assumption. Launch criteria
+and scope remain to be agreed from actual evidence under D-06.
+
+Later strengthening should use explicit profile versions, preserve the same identity
+and claim history, and compare across old/new/exception routes. Additional fingers
+are an option to evaluate, not a default collection escalation or a solution for
+someone who cannot provide fingerprints. Review performance as the registry grows;
+do not wait for a guessed population threshold when failures already occur. A later
+upgrade cannot retroactively establish that all earlier admissions were unique.
 
 Future tests should include missing designated finger, unavailable fingerprint
 capture, unusable required modalities, a pre-existing member changing route,

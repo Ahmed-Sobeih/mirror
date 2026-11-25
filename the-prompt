@@ -42,7 +42,38 @@ READ FIRST
 AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (current tracker and section 21),
 NEXT_SESSION.md and docs/DECISIONS.md.
 
-LATEST USER DESIGN INPUT — ACCESSIBLE ENROLLMENT, 2026-11-26
+LATEST USER DESIGN INPUT — COMBINED INITIAL PROFILES, 2026-11-26
+The user clarified that the complete combination is what should establish enough
+confidence; no ingredient has to prove uniqueness by itself. Their preferred
+initial standard profile is ECG + one designated pinky + human-supervised Ant Kiss.
+When a fingerprint is unavailable, they propose ECG + a description of the observed
+physical limitation (no hands/no pinky/etc) + human supervision and the previously
+proposed exceptional review. The earlier possible left-pinky choice is not a frozen
+capture specification. Do not misrepresent the user as relying on disability alone.
+
+The user believes these routes are adequate to launch and suggests possibly adding
+more fingerprints, even all fingers, as population grows. Preserve this as design
+preference and a sufficiency hypothesis, not verified accuracy or launch readiness.
+No all-finger requirement, automatic population trigger, quorum or launch action is
+selected. Committee details, actual capture/matching/fusion/review rules and measured
+acceptance remain D-02/D-05/D-06 work. Physical details can inform consistency checks;
+they are not an independent biometric guarantee or an exclusive search namespace.
+
+Engineering recommendation: evaluate each complete route with repeat applicants
+using new wallets, different days and different reviewers, genuine new applicants,
+collusion and cross-route attempts. Do not multiply error rates assuming independence
+or automatically resolve conflicting modalities as new membership/rejection. Keep
+minimum descriptions private. Profile upgrades preserve the same membership, history
+and entitlements; adding fingers later cannot retroactively prove earlier uniqueness
+or provide an alternative for someone who cannot supply fingerprints.
+
+Read docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md, docs/DEVICE_INPUT_CONTRACT.md v0.3,
+docs/DECISIONS.md and the future MB-05/08/09/10/12 plan. Discussion documentation only;
+previous publication 4a2c2145b674c95d434d4243ed40c0c05ebe1192. Implementation source
+remains b9a2e870996fcafe1128dcb5cfdfb6b01b158ded; no new tests or CI result claimed.
+Next is still MB-03E, Gate A/B remain unmet and the progress estimate is unchanged.
+
+USER DESIGN INPUT — ACCESSIBLE ENROLLMENT, 2026-11-26
 The user wants a future Ant Kiss route for people unable to provide the standard
 readings, including a missing designated finger or hands. Preserve their proposal
 of an accessibility/disability record with an explanation, review by three qualified
@@ -88,7 +119,7 @@ finger may be evaluated. A selected fixed finger needs witnessed consistency;
 unreadable/missing fingers and changes of profile need reviewed continuity rules,
 not free substitution or another identity. Joint modality, cross-session/device
 performance and protected duplicate search remain D-05/D-06 work. Read the updated
-planning draft docs/DEVICE_INPUT_CONTRACT.md v0.2 and the dated decisions section.
+planning draft docs/DEVICE_INPUT_CONTRACT.md and the dated decisions section.
 
 This discussion changed documentation only. Source remains b9a2e870996fcafe1128dcb5cfdfb6b01b158ded;
 no device integration, new tests or implementation milestone is claimed. Next is

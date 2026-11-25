@@ -1,4 +1,4 @@
-# Device input contract — planning draft v0.2
+# Device input contract — planning draft v0.3
 
 Status: **DRAFT REQUIREMENTS; no adapter or hardware support implemented here.**
 Owner task: MB-08 in [MASTER_PLAN.md](../MASTER_PLAN.md).
@@ -7,10 +7,12 @@ for equipment or a promise that an arbitrary consumer device can export readings
 The blockchain receives authorized membership events, not this private capture
 payload. No example below requires uploading real readings to GitHub or chat.
 
-Updated 2026-11-26 to record the user's preference for flexible equipment and a
-minimal capture profile. The proposed one-finger-plus-ECG profile, possibly using
-the left little finger, remains a proposal for evaluation. This document revision
-changes no runtime API, consensus encoding or supported-device claim.
+Updated 2026-11-26 to record flexible equipment and the user's preferred initial
+combinations: ECG + a designated pinky + witnessed Ant Kiss, or ECG + private
+observed capture limitations + reviewed Ant Kiss where a fingerprint is unavailable.
+These complete procedures remain proposals for evaluation; neither has measured
+Mirror launch acceptance. This document revision changes no runtime API, consensus
+encoding or supported-device claim.
 
 ## 1. Device-neutral boundary
 
@@ -69,8 +71,8 @@ boolean is not an export of the applicant's fingerprint record.
 
 ### Proposed minimal profile — one anatomical finger plus ECG
 
-The user prefers to investigate one finger, possibly the left little finger,
-instead of assuming collection of every fingerprint. No ten-finger requirement
+The user's preferred starting design combines one designated pinky, possibly the
+left little finger, with ECG and human-supervised Ant Kiss. No ten-finger requirement
 has been selected. The exact position, number of repeat captures, matcher and
 performance criteria remain D-06 decisions; no evidence currently validates this
 particular combined profile for Mirror's intended population.
@@ -84,12 +86,19 @@ procedure; absence of a comparable record must not be treated as a new person.
 Alternative profiles or later profile changes require explicit cross-profile
 duplicate-checking and migration rules, not separate identity namespaces.
 
-The user's subsequent [accessible-enrollment proposal](ACCESSIBLE_ENROLLMENT_PROPOSAL.md)
-records a possible three-person qualified review committee and controlled changes
-to an accommodation record. Committee size, qualification/quorum and alternative
-evidence remain proposals. Prefer minimum private functional explanations; a
-disability description does not itself prove uniqueness. This route is planned,
-not an implemented permission to omit a required modality.
+The user's [accessible-enrollment proposal](ACCESSIBLE_ENROLLMENT_PROPOSAL.md)
+specifies a preferred alternative combination: ECG + observed capture limitations
+and human-supervised Ant Kiss, with a proposed three-person qualified review and
+controlled changes to an accommodation record. Its exact capture/review/matching
+rules remain open. Treat the minimum private explanation as supporting context;
+evaluate the complete combination without assigning the description an unmeasured
+biometric strength. This route is planned, not an implemented permission to omit a
+required modality. Description labels must not exclude other profiles from searches.
+
+The user may consider more fingerprints later as the population grows. Use versioned
+profiles and cross-profile identity continuity if an upgrade is adopted; no extra
+identity, population count or bootstrap claim. More collection remains optional
+future design, not an automatic scale-triggered requirement.
 
 One-to-many duplicate search is distinct from verifying an already claimed
 account. Evaluate missed repeat enrollments, false duplicate flags, acquisition
@@ -124,6 +133,12 @@ position and evaluation interval. Their results do not validate Mirror's propose
 fingerprint/ECG combination or supply a universal threshold. The joint interpretation
 of the two modalities remains to be specified; never assume their errors are
 independent or that one automatically compensates for an unusable other modality.
+
+The matching/review policy must also handle disagreements between usable readings.
+A possible fingerprint duplicate with a differing ECG is not automatically a new
+person; weak/conflicting indications also must not silently become final rejection.
+Evaluate the complete decision procedure, including human review and searches of
+the existing registry, against repeat-enrollment attempts and genuine new applicants.
 
 ## 5. Adapter operations and failures
 
@@ -208,3 +223,8 @@ identity documents or settle its admission rules.
 - [D5] [Islam et al., Heartprint multisession dataset (2022)](https://www.mdpi.com/2306-5729/7/10/141):
   evaluated repeat ECG recordings over substantial intervals; baseline results
   depended on the session protocol. They are not a universal ECG accuracy bound.
+- [D6] [Jomaa et al., fingerprint/heart-signal fusion (2022)](https://www.sciencedirect.com/science/article/pii/S1319157822000167):
+  studied combined biometric authentication and presentation-attack handling using
+  a multimodal dataset composed from two public databases. This supports investigating
+  combined evidence; it does not validate Mirror's particular pinky, witnessed
+  enrollment, accessibility route or population-wide duplicate detection.

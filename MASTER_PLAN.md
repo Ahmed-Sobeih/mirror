@@ -426,6 +426,13 @@ alternative procedures must preserve the same membership and claim history.
 Changes must be reviewable and correctable, without a casual enrollment bypass.
 This records future work and changes no current admission rule.
 
+The user's latest preferred initial combinations are ECG + a designated pinky +
+human supervision, and ECG + private observed capture limitations + reviewed Ant
+Kiss where a fingerprint is unavailable. Evaluate the complete procedures; do not
+require each ingredient to prove uniqueness independently. Launch sufficiency is
+a hypothesis pending D-06 evidence. More fingerprints later remain an option, with
+versioned profiles, shared duplicate scope and the same membership/claim history.
+
 ### MB-06 — human-based consensus, not a hardware race
 
 **Deliver:** reviewed round-based profile with explicit fault/network assumptions,

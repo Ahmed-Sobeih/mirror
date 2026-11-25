@@ -72,8 +72,8 @@ qualified people**, and deliberate controls on adding, changing or removing it.
 [ACCESSIBLE_ENROLLMENT_PROPOSAL.md](ACCESSIBLE_ENROLLMENT_PROPOSAL.md) records the
 idea separately from engineering recommendations. Committee size is proposed;
 qualifications, assignment, approval threshold, alternatives and appeals remain open.
-An accommodation explains the need for another procedure; it is not uniqueness
-evidence. Prefer a minimal private explanation and ordinary public membership
+An accommodation explains the need for another procedure; it does not establish
+uniqueness on its own. Prefer a minimal private explanation and ordinary public membership
 outcome, with any public indicator subject to explicit privacy review. The user
 has not authorized public medical descriptions or selected a replacement biometric.
 
@@ -81,6 +81,29 @@ Later design must preserve identity/claim continuity and allow reviewed correcti
 without casual toggles or an irreversible inaccurate label. This is future work
 under MB-05/08/09/10/12 and D-02/D-05/D-06. No current API, policy threshold, money
 rule or implementation status changes. Next remains MB-03E.
+
+## User clarification — combined initial enrollment profiles, 2026-11-26
+
+The user favors ECG + one designated pinky fingerprint + human-supervised Ant Kiss
+for initial standard enrollment. Where the fingerprint is unavailable, the proposed
+combination is ECG + an explanation of the observed physical limitation + human
+supervision, retaining the prior proposed exceptional review. The argument concerns
+the combination; no single component is expected to establish uniqueness alone.
+
+The user believes these combinations can be adequate for an initial launch and may
+consider more fingerprints, even all fingers, later as population grows. Record
+that preference accurately without turning the belief into measured readiness.
+Exact capture, matching/fusion, committee and launch-acceptance rules remain open.
+There is no new ten-finger requirement, automatic upgrade threshold or launch action.
+
+Engineering recommendations: keep limitation details minimal/private; evaluate each
+complete route separately against repeat enrollment with new keys, days and reviewers;
+preserve cross-profile duplicate scope and membership/claim continuity. Shared
+physical descriptions are context, not an independent uniqueness guarantee. Later
+upgrades cannot retroactively validate earlier admissions. These refinements are in
+[the accessibility proposal](ACCESSIBLE_ENROLLMENT_PROPOSAL.md) and
+[device draft v0.3](DEVICE_INPUT_CONTRACT.md). Next remains MB-03E; no code/test or
+progress milestone is added by this discussion.
 
 ## Implementation boundaries for this milestone
 

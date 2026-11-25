@@ -6,6 +6,18 @@ Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C components remain verified
 **MB-03D: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON.**
 **MB-03 remains IN PROGRESS. Next: MB-03E — durable membership-aware branch replacement.**
 
+## Combined enrollment clarification — 2026-11-26
+
+The user favors ECG + a designated pinky + human-supervised Ant Kiss as the initial
+standard design, and ECG + observed capture limitations + reviewed Ant Kiss when
+a fingerprint is unavailable. The user believes the combination can be sufficient
+for launch and may consider more fingerprints later. The updated
+[proposal](docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md) and
+[device draft v0.3](docs/DEVICE_INPUT_CONTRACT.md) preserve that preference while
+keeping measured performance, exact procedures and launch acceptance unresolved.
+No additional collection or real launch is initiated. This documentation-only
+clarification changes no source, test evidence, progress estimate or next task.
+
 ## Accessibility proposal — 2026-11-26
 
 The user requested a future enrollment route for people unable to supply the
