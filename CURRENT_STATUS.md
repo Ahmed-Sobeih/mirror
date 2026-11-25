@@ -6,6 +6,20 @@ Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C components remain verified
 **MB-03D: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON.**
 **MB-03 remains IN PROGRESS. Next: MB-03E — durable membership-aware branch replacement.**
 
+## Accessibility proposal — 2026-11-26
+
+The user requested a future enrollment route for people unable to supply the
+standard readings, with an accommodation description, a proposed committee of
+three qualified people and controls on later changes/removal. The new
+[accessible-enrollment proposal](docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md) preserves
+that idea separately from recommendations for minimum private explanations,
+reviewed corrections/appeals and continuity of the same membership and claim history.
+A disability description is not proof of uniqueness. Reviewer qualifications,
+selection, quorum and alternative evidence remain open; no public medical label or
+runtime exception is implemented. The roadmap links this future work to MB-05,
+MB-08, MB-09, MB-10 and MB-12. Source, verified test evidence, progress estimate and
+the next coding task MB-03E are unchanged. This documentation update adds no test result.
+
 ## Device discussion — 2026-11-26
 
 The user reaffirmed flexible equipment under human supervision and proposed one

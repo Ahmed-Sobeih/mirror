@@ -42,7 +42,38 @@ READ FIRST
 AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (current tracker and section 21),
 NEXT_SESSION.md and docs/DECISIONS.md.
 
-LATEST USER DESIGN INPUT — 2026-11-26
+LATEST USER DESIGN INPUT — ACCESSIBLE ENROLLMENT, 2026-11-26
+The user wants a future Ant Kiss route for people unable to provide the standard
+readings, including a missing designated finger or hands. Preserve their proposal
+of an accessibility/disability record with an explanation, review by three qualified
+people, and deliberate controls on later changes/removal. Three is a proposed
+committee size, not a selected two-of-three or unanimous threshold. Qualifications,
+assignment, independence, replacement, alternative evidence and appeals remain open
+under D-02/D-05/D-06. No physician requirement or new biometric is selected.
+
+Read docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md and the dated docs/DECISIONS.md section.
+Distinguish user proposals from engineering recommendations: prefer a minimum
+private functional explanation, not a default public medical description. Even a
+generic public flag could reveal sensitive circumstances; current V2 is not anonymous.
+A disability can explain an alternative capture route but cannot itself establish
+uniqueness. Neither three signatures nor ECG alone supplies the missing evidence.
+Define supported alternative procedures before actual admission; missing/unusable
+input must not become an automatic no-duplicate result.
+
+Keep the same person's membership and claim history across route changes. Normal
+and exception routes must share duplicate-checking scope; no additional population
+count, bootstrap entitlement or participation weight. Controlled changes must allow
+reviewed corrections, changed circumstances and appeals. Do not make an inaccurate
+label irreversible or equate an accommodation edit with suspension of membership
+or funds. Actual personal records remain protected off-chain and out of GitHub.
+
+This is future design work linked from MASTER_PLAN.md to MB-05/08/09/10/12, not a
+runtime implementation or permission to collect actual records. The preceding
+device-discussion commit is d0b84f11b3186f7db36a2415d64b616c72984a3a. Source remains
+b9a2e870996fcafe1128dcb5cfdfb6b01b158ded; no new test/CI result or completed milestone
+is claimed. Next remains MB-03E; Gate A/B stay unmet and the rough estimate is unchanged.
+
+USER DESIGN INPUT — FLEXIBLE DEVICES AND MINIMAL CAPTURE, 2026-11-26
 The user wants flexible manufacturers/models and human-supervised Ant Kiss capture.
 Keep compatible adapters/imports and matching off-chain; the blockchain receives
 authorized enrollment outcomes and permitted commitments/approvals, not fingerprint

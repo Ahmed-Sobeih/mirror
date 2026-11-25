@@ -84,6 +84,13 @@ procedure; absence of a comparable record must not be treated as a new person.
 Alternative profiles or later profile changes require explicit cross-profile
 duplicate-checking and migration rules, not separate identity namespaces.
 
+The user's subsequent [accessible-enrollment proposal](ACCESSIBLE_ENROLLMENT_PROPOSAL.md)
+records a possible three-person qualified review committee and controlled changes
+to an accommodation record. Committee size, qualification/quorum and alternative
+evidence remain proposals. Prefer minimum private functional explanations; a
+disability description does not itself prove uniqueness. This route is planned,
+not an implemented permission to omit a required modality.
+
 One-to-many duplicate search is distinct from verifying an already claimed
 account. Evaluate missed repeat enrollments, false duplicate flags, acquisition
 failures and cross-device/session behavior at the intended operating scale.

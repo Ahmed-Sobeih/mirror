@@ -62,6 +62,26 @@ and primary engineering references. This discussion adds no device support, chan
 no consensus or monetary rule, and does not advance implementation past MB-03D.
 Next remains MB-03E; the rough Gate A progress estimate remains 20–25%.
 
+## User proposal — accessible enrollment, 2026-11-26
+
+The user requested preserving a future exception route for people unable to supply
+the standard readings, including a missing designated finger or hands. The proposal
+uses an accessibility/disability record with a description, a committee of **three
+qualified people**, and deliberate controls on adding, changing or removing it.
+
+[ACCESSIBLE_ENROLLMENT_PROPOSAL.md](ACCESSIBLE_ENROLLMENT_PROPOSAL.md) records the
+idea separately from engineering recommendations. Committee size is proposed;
+qualifications, assignment, approval threshold, alternatives and appeals remain open.
+An accommodation explains the need for another procedure; it is not uniqueness
+evidence. Prefer a minimal private explanation and ordinary public membership
+outcome, with any public indicator subject to explicit privacy review. The user
+has not authorized public medical descriptions or selected a replacement biometric.
+
+Later design must preserve identity/claim continuity and allow reviewed corrections
+without casual toggles or an irreversible inaccurate label. This is future work
+under MB-05/08/09/10/12 and D-02/D-05/D-06. No current API, policy threshold, money
+rule or implementation status changes. Next remains MB-03E.
+
 ## Implementation boundaries for this milestone
 
 `monetary_policy` contains separate checked arithmetic components, zero founder

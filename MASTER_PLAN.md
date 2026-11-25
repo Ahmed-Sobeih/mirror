@@ -416,6 +416,16 @@ avoid permanent gatekeeping. Concurrent enrollments of the same person are
 serialized/rechecked against updated population so two stale no-match receipts
 cannot blindly create two memberships. Colluding reviewers remain explicit threats.
 
+**Future accessibility design:** the user's
+[accessible-enrollment proposal](docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md) covers
+unavailable standard readings, a proposed committee of three qualified people and
+controlled changes to an accommodation record. Qualification, assignment, quorum,
+alternative evidence and appeals remain open under D-02/D-05/D-06. Prefer a minimal
+private explanation. A disability description does not establish uniqueness;
+alternative procedures must preserve the same membership and claim history.
+Changes must be reviewable and correctable, without a casual enrollment bypass.
+This records future work and changes no current admission rule.
+
 ### MB-06 — human-based consensus, not a hardware race
 
 **Deliver:** reviewed round-based profile with explicit fault/network assumptions,
@@ -472,6 +482,10 @@ wrong units/modalities, malformed/truncated/oversized input, NaNs, unsupported
 profiles, disconnects/cancellation/retry fail explicitly. Imported files are not
 labelled witnessed live capture. Adapters can change without monetary/block changes.
 
+Future accessibility profiles must represent unavailable modalities explicitly.
+They require their own approved procedure and evidence; a missing reading is not
+a successful result or permission to skip an existing required modality.
+
 ### MB-09 — protected evidence and private duplicate checking
 
 **Deliver:** protected off-chain intake, authenticated transfer, encrypted storage,
@@ -493,6 +507,11 @@ evidence, population snapshot and freshness. Concurrent duplicate tests pass.
 Canary recordings stay out of blocks, peer messages, logs, crash reports and CI.
 Document deletion/backup limits and permanent public membership metadata.
 
+For the future accessibility route, protect minimum accommodation explanations
+off-chain and keep normal/exception enrollments in the same duplicate-search scope.
+Review any public exception indicator for information it reveals; do not promise
+unimplemented anonymity.
+
 ### MB-10 — complete operator/applicant workflow
 
 **Deliver:** minimal CLI/local UI showing capture quality/retries, assigned reviews,
@@ -504,6 +523,11 @@ approvals -> on-chain activation -> independent peer sync -> eligible participat
 -> authorized test payment -> restart with identical state. Duplicate/inconclusive/
 failed capture changes neither membership nor issuance. Keys never derive from
 biometrics. Lost-key recovery cannot create another person or grant.
+
+Future accessibility work includes understandable alternative-route requests,
+review status, correction and appeal, including existing members whose original
+capture method becomes unavailable. It must not create a second identity or
+reduce ordinary participation rights merely because an accommodation is needed.
 
 ### MB-11 — hardening, deployment and Gate A
 
@@ -533,6 +557,10 @@ stated conditions/population. Test replay, operator error, new keys/sessions and
 cross-device matching. Publish aggregates, not recordings/identities. Small-pilot
 success is not billion-user reliability. Unusable data means retry/review, never
 an invented uniqueness certificate. Claims require measured D-06 criteria.
+
+Approved alternative accessibility procedures need their own measured evaluation
+and cross-route duplicate-enrollment checks. The proposed committee and synthetic
+exception scenarios alone cannot establish biological uniqueness.
 
 ## 6. Final demonstration checklist
 
