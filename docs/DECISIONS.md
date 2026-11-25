@@ -575,10 +575,54 @@ finite per-branch budgets and user policy remain unchanged. The example uses
 synthetic frozen membership-divergent histories and performs no network or disk
 publication. This slice adds no dependency, new hash domain or encoded format.
 
-**Next is MB-03E: durable membership-aware branch replacement**, with reviewed
-publication, interruption and recovery rules, followed by fresh-peer reconstruction.
+**At the MB-03D checkpoint, MB-03E was next:** durable membership-aware branch
+replacement with reviewed publication, interruption and recovery rules, followed
+by fresh-peer reconstruction.
 It must retain the stable locked root and cannot treat a local MSU2 generation as
 fork weight. MB-03 remains in progress; persistent V2 node/API and human finality
 remain later work. No monetary formula, mint/grant/nonzero fee/reward API, founder
 privilege, marketing reserve, biometric intake, private matching or anonymity is
 introduced. D-01/D-04 stay open; Gate A and Gate B remain unmet.
+
+## MB-03E1 engineering choices — MIRROR-MB03E1-001
+
+The [replacement contract](STORAGE_REPLACEMENT_V2.md) freezes bounded selection
+metadata and checked in-memory preparation before implementing disk replacement.
+MSR2 is a separate 280-byte version-2/profile-3 envelope around the unchanged
+232-byte MSS2 snapshot. It uses a distinct checksum domain and independent full
+endpoint/generation expectations. Existing MSS2/MSU2 bytes, store APIs, recovery
+behavior and reference fixtures remain unchanged; no implicit migration is added.
+
+Local replacement generation starts at zero at any accepted height. Each strictly
+preferred candidate would advance it once, even for a multi-block extension, while
+height advances by at least one. The profile therefore requires generation no
+greater than height, bounded to 4095. Generation is neither a branch score nor
+proof of publication. Equal-height or future human-weighted selection requires an
+explicitly reviewed profile instead of silently changing this meaning.
+
+`prepare_replacement_v2` reuses actual accepted-branch comparison under independent
+network identity, checks the retained current checkpoint/generation, then derives
+and compares the entire canonical current selector. Endpoint equality alone cannot
+authorize altered manifest metadata or block-byte accounting. Only a strictly
+preferred accepted candidate yields a plan and canonical next-generation metadata.
+The plan borrows both complete chains and keeps the candidate's exact manifest,
+accounts, membership and counters together. It has no public constructor,
+serialization or mutation path and performs no filesystem I/O.
+
+This increment deliberately does not freeze an on-disk intent, directory layout,
+publication linearization point or cleanup/recovery procedure. **MB-03E2 is next:**
+those rules must be designed and implemented together, retaining stable exclusive
+root ownership and revalidating current selection plus the exact candidate before
+mutation. The E1 plan is not a reusable disk-write permit or evidence of crash safety.
+
+Focused verification passed 31 codec and 21 preparation tests; all nine reference
+checks passed. Two compile-fail examples cover the borrowed input histories. Full
+acceptance and publication/CI evidence belongs to
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md),
+section 22, separately from the historical MB-03D source record above.
+
+These are storage engineering choices. All accepted user decisions and unresolved
+admission, accessibility, monetary and human-consensus policies remain unchanged.
+No founder or marketing privilege, issuance/reward rule, device requirement or
+biometric capture is introduced. MB-03, the persistent V2 node/API and Gate A/B
+remain unfinished.

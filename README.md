@@ -14,9 +14,11 @@ verified storage components:** immutable selected-chain initialization, lifetime
 ownership, checked reopening and bounded one-block append publication with failure
 fencing. MB-03C adds explicit recovery of one independently authorized interrupted
 append. MB-03D adds comparison of complete accepted branches under an independent
-network identity; current source and verification evidence are recorded below.
-Next is **MB-03E: durable membership-aware branch replacement**, with separately
-reviewed publication/recovery rules, followed by fresh-peer reconstruction.
+network identity. **MB-03E1 adds bounded replacement-selection metadata and checked
+in-memory preparation** of a preferred complete branch. Current acceptance evidence
+is in [CURRENT_STATUS.md](CURRENT_STATUS.md) and master-plan section 22.
+Next is **MB-03E2: durable replacement layout, publication and recovery**, followed
+by fresh-peer reconstruction.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -96,7 +98,7 @@ actual common ancestor and borrows the entire selected chain, including its comp
 membership and counters. It performs no durable replacement or network operation.
 Equal competing tips can remain different across peers; this is not human finality.
 
-`mirror_storage::v2` supplies two explicitly selected storage profiles. Immutable
+`mirror_storage::v2` supplies two implemented storage profiles. Immutable
 `StoreV2` retains its frozen MSS2 generation-zero contract. The separate
 `AppendStoreV2` uses MSU2 profile 2 to publish one completely accepted child at a
 time. It synchronizes the new block and selector before advancing the in-memory
@@ -122,7 +124,23 @@ states, caller authority, suffix-only completion, parent retention and finite re
 allowance. No automatic migration, implicit repair, branch replacement or live V2
 daemon is provided.
 
-Latest MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
+The separate [replacement preparation contract](docs/STORAGE_REPLACEMENT_V2.md)
+adds MSR2 profile-3 metadata without changing either existing store. Its 280-byte
+record wraps the unchanged MSS2 snapshot and a bounded local generation. Decoding
+requires independent network, complete endpoint and generation pins. Preparation
+also derives the entire current record from the accepted current history, rejects
+stale or altered metadata, and borrows the whole preferred candidate with its own
+accounts, membership and counters. It prepares no files and publishes no selection;
+durable ownership, interruption and recovery are MB-03E2 work.
+
+## Verification checkpoints
+
+Current MB-03E1 verification and publication evidence is tracked in
+[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md), section
+22. The following MB-03D record is retained as a **historical accepted checkpoint**;
+its results do not establish a newer source's full-suite or CI status.
+
+MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
 Source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`.
 Focused checks passed 28 new branch-comparison integration tests, three new
 compile-fail ownership/type cases and the new `fork_choice_v2_demo` example.
@@ -154,6 +172,8 @@ They do not start a persistent V2 network; that integration remains MB-03/04.
 The fork-choice example compares frozen branches with equal account bytes and
 different membership, demonstrates sticky ties, and borrows the complete longer
 selected branch without changing either input or a store.
+The replacement-preparation example checks a genuine divergent candidate and
+round-trips MSR2 metadata without opening or changing a store.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -191,6 +211,7 @@ python3 tools/reference_ledger_v2.py --check
 python3 tools/reference_chain_v2.py --check
 python3 tools/reference_storage_v2.py --check
 python3 tools/reference_append_storage_v2.py --check
+python3 tools/reference_replacement_storage_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
@@ -201,6 +222,7 @@ cargo run -p mirror-chain --example fork_choice_v2_demo --locked
 cargo run -p mirror-storage --example storage_v2_demo --locked
 cargo run -p mirror-storage --example append_v2_demo --locked
 cargo run -p mirror-storage --example recovery_v2_demo --locked
+cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

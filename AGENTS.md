@@ -24,14 +24,15 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state/consensus/chain/storage tests, all eight independent reference
+core/personhood/state/consensus/chain/storage tests, all nine independent reference
 checks (including `tools/reference_storage_v2.py --check` and
-`tools/reference_append_storage_v2.py --check`) and all ten synthetic examples
+`tools/reference_append_storage_v2.py --check` and
+`tools/reference_replacement_storage_v2.py --check`) and all eleven synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
 chain chain_v2_demo/fork_choice_v2_demo and storage
-storage_v2_demo/append_v2_demo/recovery_v2_demo). Include
+storage_v2_demo/append_v2_demo/recovery_v2_demo/replacement_plan_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
-all three storage examples in the gates.
+all four storage examples in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -39,7 +40,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03E.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03E2.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -53,15 +54,16 @@ and full replay/resynchronization of clean selected states. MB-03C adds explicit
 bounded recovery of recognized one-child staging under independent parent/candidate
 pins, exact child bytes and an explicit completion/retention action. MB-03D adds
 pure comparison of complete accepted branches under independently selected network
-identity, fixed-target normalized height scores and keep-current ties. Next is
-MB-03E durable membership-aware branch replacement with reviewed publication and
-recovery, followed by fresh-peer reconstruction.
+identity, fixed-target normalized height scores and keep-current ties. MB-03E1 adds
+separate MSR2 profile-3 metadata and checked pure replacement preparation. Next is
+MB-03E2: freeze and implement durable replacement layout, publication and recovery,
+followed by fresh-peer reconstruction. E1 supplies no store or filesystem mutation.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
-docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md,
+docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
@@ -181,9 +183,31 @@ assertions. Keep the private borrowed comparison and selected whole-chain refere
 never graft accounts, membership, permanent records, approvals or counters across
 branches. The comparator allocates no collection, replays no state and touches no
 disk. Copied choices/checkpoints are diagnostics, not durable publication tokens.
-MB-03E must revalidate identity, current selected endpoint and exact candidate under
+MB-03E2 must revalidate identity, current selected endpoint and exact candidate under
 the held store lock, with separately specified publication/interruption/retry rules.
 Never reinterpret MSU2 generation as branch score or replace the locked root inode.
+
+MSR2 is exactly 280 bytes: version 2/profile 3, outer local generation, unchanged
+232-byte MSS2, and the MIRROR_STORAGE_REPLACEMENT_SELECTION_V2 checksum domain.
+It is separate from MSS2/MSU2 and has no implemented disk layout/store/recovery API.
+Decode only against independently retained full endpoint and generation pins.
+Generation starts at zero at any accepted height and advances once per strictly
+preferred whole-branch publication, not per skipped block; generation <= height.
+An equal-height/human-weighted replacement rule needs an explicitly reviewed profile.
+Generation does not establish publication history or freshness. Preserve nine
+independent reference cases and all previous fixture bytes.
+
+prepare_replacement_v2 first checks both network identities via the comparator,
+then independent current endpoint, selector endpoint/generation, exact canonical
+current metadata, strict preference and checked generation/candidate metadata.
+Endpoint equality and valid checksums cannot substitute for the full current
+manifest checksum/length/block-byte comparison. The private plan immutably borrows
+both accepted histories and keeps the exact candidate manifest and complete ledger.
+It encodes two bounded manifests but does not clone/reexecute chains or touch disk.
+A copied selector or plan is not a durable permit; E2 must revalidate under its
+held stable root lock. Current bounds make GenerationOverflow defensive/unreachable
+for valid inputs, not an exercised valid-chain transition. E1 leaves retained-slot
+layout, cleanup, write fencing and explicit replacement recovery to E2.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

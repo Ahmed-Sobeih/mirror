@@ -1,8 +1,9 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-03D canonical development
-fork choice — all required local acceptance gates passed**, below.
+and V2 design. Current implementation update: **MB-03E1 replacement-selection
+metadata and checked in-memory preparation**, below. Exact acceptance evidence is
+tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and master-plan section 22.
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
 review. This is an engineering review, not an audit certification.
@@ -13,7 +14,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A/B/C evidence, plus the current MB-03D verification status,
+MB-02A/B/C and MB-03A/B/C/D evidence, plus the current MB-03E1 verification status,
 are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
@@ -21,8 +22,10 @@ branch acceptance, complete-block replay, immutable selected-store reopening and
 one-block append publication now exist. MB-03C adds explicit recovery of one
 independently authorized append's recognized residual shapes. MB-03D compares fully
 accepted branches under independent network identity and returns the complete
-preferred branch as an immutable reference. Arbitrary corruption repair, durable
-canonical replacement, peer integration and human finality remain unfinished;
+preferred branch as an immutable reference. MB-03E1 adds independently pinned
+selection metadata and preparation that retains both complete accepted histories.
+Arbitrary corruption repair, durable canonical replacement, peer integration and
+human finality remain unfinished;
 source publication/CI is tracked separately.
 
 ## Historical B3 implementation update
@@ -606,7 +609,7 @@ real biometric capture or anonymity guarantee follows from recovery.
 canonical development fork choice, before durable membership-aware replacement and
 peer reconstruction. Gate A and Gate B remained UNMET.
 
-## MB-03D canonical development fork-choice update
+## Historical MB-03D canonical development fork-choice update
 
 **All required local acceptance gates passed.** Source:
 `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`; source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`. The implementation and
@@ -710,9 +713,10 @@ F06/F07 gain an explicit validated-branch preference boundary. F08 durable canon
 replacement, F09 peer sessions/reconstruction, F10 private biological matching,
 F11 economics and human finality remain open in their stated scopes. Legacy V1
 findings remain historical; no source finding is globally closed by this addition.
-**MB-03 remains IN PROGRESS. Next: MB-03E durable membership-aware branch replacement**,
-with reviewed publication/recovery under the stable lock, followed by fresh-peer
-reconstruction. **Gate A and Gate B remain UNMET.** No mint/grant, founder/marketing
+**At the MB-03D checkpoint, MB-03 remained IN PROGRESS and MB-03E was next:**
+durable membership-aware branch replacement with reviewed publication/recovery
+under the stable lock, followed by fresh-peer reconstruction.
+**Gate A and Gate B remained UNMET.** No mint/grant, founder/marketing
 privilege, actual biometric capture or anonymity guarantee was introduced.
 
 ## 1. Assets and trust boundaries
@@ -885,9 +889,49 @@ completion or abandonment of recognized interrupted append staging. Implementati
 recorded above; exact publication/CI remains separate
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) evidence.
 MB-03D adds the independently pinned, fixed-target comparison of complete accepted
-branches described above. Its completed local acceptance remains separate from
-exact-source and documentation-head CI. **Next: MB-03E durable membership-aware branch replacement**,
-followed by fresh-peer reconstruction. Durable canonical publication, human
+branches described above. MB-03E1 adds bounded MSR2 metadata and pure preparation
+under independent current-selection pins; its scope is recorded below.
+**Next: MB-03E2 durable replacement layout, publication and recovery**, followed by
+fresh-peer reconstruction. Durable canonical publication, human
 finality, a live V2 daemon and Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
+
+## MB-03E1 replacement-selection and preparation update
+
+The [replacement contract](STORAGE_REPLACEMENT_V2.md) adds the fixed 280-byte MSR2
+profile-3 record and a pure preparation API. The nested MSS2 record, both existing
+stores and their recovery contracts remain unchanged. Focused verification passed
+31 selection-codec cases and 21 preparation cases; all nine independent reference
+checks passed. Two compile-fail examples cover the borrowed current and candidate
+chains. Full-suite, exact-source and CI evidence is recorded separately in
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md),
+section 22; earlier green checkpoints do not verify this source.
+
+MSR2 decoding requires independent configuration, genesis, height, tip, ledger-root
+and local-generation expectations. A checksum-correct old record or competing
+same-height membership branch cannot replace those pins. Exact length precedes
+fixed-offset reads; unchanged nested bounds restrict height and generation to
+4095. Initialization can use generation zero at any accepted height. Generation
+counts proposed local publications, never work or human weight, and structural
+validity does not prove any publication took place.
+
+Preparation reuses accepted-branch comparison, checks the complete current
+checkpoint/generation, and independently derives the entire canonical current
+selector. Thus matching endpoint fields and recomputed public checksums cannot
+hide altered manifest metadata or block-byte totals. Only a strictly preferred
+accepted candidate produces a plan. The candidate retains its own exact manifest,
+whole block history, accounts, membership, reservations, approvals, population
+peaks and resource counters; no state is combined across branches.
+
+The plan immutably borrows both complete histories and cannot mutate either input.
+It performs no filesystem operation or durable selection, and copied metadata is
+not a publication permit. It encodes bounded manifests during preparation, so this
+step is not allocation-free. Independent pins and borrows do not establish global
+freshness, hold a storage lock or prevent an unrelated store from changing.
+
+F08 therefore remains open for MB-03E2: stable-root ownership, revalidation under
+that ownership, a bounded layout and intent/recovery contract, synchronized
+publication, cleanup interruptions and write fencing must still be implemented.
+No crash-safety result follows from this in-memory preparation. F09–F11, human
+finality and the existing policy gates remain open; MB-03 and Gate A/B are unfinished.

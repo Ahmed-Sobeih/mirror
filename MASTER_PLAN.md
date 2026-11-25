@@ -2,30 +2,30 @@
 
 Roadmap: **MIRROR-PLAN-001** (established 2026-11-18; checkpoint 2026-11-26).
 Design checkpoint: **MIRROR-MB01A-001 — design deliverables complete**.
-Latest implementation: **MIRROR-MB03D-001 — fixed-target development fork choice**.
-MB-01B/B1–B4, MB-02A/B/C and MB-03A/B/C remain verified within their component scope.
-MB-03D's complete accepted-branch comparison is a verified component;
-section 21 records its source and publication evidence.
+Latest implementation: **MIRROR-MB03E1-001 — replacement metadata and preparation**.
+MB-01B/B1–B4, MB-02A/B/C and MB-03A/B/C/D remain verified within their component scope.
+MB-03E1 adds a separate selection format and checked pure preparation;
+section 22 records its source and acceptance evidence.
 **MB-03 is IN PROGRESS.** Durable membership-aware branch replacement, fresh-peer
 reconstruction, persistent V2 node integration and final human consensus remain
 unfinished.
 
 ## Start here: current position and next action
 
-**Next task: MB-03E — durable membership-aware branch replacement. READY.**
+**Next task: MB-03E2 — durable replacement layout, publication and recovery. READY.**
 
-MB-03D now compares complete accepted `ChainV2` branches under an independently
-selected configuration and genesis. A strictly higher fixed-target normalized
-score wins; ties keep current. The result identifies actual common ancestry and
-borrows the complete chosen state. It performs no durable replacement or network
-operation and does not establish human finality.
+MB-03E1 adds exact 280-byte MSR2 profile-3 metadata and `prepare_replacement_v2`.
+Preparation checks independently selected network/current pins, the entire current
+selector against its accepted chain, and strict candidate preference. The private
+plan retains the complete candidate ledger and advances local generation once.
+It performs no disk operation; the actual replacement store and recovery are E2.
 
-Local Rust 1.98.0 verification passed **735 workspace tests** (707 retained + 28
-new), **6 compile-fail doctests** (3 retained + 3 new), all required release suites,
-**8 independent references and 10 synthetic examples**. One subprocess-only helper
-remains intentionally ignored in ordinary enumeration. **105 retained files are
-byte-identical.** Section 21 records the full results and exact source/publication
-status; sections 17–20 preserve the earlier acceptance records. Local verification,
+Local Rust 1.98.0 verification passed **787 workspace tests** (735 retained + 52
+new), **8 compile-fail doctests** (6 retained + 2 new), all required release suites,
+**9 independent references and 11 synthetic examples**. One subprocess-only helper
+remains intentionally ignored in ordinary enumeration. **108 retained files are
+byte-identical.** Section 22 records the full results and exact source/publication
+status; sections 17–21 preserve the earlier acceptance records. Local verification,
 source CI and later documentation-head CI are distinct evidence. Gate A/B remain
 unmet.
 
@@ -37,7 +37,7 @@ network/operator, Ant Kiss, human-consensus, monetary-policy, private intake/mat
 and end-to-end acceptance work keeps the full milestone in its early stages.
 Gate A uses synthetic readings; actual compatible-device capture and recognition
 acceptance remain Gate B. This discussion changes no implementation status or next
-task and is not a claim of an automatic percentage increase from MB-03D.
+task and is not a claim of an automatic percentage increase from an individual slice.
 
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
@@ -51,6 +51,7 @@ Design: [ledger integration](docs/LEDGER_MEMBERSHIP_V1.md),
 [accepted chain](docs/CHAIN_V2.md), [development fork choice](docs/FORK_CHOICE_V2.md),
 [immutable storage](docs/STORAGE_V2.md),
 [append storage](docs/STORAGE_APPEND_V2.md), [explicit recovery](docs/STORAGE_RECOVERY_V2.md),
+[replacement metadata/preparation](docs/STORAGE_REPLACEMENT_V2.md),
 [membership state](docs/MEMBERSHIP_STATE_V2.md),
 [diagnostic replay](docs/REPLAY_V2.md).
 
@@ -116,16 +117,17 @@ that source was reviewed for MB-01A. Design commit `80b57b973e3d9cfb9aa57a20a10f
 passed run 44194994506. B1/B2/B3/B4 evidence is in sections 11/12/13/14;
 MB-02A evidence is in section 15; MB-02B in section 16; MB-02C in section 17;
 MB-03A in section 18; MB-03B in section 19; MB-03C in section 20;
-MB-03D in section 21.
+MB-03D in section 21; MB-03E1 in section 22.
 
 Historical suite: 133 workspace tests. B1 added 31 (164 total), B2 added 39 (203),
 B3 added 51 (254), B4 added 69 (323), MB-02A added 80 (403), and MB-02B added
 59 (462); MB-02C adds 61 (523); MB-03A adds 65 (588); MB-03B adds 70 (658);
-MB-03C adds 49 (707); MB-03D adds 28 (735).
+MB-03C adds 49 (707); MB-03D adds 28 (735); MB-03E1 adds 52 (787).
 The subprocess-only storage
 helper is explicitly ignored and not counted as a passed test. B4 added the first compile-fail doctest; MB-02B adds two consuming-stage
 compile-fail cases, bringing documentation tests to three. MB-03D adds three
-borrow/type-boundary cases, bringing documentation tests to six.
+borrow/type-boundary cases, bringing documentation tests to six. MB-03E1 adds two
+replacement-plan borrow cases, bringing documentation tests to eight.
 Release reruns are NOT additional unique tests. Both device-readiness gates remain UNMET.
 
 Already demonstrated in the legacy V1 chain: development signed transfers,
@@ -156,6 +158,9 @@ MB-03D adds pure comparison of complete accepted branches, independent network
 identity checks, fixed-target normalized scoring, keep-current ties and actual
 common ancestry. Its immutable result preserves all accounts, membership and
 resource accounting with the chosen branch; it does not publish that choice.
+MB-03E1 derives separately versioned replacement metadata and privately borrows
+the complete preferred candidate after checking independent current pins and exact
+current metadata. It does not yet implement a disk replacement or recovery API.
 
 NOT implemented: biological deduplication, persistent networked V2 membership blocks,
 production reviewer assignment, human-round consensus, grants/fees/rewards,
@@ -209,12 +214,14 @@ and exact-source CI evidence recorded separately before full acceptance.
 | MB-02A | TransferV2, unified envelope, BlockV2 codecs/commitments | VERIFIED_COMPONENT — FORMAT LAYER | 35ad0cf, CI 44428924399, section 15 |
 | MB-02B | Atomic accounts + membership with full mixed-operation indices | VERIFIED_COMPONENT — STAGED LEDGER | 420d711, CI 44619155972, section 16 |
 | MB-02C | Pinned V2 genesis, actual block acceptance and replay | VERIFIED_COMPONENT — ACCEPTED BRANCH | db2cb58, CI 44623282448, section 17 |
-| MB-03 | Durable state, synchronization and membership reorg/replay | IN PROGRESS — NEXT MB-03E | Immutable storage, append/recovery and accepted-branch comparison implemented; durable replacement, peers and node integration remain open |
+| MB-03 | Durable state, synchronization and membership reorg/replay | IN PROGRESS — NEXT MB-03E2 | Immutable storage, append/recovery, comparison and replacement preparation implemented; durable replacement, peers and node integration remain open |
 | MB-03A | Explicit V2 storage identity, writer ownership and initial publication | VERIFIED_COMPONENT — IMMUTABLE STORE | 528c891; independent pins, complete replay, Linux directory ownership; section 18 |
 | MB-03B | Durable accepted-tip updates and failure reconciliation | VERIFIED_COMPONENT — APPEND / CLEAN STATE | ecf5e76; separate MSU2, accepted-child publication, fencing and selected-state resynchronization; section 19 |
 | MB-03C | Explicit interrupted-append staging recovery | VERIFIED_COMPONENT — EXPLICIT ONE-CHILD RECOVERY | e830205; independent request, complete replay, explicit completion/retention, bounded retry; section 20 |
 | MB-03D | Canonical development fork-choice specification and implementation | VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON | Independent identity, normalized fixed-target score, keep-current ties, accepted common ancestry and whole-state borrowed selection; section 21 records source acceptance |
-| MB-03E | Durable membership-aware branch replacement | READY — NEXT | Freeze storage layout, independent selection authority, stable-root publication, interruption and recovery rules before implementation |
+| MB-03E | Durable membership-aware branch replacement | IN PROGRESS — E1 implemented, E2 next | Preparation does not publish a branch; layout, durable writes and recovery remain unfinished |
+| MB-03E1 | Replacement selection metadata and checked preparation | VERIFIED_COMPONENT — METADATA / IN MEMORY | Separate MSR2, independent current pins, canonical metadata comparison and complete candidate borrow; section 22 |
+| MB-03E2 | Replacement store, publication and explicit recovery | READY — NEXT | Freeze bounded layout/cleanup/interruption rules; implement under stable ownership without reinterpreting older profiles |
 | MB-04 | Persistent node, transaction pool, wallet and operator API | TODO | MB-03; interfaces may start earlier |
 | MB-05 | Ant Kiss admission lifecycle and bootstrap handoff | TODO | MB-02/04; D-02 for real admission |
 | MB-06 | Human-limited rounds, certificates and easy-PoW participation | TODO | MB-03/04/05; D-03 |
@@ -352,8 +359,14 @@ returns the actual common ancestor and the complete preferred branch, with no
 state mutation, replay, encoded score or durable publication. Section 21 records
 the source and verification evidence.
 
-**Next slice — MB-03E (READY):** specify and implement durable membership-aware
-branch replacement. Retain independently selected network/current checkpoint and
+**Fifth slice — MB-03E1 (VERIFIED_COMPONENT):** the separate
+[MSR2/preparation contract](docs/STORAGE_REPLACEMENT_V2.md) freezes profile-3 bytes
+and checks full current metadata against accepted state before preparing a strictly
+preferred complete candidate. It has no filesystem store or publication/recovery API.
+
+**Next slice — MB-03E2 (READY):** specify and implement durable membership-aware
+branch replacement. Reuse MSR2 without changing its bytes or treating the pure plan
+as a commit permit. Retain independently selected network/current checkpoint and
 local generation, full candidate validation and comparison under exclusive stable
 root ownership. Freeze how differing blocks at the same height are staged and
 selected without overwriting selected history early or replacing the locked root.
@@ -600,9 +613,9 @@ Refresh the-prompt for every Mirror response, including discussion-only changes.
 Do not count documentation publication as runtime evidence or chase self-referential
 checkpoint SHAs. No background-work promise; disclose failed publication.
 
-**Immediate next:** MB-03E durable membership-aware branch replacement.
+**Immediate next:** MB-03E2 durable replacement layout, publication and recovery.
 Reuse B1–B4, MB-02A/B/C, immutable StoreV2, append-profile AppendStoreV2 and explicit
-MB-03C recovery, plus the frozen MB-03D accepted-branch comparator. Freeze the
+MB-03C recovery, plus the frozen MB-03D comparator and MB-03E1 metadata/preparation. Freeze the
 durable replacement layout, selection authority, publication and interruption/retry
 rules before implementation. Revalidate independent network/current pins and the
 complete candidate under the held lock. Preserve complete membership/account state,
@@ -1485,8 +1498,8 @@ accepted branch appears. At a finite cap or terminal timestamp, extension may be
 impossible. This component establishes no eventual-convergence, partition-liveness
 or human-finality guarantee.
 
-**MB-03D is VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON. MB-03 remains
-IN PROGRESS. Next: MB-03E durable membership-aware branch replacement.**
+**At the MB-03D checkpoint: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON;
+MB-03 remained IN PROGRESS and MB-03E was next.** Section 22 records the later E1 slice.
 Freeze a reviewed storage layout and publication/recovery contract before writing
 replacement code. Retain independent network/current checkpoint and generation
 pins, full candidate validation/comparison under the stable exclusive root lock,
@@ -1507,3 +1520,139 @@ operator interfaces and MB-06 human consensus remain later work.
 No issuance formula, founder allocation, marketing reserve, grant, mint, nonzero
 fee/reward API, actual biometric input, private matching or anonymity guarantee is
 introduced. D-01/D-04 remain OPEN. **Gate A and Gate B remain UNMET.**
+
+
+## 22. MB-03E1 acceptance — MIRROR-MB03E1-001
+
+**Updated 2026-11-26.** Implemented replacement selection metadata and checked pure
+preparation as the first bounded slice of MB-03E. The actual replacement store,
+publication, cleanup and recovery remain MB-03E2. The unchanged prior comparator
+and storage contracts remain in sections 18–21.
+
+### Source and publication
+
+Implementation source: **349edf5a6f453f365fa55480f6117c240876b0e1**.
+Tested tree: **b88c9cafc8bf417d5609743bacb1ab278070bd0e**.
+Parent: **3da75720319094f1b91b4a337b45cfdeb6869e7b**.
+Source scope: **10 files, 2,210 insertions, no deletions**. The increment adds two
+source modules, two test targets, an independent vector/reference, a synthetic
+example and normative contract, with additive module exports and two CI steps.
+
+[Source push CI 45721188614](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721188614)
+and [source PR CI 45721198833](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721198833)
+both passed. Full push-job `139579639094` logs confirmed the exact source checkout,
+787 workspace tests, eight compile-fail doctests, every required release suite,
+nine independent references, eleven examples and the allocation/runtime-data audit.
+The follow-up documentation commit is separately checked; do not infer evidence
+for an unknown future head from the implementation results. PR #1 stays open and
+unmerged on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+### Implemented contract
+
+[STORAGE_REPLACEMENT_V2.md](docs/STORAGE_REPLACEMENT_V2.md) freezes:
+
+- Exact **280-byte MSR2**, version 2/profile 3: local u64 generation, unchanged
+  nested 232-byte MSS2 and distinct replacement-selection checksum domain.
+- Independent full configuration/genesis/height/tip/ledger-root/generation pins.
+  Decode checks framing and outer checksum, complete nested MSS2, generation bound,
+  then generation equality. No unpinned decoder or input-sized allocation.
+- `prepare_replacement_v2`: check both independent network identities via the
+  accepted comparator; current endpoint; selector endpoint/generation; entire
+  canonical current metadata; strict preference; checked generation and canonical
+  candidate metadata. Full equality prevents checksum-correct manifest/byte-total
+  changes from passing merely because endpoint fields match.
+- Private `ReplacementPlanV2` borrows both accepted chains and exposes the exact
+  whole preferred candidate. The candidate keeps its own manifest and complete
+  accounts, membership, permanent records, approvals, sequences, population history
+  and resource counters. Neither input changes; safe Rust enforces borrow lifetime.
+- Initialization metadata may use generation zero at any accepted height. A
+  multi-height extension or divergent replacement increments generation only once.
+  Strictly increasing preferred height implies generation <= height <= 4095.
+  Equal-height or future human-weighted selection requires a reviewed profile.
+- No store, lock, filesystem mutation, serialization of a durable intent or recovery
+  entry point. Preparation encodes two bounded manifests, so it is not allocation-free;
+  it clones/reexecutes no chain. Checksums/generation are not authority or freshness.
+
+The independent Python reference derives nine cases from pinned old actual-chain
+and MSS2 fixtures, not new Rust results. New fixture SHA256:
+`8caebea700b0aeb8b7999ead6c6850e047df6430c874b0931f87f26c90158ac0`.
+Reference script SHA256:
+`e2e9580d6ceb6051bcfa4a93494340dabcca53dcaaa496aee551e9138b597e08`.
+
+### Local acceptance
+
+Rust **1.98.0**, locked dependencies; every required gate passed.
+
+| Gate | Observed result |
+|---|---|
+| Workspace, all targets | **787 passed**, 0 failed: 735 retained + 31 codec + 21 preparation tests |
+| Documentation | **8 compile-fail cases passed**: 6 retained + 2 new borrow checks |
+| Personhood release | **234 runtime + 3 doctests passed** |
+| Core release | **121 passed** |
+| State release | **49 passed** |
+| Consensus and chain release | **23 consensus + 85 chain + 3 chain doctests passed** |
+| Storage release | **246 runtime + 2 doctests passed** |
+| Independent reference scripts | **9 passed**, including the new MSR2 vectors |
+| Synthetic examples | **11 passed**, including replacement preparation |
+| Preservation and audits | Scoped formatting/whitespace pass; **108 retained files byte-identical**; no dependency/lockfile/old-vector or monetary change; no tracked runtime data |
+
+One intentionally ignored subprocess helper remains invoked by parent storage
+ownership tests and is not an additional pass. Release reruns and multiple cases
+inside one test are not additional unique tests. The only existing Rust file
+changed is `mirror-storage/src/v2/mod.rs`, with documentation and exports only.
+
+Codec coverage includes every independent vector, malformed framing/checksums,
+checksum-correct nested semantics, full external pins, metadata maxima, generation
+bounds, old profiles/domains and manifest checks. Preparation coverage includes
+real divergent histories with identical accounts but different memberships,
+complete candidate pointer/state/counters, untouched inputs, every current pin,
+stale generations, foreign genesis, error precedence, checksum-correct metadata
+forgery, ties/shorter rejection, high initialization and multi-block generation.
+`GenerationOverflow` is defensive and unreachable for valid accepted chains under
+the cap; no valid-chain overflow transition is claimed as exercised.
+
+Two read-only implementation/contract reviews found no blocking discrepancy. They
+are not external security audits. No power-loss experiment or new filesystem
+certification is claimed.
+
+### Synthetic observation
+
+`replacement_plan_v2_demo` independently pins and replays fork height **3**, local
+generation **0**, and main height **4**. The preferred replacement prepares local
+generation **1**, sharing accepted ancestor height **1**. Its exact MSR2 bytes match
+the independent vector and pinned decode.
+
+Candidate tip: `33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d`.
+Candidate ledger root: `785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68`.
+Active / pending / high-water: **1 / 0 / 3**.
+Encoded MRB2 bytes / cumulative state items: **4,330 / 75**.
+Both input chains remain unchanged. No filesystem selection or durable replacement
+occurs in the example.
+
+### Remaining boundaries and next action
+
+**MB-03E1 is VERIFIED_COMPONENT — METADATA / IN MEMORY. MB-03 and MB-03E remain
+IN PROGRESS. Next: MB-03E2 durable replacement layout, publication and recovery.**
+
+Freeze the stable-root disk state machine and cleanup before writes. Choose a
+bounded retained layout explicitly; E1 assigns no paths to generations. Under
+continuous exclusive ownership recheck independent pins, exact selected disk
+history, canonical metadata and complete accepted candidate. Synchronize candidate
+files/directories before marker publication, synchronize the root before memory
+advances, and define fencing/uncertainty, every recognized interruption and explicit
+completion/retention. Never roll back an already selected candidate through retain-old.
+Unknown or corrupt data stays preserved/rejected; ordinary opening is not repair.
+
+Retain actual chain/replay caps and separately bound staging, enumeration and repeated
+payload reads. One complete MSR2-selected payload is at most 19,559,132 bytes;
+two manifests/histories/selectors total 39,118,264 bytes. This is planning arithmetic,
+not an implemented E2 read/staging/RSS allowance. New persisted intent/layout bytes
+require their own reviewed contract and independent reference. Prior one-child
+recovery must not be silently reused as generic reorganization.
+
+Fresh-peer reconstruction follows durable replacement. Persistent V2 node/wallet,
+full Ant Kiss, human consensus, economics, private intake/matching and integrated
+hardening remain unfinished. No founder/marketing allocation, grant, fee/reward API,
+new biometric collection or device requirement is introduced. D-01/D-04 stay open;
+**Gate A and Gate B remain UNMET**. The rough 20–25% Gate A estimate is unchanged.
