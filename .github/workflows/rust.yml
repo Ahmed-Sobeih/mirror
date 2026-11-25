@@ -60,6 +60,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example recovery_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
+      - name: V2 accepted branch comparison demonstration
+        run: cargo +1.98.0 run -p mirror-chain --example fork_choice_v2_demo --locked
       - name: V2 atomic ledger demonstration
         run: cargo +1.98.0 run -p mirror-state --example ledger_v2_demo --locked
       - name: V2 mixed operation and block format demonstration

@@ -2,11 +2,17 @@
 //!
 //! Every ledger is bound only after validating an actual block against a pinned
 //! manifest and the immutable accepted ancestry of this chain. Independent valid
-//! branches are possible: this module supplies no fork choice, finality, network
-//! service, durable publication, monetary issuance or proof of real humanity.
+//! branches are possible. The separate fixed-target development comparator
+//! chooses between accepted branches without publication or finality. This module
+//! supplies no network service, monetary issuance or proof of real humanity.
 
+pub mod fork_choice;
 pub mod manifest;
 
+pub use fork_choice::{
+    BranchComparisonV2, BranchRelationV2, BranchSideV2, ForkChoiceErrorV2, ForkChoiceV2,
+    compare_branches_v2,
+};
 pub use manifest::{ManifestErrorV2, ManifestIdentityV2, NetworkManifestV2};
 
 use std::fmt;
