@@ -40,6 +40,28 @@ These records supersede earlier brainstorming, not existing historical block byt
   safety, rewards and migration from the existing PoW chain.
 - Privacy-preserving membership proofs. Prototype identities remain linkable.
 
+## User input — flexible devices and minimal capture, 2026-11-26
+
+The user reaffirmed flexible equipment: readings should come from interchangeable
+devices in a human-supervised Ant Kiss procedure. Vendor/model-specific adapters
+and documented file imports belong off-chain; consensus should consume authorized
+enrollment outcomes and permitted commitments/approvals. Human oversight does not
+remove the need for usable comparable readings or a shared duplicate-search process.
+
+The user is considering **one anatomical fingerprint plus ECG**, possibly the
+**left little finger**, to reduce invasive collection. Record this as a proposed
+minimal profile, not a final choice of finger, sample count, threshold or proof
+of sufficient uniqueness. No all-fingerprint collection requirement is adopted.
+Repeat captures of the same finger can be evaluated for quality. Finger consistency,
+reviewed exceptions, cross-profile continuity and joint matching performance remain
+to be specified under D-05/D-06. Neither modality's failure implies permission to
+create a new identity. Both readings remain protected off-chain.
+
+The revised [device input draft](DEVICE_INPUT_CONTRACT.md) records these boundaries
+and primary engineering references. This discussion adds no device support, changes
+no consensus or monetary rule, and does not advance implementation past MB-03D.
+Next remains MB-03E; the rough Gate A progress estimate remains 20–25%.
+
 ## Implementation boundaries for this milestone
 
 `monetary_policy` contains separate checked arithmetic components, zero founder

@@ -41,6 +41,30 @@ uniqueness or anonymity.
 READ FIRST
 AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (current tracker and section 21),
 NEXT_SESSION.md and docs/DECISIONS.md.
+
+LATEST USER DESIGN INPUT — 2026-11-26
+The user wants flexible manufacturers/models and human-supervised Ant Kiss capture.
+Keep compatible adapters/imports and matching off-chain; the blockchain receives
+authorized enrollment outcomes and permitted commitments/approvals, not fingerprint
+or ECG archives. Human supervision does not make incompatible data comparable or
+prove absence from the network register. A local device-unlock flag is insufficient.
+
+The user is considering one anatomical finger plus ECG, possibly the left little
+finger, to minimize invasive collection. This is a proposed profile, not a frozen
+finger selection, capture count, matcher, threshold or uniqueness guarantee. No
+ten-fingerprint requirement is adopted. Repeated quality captures of that same
+finger may be evaluated. A selected fixed finger needs witnessed consistency;
+unreadable/missing fingers and changes of profile need reviewed continuity rules,
+not free substitution or another identity. Joint modality, cross-session/device
+performance and protected duplicate search remain D-05/D-06 work. Read the updated
+planning draft docs/DEVICE_INPUT_CONTRACT.md v0.2 and the dated decisions section.
+
+This discussion changed documentation only. Source remains b9a2e870996fcafe1128dcb5cfdfb6b01b158ded;
+no device integration, new tests or implementation milestone is claimed. Next is
+still MB-03E and the rough Gate A estimate remains 20–25%. The preceding discussion
+checkpoint was 8b7ea53a21b5a66dd6b39ee993814319cec74b58; check live head/CI rather than
+treating a documentation revision as newly tested source. Actual support is Gate B.
+
 Normative contracts:
 docs/FORK_CHOICE_V2.md
 docs/CHAIN_V2.md

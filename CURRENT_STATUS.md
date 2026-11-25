@@ -6,6 +6,17 @@ Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C components remain verified
 **MB-03D: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON.**
 **MB-03 remains IN PROGRESS. Next: MB-03E — durable membership-aware branch replacement.**
 
+## Device discussion — 2026-11-26
+
+The user reaffirmed flexible equipment under human supervision and proposed one
+anatomical finger plus ECG, possibly the left little finger, to minimize collection.
+The exact finger/profile and exception policy remain undecided. The updated
+[device input draft](docs/DEVICE_INPUT_CONTRACT.md) keeps observations off-chain,
+permits compatible adapters/imports, and distinguishes witnessed capture from
+tested duplicate matching. The chain receives authorized membership outcomes.
+This documentation-only discussion adds no adapter, biological-uniqueness evidence,
+test result or completed milestone. MB-03E remains next; the estimate below is unchanged.
+
 ## Progress estimate — 2026-11-26 discussion
 
 For the user's question about finishing the software before fingerprint/ECG device

@@ -454,6 +454,12 @@ independent membership/adapter work.
 
 ### MB-08 — device-neutral capture and adapters
 
+The user's 2026-11-26 clarification favors flexible brands/models and a minimal
+human-witnessed capture procedure. One anatomical finger plus ECG, possibly the
+left little finger, is a proposed profile to evaluate. The exact position and
+exception/migration rules remain open; all-fingerprint collection is not assumed.
+Consensus consumes authorized outcomes; the private workflow consumes the readings.
+
 **Deliver:** stabilize [DEVICE_INPUT_CONTRACT.md](docs/DEVICE_INPUT_CONTRACT.md);
 local SDK/interface, capability negotiation, synthetic source, documented importer
 and conformance suite. Isolate vendor parsers/SDKs from consensus. No universal

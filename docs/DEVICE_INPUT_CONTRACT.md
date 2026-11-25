@@ -1,4 +1,4 @@
-# Device input contract — planning draft v0.1
+# Device input contract — planning draft v0.2
 
 Status: **DRAFT REQUIREMENTS; no adapter or hardware support implemented here.**
 Owner task: MB-08 in [MASTER_PLAN.md](../MASTER_PLAN.md).
@@ -7,6 +7,11 @@ for equipment or a promise that an arbitrary consumer device can export readings
 The blockchain receives authorized membership events, not this private capture
 payload. No example below requires uploading real readings to GitHub or chat.
 
+Updated 2026-11-26 to record the user's preference for flexible equipment and a
+minimal capture profile. The proposed one-finger-plus-ECG profile, possibly using
+the left little finger, remains a proposal for evaluation. This document revision
+changes no runtime API, consensus encoding or supported-device claim.
+
 ## 1. Device-neutral boundary
 
 A combined watch or separate fingerprint/ECG devices are both allowed. Their
@@ -14,6 +19,14 @@ adapters provide observations to a local Mirror enrollment application. The
 application performs normalization, protection and session binding. An off-chain
 service assists duplicate checking; assigned humans review; nodes enforce the
 signed admission rules. No device determines identity or creates MRY by itself.
+
+The user's intended flexibility concerns manufacturer, model and transport. A
+documented import or adapter can normalize usable observations without embedding
+vendor-specific behavior in consensus. The blockchain receives the authorized
+enrollment outcome and permitted evidence commitments/approvals. The fingerprint
+image/template and ECG waveform remain in the protected off-chain workflow.
+Human supervision witnesses the procedure; it does not by itself establish
+cross-sensor compatibility, successful population-wide search or honest reviewers.
 
 Initial transports can be a documented file export or a local USB/SDK connection;
 additional transports require tests. File import is not automatically evidence
@@ -54,6 +67,29 @@ how repeated captures and failures are treated. The adapter cannot choose a
 convenient different finger to bypass duplicate checks. A local phone/device unlock
 boolean is not an export of the applicant's fingerprint record.
 
+### Proposed minimal profile — one anatomical finger plus ECG
+
+The user prefers to investigate one finger, possibly the left little finger,
+instead of assuming collection of every fingerprint. No ten-finger requirement
+has been selected. The exact position, number of repeat captures, matcher and
+performance criteria remain D-06 decisions; no evidence currently validates this
+particular combined profile for Mirror's intended population.
+
+Several quality-controlled captures of the same anatomical finger can still form
+a one-finger profile. If a fixed position is selected, witnesses must check that
+position and bind both modalities to the same applicant and fresh session. A
+person must not freely substitute another finger to obtain another enrollment.
+Missing/unreadable/injured fingers need a defined reviewed exception and continuity
+procedure; absence of a comparable record must not be treated as a new person.
+Alternative profiles or later profile changes require explicit cross-profile
+duplicate-checking and migration rules, not separate identity namespaces.
+
+One-to-many duplicate search is distinct from verifying an already claimed
+account. Evaluate missed repeat enrollments, false duplicate flags, acquisition
+failures and cross-device/session behavior at the intended operating scale.
+Single-finger capture is a data-minimization proposal, not an established accuracy
+or anonymity guarantee. References below motivate this evaluation.
+
 No exact hash is treated as a biometric identity: repeated physical measurements
 are compared by the chosen matcher. Randomized commitments bind evidence records
 without advertising a reusable public fingerprint digest.
@@ -74,6 +110,13 @@ units, missing samples or contact configuration may count as a valid capture.
 Both electrical contacts must measure the applicant under the tested procedure.
 Human review of the enrollment is separate from medical interpretation: Mirror
 makes no diagnostic claim from the recording.
+
+Evaluate supported recording arrangements across separate sessions and time
+intervals. ECG studies [D4, D5] show that performance can depend on acquisition
+position and evaluation interval. Their results do not validate Mirror's proposed
+fingerprint/ECG combination or supply a universal threshold. The joint interpretation
+of the two modalities remains to be specified; never assume their errors are
+independent or that one automatically compensates for an unusable other modality.
 
 ## 5. Adapter operations and failures
 
@@ -106,6 +149,14 @@ Only fields permitted by the MB-02 admission format may cross the on-chain bound
 Authorization of receipt issuers does not establish a mathematical guarantee that
 the claimed comparison was correct; disclose and test its trust assumptions.
 
+A result-only interface to the chain is compatible with this boundary. The
+authorized private workflow still needs a comparable reference population and
+tested matching inputs. A scanner's local unlock/match flag does not establish
+that the applicant is absent from the network register. Capture failure, unavailable
+search or disagreement between required modalities must remain explicit unresolved
+outcomes until the approved review policy resolves them. No automatic admission
+fallback is implied by human supervision.
+
 ## 7. Supplier/device compatibility questions — before purchase
 
 Ask for model, supported operating systems, documented SDK/export formats,
@@ -128,3 +179,25 @@ across sessions and devices; calibrated comparison results and error rates; huma
 review handling; consent/retention/security review. Keep real recordings off public
 CI and Git. Gate A can establish the software interface; only MB-12 can establish
 support and recognition performance for actual supplied devices.
+
+## 9. Engineering evidence for this draft
+
+These sources inform evaluation; they do not certify Mirror, mandate government
+identity documents or settle its admission rules.
+
+- [D1] [NIST, contactless-to-contact interoperability evaluation (2020)](https://www.nist.gov/publications/interoperability-assessment-2019-contactless-contact-fingerprint-capture):
+  measured performance differed across capture arrangements; multiple-finger
+  combinations improved results in the evaluated contactless setting.
+- [D2] [NIST, FpVTE 2003 results (2004)](https://www.nist.gov/publications/fingerprint-vendor-technology-evaluation-2003-summary-results-and-analysis-report):
+  fingerprint quality and number of fingers affected accuracy in that evaluation.
+  This historical study supplies no current error rate for a left-pinky profile.
+- [D3] [NIST SP 800-63A-4, identity-proofing requirements](https://pages.nist.gov/800-63-4/sp800-63a/ial-general/):
+  distinguishes one-to-one verification from one-to-many searches and calls for
+  operationally representative evaluation and manual review before duplicate-based
+  enrollment rejection within its scope.
+- [D4] [Ramos et al., ECG acquisition-protocol experiment (2021)](https://www.mdpi.com/1424-8220/21/14/4645):
+  a 20-participant experiment examined acquisition locations and separate sessions.
+  Its results support testing compatibility rather than assuming it.
+- [D5] [Islam et al., Heartprint multisession dataset (2022)](https://www.mdpi.com/2306-5729/7/10/141):
+  evaluated repeat ECG recordings over substantial intervals; baseline results
+  depended on the session protocol. They are not a universal ECG accuracy bound.
