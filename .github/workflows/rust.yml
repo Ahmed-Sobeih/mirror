@@ -38,6 +38,8 @@ jobs:
         run: python3 tools/reference_storage_v2.py --check
       - name: Independent V2 append selection vectors
         run: python3 tools/reference_append_storage_v2.py --check
+      - name: Independent V2 replacement selection vectors
+        run: python3 tools/reference_replacement_storage_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
@@ -58,6 +60,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example append_v2_demo --locked
       - name: V2 explicit interrupted-append recovery demonstration
         run: cargo +1.98.0 run -p mirror-storage --example recovery_v2_demo --locked
+      - name: V2 pure branch replacement preparation demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example replacement_plan_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
       - name: V2 accepted branch comparison demonstration
