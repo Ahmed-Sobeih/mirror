@@ -313,9 +313,12 @@ kernel writes, storage-controller caches or physical power loss. The existing
 Linux/filesystem assumptions remain explicit; untested WSL/DrvFS, native Windows
 and network filesystems gain no certification from this work.
 
-MB-03 remains in progress after this bounded recovery slice. Canonical development
-fork choice, durable membership-aware branch replacement and fresh-peer
-reconstruction remain subsequent work. No monetary rule, founder allocation,
+MB-03D's separate [development comparator](FORK_CHOICE_V2.md) now compares complete
+accepted branches under independently selected network identity. It performs no
+storage mutation and cannot turn this one-child recovery into a reorganization.
+MB-03 remains in progress. Next is MB-03E durable membership-aware branch replacement
+with reviewed publication/interruption/recovery rules, followed by fresh-peer
+reconstruction. No monetary rule, founder allocation,
 marketing reserve, mint/grant/reward API, human-finality rule, real biometric input
 or anonymity guarantee is introduced. Gate A and Gate B remain unmet until their
 separate acceptance requirements are demonstrated.

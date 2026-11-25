@@ -21,6 +21,8 @@ publication, failure fencing and clean-state reconciliation. Its MSU2 storage
 envelope does not change any MRB2 operation, header or body encoding. MB-03C adds
 [explicit interrupted-append recovery](STORAGE_RECOVERY_V2.md) using those same
 canonical bytes and independently retained parent/candidate authority.
+The separate [MB-03D comparator](FORK_CHOICE_V2.md) compares fully accepted branches
+under independent network identity; it adds no block, score or selection encoding.
 Current publication and acceptance evidence is recorded in CURRENT_STATUS.md.
 
 ## 1. Dependency and compatibility boundary
@@ -194,6 +196,7 @@ The API boundaries are deliberately separate:
 | StoreV2 initialize/open_writer/inspect (MB-03A) | Immutable generation-zero storage, lifetime exclusive/shared ownership, bounded exact MNM2/MRB2 reads and full replay against independent network/checkpoint pins | Continued tip publication, update/failure recovery, branch replacement, peer synchronization, V2 node operation and real human admission |
 | AppendStoreV2 initialize/append/reopen/reconcile (MB-03B) | Separate MSU2 profile, one accepted child per publication, continuous ownership, failure fencing and complete replay/resynchronization of clean externally selected states | Explicit recovery of interrupted staging, branch replacement, peer synchronization, V2 node operation, global freshness/finality and real human admission |
 | AppendStoreV2 recover_interrupted/recover (MB-03C) | Explicit Complete/RetainParent for recognized one-child staging; independent request pins/exact child; full parent/child validation; bounded reads; retained exclusive ownership and final strict replay/synchronization | Missing/corrupt selected-marker or initialization recovery, unknown artifacts, rollback of a selected child, global fork choice/finality, durable branch replacement, live V2 networking and real admission |
+| compare_branches_v2 (MB-03D) | Comparison of complete accepted branches under independent C/genesis; normalized fixed-target score, keep-current ties, actual common ancestry and a borrowed whole selected chain | Global latestness, unique tie winner, finality, durable publication/replacement, peer reconstruction and real human admission |
 
 No method in `mirror_core::v2` mutates balances, consumes sequences, activates membership,
 publishes a canonical block, mines genesis, or opens a chain database. The separate
@@ -239,7 +242,9 @@ operation that may finish exact canonical candidate prefixes or retain the paren
 while it is still selected. Unknown bytes and unsupported states remain rejected.
 It changes no MRB2, MSS2, MSU2 or operation encoding.
 
-**Next is MB-03D:** canonical development fork-choice specification and implementation,
-before durable membership reorganization and peer reconstruction. The V2 node/API
-remains later work; the existing node daemon and legacy paths have not been migrated.
+The [MB-03D comparison contract](FORK_CHOICE_V2.md) ranks only already accepted
+branches, keeping full state attached to each history without new encoded bytes.
+**Next is MB-03E:** durable membership-aware branch replacement with separately
+reviewed publication/recovery rules, followed by fresh-peer reconstruction. The V2
+node/API remains later work; legacy node paths have not been migrated.
 Refer to CURRENT_STATUS.md for current source and acceptance evidence.

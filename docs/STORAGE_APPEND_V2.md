@@ -15,6 +15,8 @@ network daemon. A failed append may leave a store that ordinary opening refuses.
 MB-03C now supplies a separate explicit recovery API under
 [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md); this does not alter any format,
 append ordering or strict clean-state opening/reconciliation rule below.
+MB-03D's [development comparator](FORK_CHOICE_V2.md) operates on complete accepted
+in-memory branches. It does not use MSU2 generation as score or publish a new selector.
 
 ## 1. Selection authority and compatibility
 
@@ -325,9 +327,11 @@ nor an external security audit. Exact results are recorded in the checkpoints.
 MB-03C adds bounded explicit completion/retention of one independently authorized
 append, using the unchanged selectors and full ChainV2 execution. It does not
 recover missing/corrupt selected markers, interrupted initialization or arbitrary
-unknown data. **Next is MB-03D: canonical development fork choice**, before durable
-membership-aware branch replacement and peer reconstruction. Those transitions
-need their own selection, publication, retention and recovery rules. MB-03 remains
+unknown data. MB-03D now compares complete accepted branches under its separate
+[fixed-target rule](FORK_CHOICE_V2.md), without disk mutation or a publication token.
+**Next is MB-03E: durable membership-aware branch replacement**, followed by fresh-peer
+reconstruction. Replacement needs reviewed publication, retention and recovery rules
+under the same stable ownership boundary. MB-03 remains
 in progress after these components. MB-04 supplies the persistent V2 node, pool,
 wallet and operator interfaces.
 

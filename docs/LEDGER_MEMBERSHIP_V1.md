@@ -10,7 +10,8 @@ execution/commitments; MB-02C implements pinned actual block acceptance and
 complete finite MRB2 replay; MB-03A now implements immutable selected-chain
 initialization, ownership and checked reopening; MB-03B adds a separate append
 profile with one-child publication, failure fencing and clean-state reconciliation;
-MB-03C adds explicit recovery of independently authorized one-child staging**.
+MB-03C adds explicit recovery of independently authorized one-child staging;
+MB-03D compares complete accepted branches under independent network identity**.
 [MEMBERSHIP_STATE_V2.md](MEMBERSHIP_STATE_V2.md) records B3 execution, explicit
 retained-approval budgets and the implemented MPS2 commitment/cache boundary.
 [REPLAY_V2.md](REPLAY_V2.md) specifies bounded membership-only MPH2 grouped replay.
@@ -24,9 +25,10 @@ is [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); actual in-memory branch acceptance 
 [CHAIN_V2.md](CHAIN_V2.md). The implemented immutable storage contract is
 [STORAGE_V2.md](STORAGE_V2.md); the separate append contract is
 [STORAGE_APPEND_V2.md](STORAGE_APPEND_V2.md). Its separate explicit recovery contract
-is [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md). **Next is MB-03D: canonical
-development fork-choice specification and implementation**, before durable membership
-reorganization and peer reconstruction. MB-03 remains in progress.
+is [STORAGE_RECOVERY_V2.md](STORAGE_RECOVERY_V2.md). The development comparison
+contract is [FORK_CHOICE_V2.md](FORK_CHOICE_V2.md). **Next is MB-03E: durable
+membership-aware branch replacement**, with reviewed publication/recovery rules,
+followed by fresh-peer reconstruction. MB-03 remains in progress.
 Staging a ledger alone does not establish block authority. The MB-02 in-memory
 component is verified; durable/node integration, finality and Gate A/B remain
 unfinished. The historical design-status statements below describe the original
@@ -374,12 +376,15 @@ bounded MRB2 bytes; advertised height/root is untrusted until independent execut
 Validate headers/kind sizes before reading/allocating bodies. Complete-message
 and session budgets, multi-peer operation and anti-slow-peer tests belong to MB-04.
 
-ChainV2 can validate independent branches of the same config/genesis, but supplies
-no fork-choice or reorganization API. The existing legacy fixed-target fork choice
-does not thereby become a V2 policy. Planned pre-MB-06 integration retains explicitly
-development-only branch selection after complete validation; its durable publication
-belongs to MB-03. MB-06 must prevent any reorg across finalized history. This design
-does not make PoW a source of equal human voting power.
+ChainV2 validates independent branches of the same config/genesis. MB-03D's separate
+[development comparator](FORK_CHOICE_V2.md) now compares only those complete accepted
+branches under independently chosen network identity. Fixed-target normalized score
+is height; only a strictly longer candidate wins, and ties keep current. Actual
+accepted hashes identify the common ancestor. Its borrowed selected-chain reference
+preserves the full ledger/counters without mutation or durable publication. These
+rules do not turn PoW into equal human voting power or finality. MB-03E must define
+durable membership-aware replacement; MB-06 must prevent any replacement across
+future finalized history under its separately specified consensus rules.
 
 ## 9. Privacy, real admission and economics stay gated (R33–R35)
 
@@ -408,8 +413,8 @@ slice plan below has now been completed for the standalone membership component;
 MB-02A adds full mixed block representation and MB-02B adds atomic ledger
 execution. MB-02C now adds pinned actual block authority and full finite-branch
 replay; MB-03A/B now add selected storage and bounded append publication. MB-03C
-adds explicit recognized-staging recovery. Canonical branch selection, durable
-reorganization, peers and node integration remain unfinished.
+adds explicit recognized-staging recovery. MB-03D adds accepted-branch comparison.
+Durable reorganization, peer reconstruction and node integration remain unfinished.
 
 Original MB-01B slices:
 
@@ -441,8 +446,8 @@ independent references and four synthetic examples passed.
 and [PR CI 44428936866](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44428936866)
 passed; exact checkout and full push-job logs were inspected. See CURRENT_STATUS.md
 for the detailed acceptance record.
-The precise next slice is **MB-03D**: canonical development fork-choice specification
-and implementation, before durable branch replacement or peer reconstruction.
+The precise next slice is **MB-03E**: durable membership-aware branch replacement
+with reviewed publication and recovery rules, followed by fresh-peer reconstruction.
 MB-03A now supplies explicit immutable initialization, cooperative ownership and
 full checked reopening under independent network/checkpoint pins; its contract is
 [STORAGE_V2.md](STORAGE_V2.md). MB-03B's separate
@@ -458,7 +463,8 @@ specified in [LEDGER_STATE_V2.md](LEDGER_STATE_V2.md); MB-02C's finite in-memory
 complete replay are specified in [CHAIN_V2.md](CHAIN_V2.md). CURRENT_STATUS.md records
 current source and acceptance evidence. An MRB2 body-integrity check or a successful
 staged ledger alone still does not establish actual block authority; ChainV2 adds
-the complete checks. Reviewed canonical branch selection, durable membership
+the complete checks. MB-03D compares only these complete accepted branches under
+the separate [fork-choice contract](FORK_CHOICE_V2.md). Durable membership
 reorganization, peer/node operation and final human consensus remain later work.
 Zero-fee/no-mint synthetic execution introduces no
 founder allocation, marketing reserve, population issuance or bootstrap payout.

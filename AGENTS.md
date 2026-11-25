@@ -26,9 +26,10 @@ crash-proof, audited, or unconditionally immutable from passing unit tests.
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
 core/personhood/state/consensus/chain/storage tests, all eight independent reference
 checks (including `tools/reference_storage_v2.py --check` and
-`tools/reference_append_storage_v2.py --check`) and all nine synthetic examples
+`tools/reference_append_storage_v2.py --check`) and all ten synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
-chain chain_v2_demo and storage storage_v2_demo/append_v2_demo/recovery_v2_demo). Include
+chain chain_v2_demo/fork_choice_v2_demo and storage
+storage_v2_demo/append_v2_demo/recovery_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
 all three storage examples in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
@@ -38,7 +39,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03D.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03E.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -50,14 +51,16 @@ exclusive reopening, shared inspection and complete checked reconstruction.
 MB-03B adds a separate append profile, bounded one-child publication, write fencing
 and full replay/resynchronization of clean selected states. MB-03C adds explicit
 bounded recovery of recognized one-child staging under independent parent/candidate
-pins, exact child bytes and an explicit completion/retention action. Next is MB-03D
-canonical development fork choice, followed by durable membership reorganization
-and peer reconstruction.
+pins, exact child bytes and an explicit completion/retention action. MB-03D adds
+pure comparison of complete accepted branches under independently selected network
+identity, fixed-target normalized height scores and keep-current ties. Next is
+MB-03E durable membership-aware branch replacement with reviewed publication and
+recovery, followed by fresh-peer reconstruction.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
-docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/STORAGE_V2.md,
+docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
 docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
@@ -105,7 +108,8 @@ resulting ledger root before binding or publishing state. Full MRB2 replay uses
 its private accepted candidate-branch ancestry, never peer assertions or MPH2.
 MNM2 decode requires externally selected C/genesis and every seed proof. Complete
 replay requires external C/genesis/height/tip/ledger-root selection. These pins
-identify a branch; they do not discover latestness or supply global fork choice.
+identify a branch; they do not discover latestness. MB-03D's separate comparator
+ranks two accepted branches but does not supply global latestness or finality.
 Preserve strict child timestamp > parent and configured literal bits; no wall-clock
 ceiling exists in this synthetic profile. Preserve 4,096 blocks, 16 MiB complete
 MRB2 and 1,048,576 cumulative state/config items, including the exact charge formula
@@ -165,6 +169,21 @@ promote pending metadata, overwrite foreign/legacy data, or discard accepted his
 Reuse ChainV2's complete MRB2 replay for validity, including all transfers and
 membership effects. No cached state or stored counter can replace reexecution
 and its resource accounting; in-memory rollback does not establish crash recovery.
+
+Preserve MB-03D's accepted-type comparison boundary: independently check both
+branches against the selected C/genesis before scoring or ancestry lookup. Every
+accepted block has the same configured literal target, so normalized score is
+post-genesis height in 0..=4095. Strictly greater candidate height wins; equal
+scores keep current. This is a development rule, not equal-human consensus or a
+global tie breaker. At finite caps or terminal timestamps ties may not resolve.
+Find the common ancestor from accepted hashes, not account/member roots or peer
+assertions. Keep the private borrowed comparison and selected whole-chain reference;
+never graft accounts, membership, permanent records, approvals or counters across
+branches. The comparator allocates no collection, replays no state and touches no
+disk. Copied choices/checkpoints are diagnostics, not durable publication tokens.
+MB-03E must revalidate identity, current selected endpoint and exact candidate under
+the held store lock, with separately specified publication/interruption/retry rules.
+Never reinterpret MSU2 generation as branch score or replace the locked root inode.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

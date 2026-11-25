@@ -109,6 +109,9 @@ which stages complete children and reconciles clean selected states by full repl
 The [MB-03C recovery operation](STORAGE_RECOVERY_V2.md) likewise replays the complete
 parent and accepts the exact requested child before completion or retention under
 independent request authority. The previous diagnostic replay budgets remain unchanged.
+The [MB-03D comparator](FORK_CHOICE_V2.md) borrows complete accepted branches and
+returns the whole preferred chain. It neither reexecutes this ledger nor combines
+accounts, membership or resource counters from different branches.
 
 ## 3. Execution and error order
 
@@ -264,9 +267,11 @@ same complete ledger rules before mutation, and final strict replay/synchronizat
 must reproduce every account, membership and resource counter. Unknown artifacts
 remain preserved and rejected; a selected child cannot be rolled back by retention.
 
-**Next is MB-03D:** canonical development fork-choice specification and implementation,
-before durable membership reorganization and peer reconstruction. The V2 node/API
-remains later work. In-memory acceptance and bounded storage checks are not
+The [MB-03D comparison contract](FORK_CHOICE_V2.md) keeps the full selected ledger
+attached to its accepted history, using fixed-target normalized scores and sticky
+ties without mutation. **Next is MB-03E:** durable membership-aware branch replacement
+with reviewed publication/recovery rules, followed by fresh-peer reconstruction.
+The V2 node/API remains later work. In-memory acceptance and bounded storage checks are not
 universal crash-safety or human-consensus
 guarantees. Private matching, biometric capture, privacy and real admission remain
 later gates.

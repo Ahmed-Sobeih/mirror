@@ -34,6 +34,10 @@ states. Its local generation also requires independent selection. MB-03C's
 [explicit recovery API](STORAGE_RECOVERY_V2.md) replays the parent and accepts the
 exact independently retained child through these same rules before either completing
 that candidate or retaining its still-selected parent. It does not select a branch.
+The separate [MB-03D comparator](FORK_CHOICE_V2.md) now compares two accepted
+branches under independent C/genesis pins, using normalized fixed-target scores
+and keep-current ties. It borrows the complete chosen branch and performs no
+storage publication, network operation or finality decision.
 
 ## 2. Public network manifest — MNM2
 
@@ -184,9 +188,11 @@ immutable branch; MB-03B can append accepted children in its separate versioned
 store and reconcile clean selected states. Neither supplies global fork choice,
 branch replacement or automatic recovery of pending artifacts. MB-03C separately
 handles bounded recognized staging under an explicit retained request; a pending
-file never chooses authority. MB-03D next specifies canonical development fork
-choice, before durable membership reorganization and peer reconstruction. The later
-human-finality profile remains MB-06.
+file never chooses authority. MB-03D now compares complete accepted branches under
+its [fixed-target development rule](FORK_CHOICE_V2.md); score is accepted height,
+ties retain current, and actual accepted hashes identify common ancestry. It does
+not rewrite either branch or a store. MB-03E durable membership-aware replacement
+and fresh-peer reconstruction follow. The later human-finality profile remains MB-06.
 
 ## 7. Explicit finite resource profile
 
@@ -262,9 +268,12 @@ both fully replay the parent and validate the child before mutation. Final stric
 replay reproduces the complete selected ledger and counters. Unknown data remains
 rejected, and no storage operation changes these chain rules.
 
-**Next is MB-03D:** canonical development fork-choice specification and implementation.
-Durable membership-aware branch replacement and peer reconstruction follow; the
-V2 node/API remains later work.
+The [MB-03D comparison contract](FORK_CHOICE_V2.md) keeps the chosen complete ledger
+and counters attached to their accepted branch. It adds no encoded score, work
+multiplication, state mutation or durable selection token.
+**Next is MB-03E:** durable membership-aware branch replacement with reviewed
+publication/recovery rules, followed by fresh-peer reconstruction. The V2 node/API
+remains later work.
 No founder or marketing reserve, grant, mint, fee/reward formula, real biometric
 enrollment or device integration is enabled by these contracts. D-01/D-04 remain
 open and Gate A/B remain unmet.

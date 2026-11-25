@@ -22,8 +22,9 @@ replay under independent network/checkpoint pins. The separate
 [MB-03B append profile](STORAGE_APPEND_V2.md) adds one-child publication, failure
 fencing and complete replay/resynchronization of clean selected states. MB-03C adds
 [explicit one-child staging recovery](STORAGE_RECOVERY_V2.md), preserving the same
-full execution rules. Canonical branch selection, networking and durable
-reorganization remain later integration. Membership-only behavior and MPS2
+full execution rules. The [MB-03D comparator](FORK_CHOICE_V2.md) now compares only
+complete accepted branches and borrows their entire selected ledger. Networking and
+durable reorganization remain later integration. Membership-only behavior and MPS2
 bytes/domains are preserved; section 5 documents the explicit
 extension of MPS2's accepted inclusion-index range for mixed blocks.
 
@@ -143,8 +144,9 @@ Ordinary opening preserves and rejects interrupted staging. MB-03C's explicit
 recovery may complete one independently authorized candidate or retain its
 still-selected parent; it validates full membership state and counters for both
 before mutation and never combines branch counters. Unexplained bytes reject.
-MB-03D canonical development fork choice and durable reorganization remain
-subsequent work.
+MB-03D's development comparator now returns the complete preferred accepted branch
+without combining or mutating its membership/counters. Durable membership-aware
+replacement is MB-03E; it needs reviewed publication/recovery before peer integration.
 
 ## 4. Bounded synthetic execution
 
@@ -393,9 +395,12 @@ or retention of recognized one-child staging under independent request authority
 Both actions validate complete membership effects before mutation and reproduce
 the selected state through final strict replay/synchronization. Unknown artifacts
 remain rejected, and retention never rolls back an already selected child.
-**Next is MB-03D:** canonical development fork-choice specification and implementation,
-before durable membership reorganization and peer reconstruction. The V2 node/API
-remains later work.
+The [MB-03D comparator](FORK_CHOICE_V2.md) ranks complete accepted histories under
+independent C/genesis pins; higher accepted height wins and ties keep current.
+It borrows the whole selected branch with all membership/counters intact and performs
+no mutation or disk publication. **Next is MB-03E:** durable membership-aware branch
+replacement with reviewed publication/recovery rules, followed by fresh-peer
+reconstruction. The V2 node/API remains later work.
 Diagnostic group commitments are not MRB2 operation roots, MPH2 remains
 membership-only, and filtered indices must never replace original mixed-block
 positions. Combined staging and caller-supplied hash binding alone still do not

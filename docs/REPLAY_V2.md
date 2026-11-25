@@ -19,6 +19,8 @@ adds one-child publication and checked reconciliation of clean selected historie
 MB-03C adds [explicit interrupted-append recovery](STORAGE_RECOVERY_V2.md) under
 independent parent/candidate pins and exact requested child bytes. None uses this
 diagnostic transcript as storage authority or alters its frozen bytes.
+The [MB-03D comparator](FORK_CHOICE_V2.md) accepts only complete validated ChainV2
+branches, not this transcript or an MPS2 cache, and performs no diagnostic replay.
 CURRENT_STATUS.md records current publication and acceptance evidence.
 
 ## 1. Independent trust inputs
@@ -47,8 +49,9 @@ reopening uses actual MRB2 replay with separately selected pins, not a diagnosti
 view inferred from this log. MB-03B now applies the same complete replay to append
 publication prechecks and clean-state reconciliation, with separately pinned local
 generations. MB-03C applies actual-chain replay and acceptance to both independently
-selected endpoints before its explicit recovery actions. Canonical development
-fork choice is next in MB-03D; no diagnostic transcript chooses that authority.
+selected endpoints before its explicit recovery actions. MB-03D now compares
+complete accepted branches under independent identity; no diagnostic transcript
+chooses that authority or supplies a work score.
 
 The explicit expected tuple prevents an old valid prefix from satisfying a newer
 requested checkpoint. It does not discover which checkpoint is latest. An
@@ -249,6 +252,8 @@ publication, failure fencing and clean-state replay/resynchronization. The separ
 [MB-03C contract](STORAGE_RECOVERY_V2.md) adds explicit recovery of recognized
 one-child staging, requiring full parent/child execution under independent pins
 and final clean replay/synchronization. Unknown bytes remain preserved and rejected.
-Next is **MB-03D: canonical development fork-choice specification and implementation**,
-before durable membership reorganization and peer reconstruction. No V2 node
+The [MB-03D comparison contract](FORK_CHOICE_V2.md) uses accepted block hashes and
+normalized fixed-target scores, preserving the whole selected branch without mutation.
+Next is **MB-03E: durable membership-aware branch replacement**, with reviewed
+publication/recovery rules, followed by fresh-peer reconstruction. No V2 node
 service, real human admission or monetary issuance follows from this diagnostic API.

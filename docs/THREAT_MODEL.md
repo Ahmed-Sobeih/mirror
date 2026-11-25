@@ -1,8 +1,8 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-03C explicit interrupted-append
-recovery — VERIFIED COMPONENT with exact-source CI**, below.
+and V2 design. Current implementation update: **MB-03D canonical development
+fork choice — all required local acceptance gates passed**, below.
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
 review. This is an engineering review, not an audit certification.
@@ -13,13 +13,16 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A/B/C evidence is in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+MB-02A/B/C and MB-03A/B/C evidence, plus the current MB-03D verification status,
+are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
 branch acceptance, complete-block replay, immutable selected-store reopening and
 one-block append publication now exist. MB-03C adds explicit recovery of one
-independently authorized append's recognized residual shapes. Arbitrary corruption
-repair, canonical replacement, peer integration and human finality remain unfinished;
+independently authorized append's recognized residual shapes. MB-03D compares fully
+accepted branches under independent network identity and returns the complete
+preferred branch as an immutable reference. Arbitrary corruption repair, durable
+canonical replacement, peer integration and human finality remain unfinished;
 source publication/CI is tracked separately.
 
 ## Historical B3 implementation update
@@ -480,7 +483,7 @@ reconstruction. F08 remains partly open in those scopes and for legacy behavior.
 F09–F11, final human consensus, private matching, actual devices and Gate A/B remain
 unmet. No founder reserve, marketing allocation, mint, fee or reward is enabled.
 
-## MB-03C explicitly authorized residual recovery update
+## Historical MB-03C explicitly authorized residual recovery update
 
 **VERIFIED COMPONENT on Rust 1.98.0 with exact-source CI.** The source commit is
 `e8302052ab724f59ff4a212dc64aea9575a6d4b3`, with tree
@@ -599,9 +602,118 @@ artifacts, multi-child leftovers and durable reorganization remain outside it.
 F09 network sessions, F10 biological uniqueness/privacy, F11 final economics and
 human finality remain open. No issuance, founder reserve, marketing allocation,
 real biometric capture or anonymity guarantee follows from recovery.
-**MB-03 remains IN PROGRESS. Next is MB-03D:
+**At the MB-03C checkpoint, MB-03 remained IN PROGRESS and MB-03D was next:**
 canonical development fork choice, before durable membership-aware replacement and
-peer reconstruction. Gate A and Gate B remain UNMET.**
+peer reconstruction. Gate A and Gate B remained UNMET.
+
+## MB-03D canonical development fork-choice update
+
+**All required local acceptance gates passed.** Source:
+`b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`; source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`. The implementation and
+[contract](FORK_CHOICE_V2.md) add comparison of complete accepted V2 branches,
+without changing any existing format, dependency, fixture or storage behavior.
+Rust 1.98.0 with locked dependencies passed **735 workspace runtime tests**
+(707 retained + 28 new) and **six documentation tests** (three retained + three
+new ownership/type compile-fail examples). One subprocess-only helper remains
+intentionally ignored in ordinary enumeration and is invoked by its parent tests.
+
+Release gates passed **121 core**, **234 personhood plus three doctests**,
+**49 state**, **23 consensus**, **85 chain plus three doctests**, and **194 storage**
+tests. All **eight independent reference checks** and **ten examples**, including
+`fork_choice_v2_demo`, passed. **105 retained source, dependency, reference and
+fixture files remain byte-identical.** Release repeats are not additional unique
+tests. These local results are separate from exact-source and documentation-head
+CI evidence:
+Published-source [push CI 45703714223](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703714223)
+and [PR CI 45703726306](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703726306)
+both passed. Full push-job `139520118282` logs confirmed the exact implementation
+checkout, **735 workspace tests, six compile-fail doctests, all required release
+suites, eight independent references, ten examples and the allocation/runtime-data
+audit**. The single intentionally ignored subprocess helper is invoked by parent
+tests and is not another pass. Release reruns are not additional unique tests.
+MB-03D is **VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON**. Subsequent
+documentation-head CI is checked separately and recorded on PR #1.
+
+### Independent identity and accepted inputs
+
+`compare_branches_v2(expected, current, candidate)` requires an independently
+selected configuration hash C and exact genesis hash. It checks current C, current
+genesis, candidate C and candidate genesis in that order before any ancestry work.
+Matching two inputs to each other alone would not select the intended network;
+deriving expected identity from untrusted candidate data remains an application
+trust-boundary failure. A different valid network can be selected only by changing
+that independent caller choice explicitly.
+
+Both inputs must be immutable borrows of already accepted `ChainV2` values. Their
+private construction/append/replay paths established work, parent, time, body,
+signature, complete ledger and resource invariants. The comparator cannot accept a
+raw block, advertised height, claimed score, snapshot or storage marker in place
+of an accepted chain. A rejected block cannot raise the accepted chain's score.
+Comparison does not repeat full execution or turn those invariants into an unsafe
+public setter.
+
+### Fixed-target score, ties and ancestry
+
+The current profile requires the same configured literal difficulty bits for every
+accepted block. Within the independently selected identity, height is therefore a
+normalized ordering of accumulated constant target-based work. Genesis contributes
+the same common term to either branch. The comparator reads accepted height; it
+never sums attacker-supplied scores, multiplies large integers or counts actual
+mining attempts. Existing 4,096-block admission bounds the score to `0..=4095`.
+A future variable-target or human-weighted profile must explicitly replace this
+rule, rather than reusing height as an undocumented approximation.
+
+A candidate wins exactly when its score is strictly larger. Equal scores keep the
+input designated current, including when the candidate's realized hash is lower,
+its timestamp is later or its membership/population counts differ. This is not a
+global ordering of equal-score branches: two peers can retain different equal
+branches. At the finite cap or a terminal timestamp, further extension can be
+impossible, and this component supplies no eventual-convergence guarantee. Hash
+rate dominance remains possible in this development PoW rule; this work does not
+implement equal-human weight, rewards or MB-06 finality.
+
+Common ancestry is the last matching prefix of actual accepted block hashes,
+never agreement of account bytes, membership roots, claimed height or timestamps.
+The comparator scans at most 4,096 pairs and hashes at most 8,192 fixed headers,
+using constant additional state and stack hash inputs. It allocates no collection,
+clones no branch, performs no disk I/O and executes no additional ledger steps.
+The two inputs retain their separate encoded-history and cumulative-state budgets.
+Existing collision-resistance and signature assumptions remain in force.
+
+### Borrowed complete state and publication boundary
+
+The private `BranchComparisonV2` result borrows both inputs. Safe Rust rejects
+mutating either branch while that result remains in use. Its selected reference
+points to the complete actual input branch: blocks, manifest, accounts, membership,
+permanent records, approvals, population peaks and resource counters stay together.
+Tests use genuine membership-divergent histories with identical account bytes;
+a preference does not merge orphaned approvals or higher population peaks from
+the other branch. Empty-block expiry remains part of the selected history too.
+
+Public choice/relation enums and copied checkpoints remain diagnostic data. They
+can be copied or become stale after the borrowing comparison is no longer used;
+they are not publication certificates. Returning a branch reference cannot alter
+an existing store's canonical selection. A future durable replacement API must
+recheck identity, the current selected endpoint and the complete candidate while
+holding exclusive stable-root ownership, then enforce its own publication and
+interruption rules. MSU2 local generation is not branch weight, and MB-03C's
+one-child recovery must not be stretched into an implicit reorganization API.
+
+The new tests cover both input identities and error order, identical/prefix/
+divergent relationships, sticky ties in both argument orders, genesis/deep common
+ancestors, complete membership/counter retention, invalid-block exclusion and the
+4,096-block cap. Compile-fail examples demonstrate immutable current and candidate
+borrows plus rejection of a raw `BlockV2` argument. This is scoped engineering
+verification, not an independent audit or evidence of deployed network convergence.
+
+F06/F07 gain an explicit validated-branch preference boundary. F08 durable canonical
+replacement, F09 peer sessions/reconstruction, F10 private biological matching,
+F11 economics and human finality remain open in their stated scopes. Legacy V1
+findings remain historical; no source finding is globally closed by this addition.
+**MB-03 remains IN PROGRESS. Next: MB-03E durable membership-aware branch replacement**,
+with reviewed publication/recovery under the stable lock, followed by fresh-peer
+reconstruction. **Gate A and Gate B remain UNMET.** No mint/grant, founder/marketing
+privilege, actual biometric capture or anonymity guarantee was introduced.
 
 ## 1. Assets and trust boundaries
 
@@ -772,10 +884,10 @@ fencing and checked clean-store resynchronization. MB-03C adds explicitly author
 completion or abandonment of recognized interrupted append staging. Implementation/test scope is
 recorded above; exact publication/CI remains separate
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) evidence.
-**Next: MB-03D**, canonical development fork-choice
-specification and implementation, before durable membership-aware branch replacement
-and peer reconstruction.
-Global canonical selection, human finality, a live V2 daemon and Gate A/Gate B
-remain unfinished.
+MB-03D adds the independently pinned, fixed-target comparison of complete accepted
+branches described above. Its completed local acceptance remains separate from
+exact-source and documentation-head CI. **Next: MB-03E durable membership-aware branch replacement**,
+followed by fresh-peer reconstruction. Durable canonical publication, human
+finality, a live V2 daemon and Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.

@@ -15,6 +15,8 @@ failure fencing and clean-state reconciliation under a distinct MSU2 profile 2.
 It does not reinterpret or upgrade an existing MSS2 store. MB-03C's separately
 specified [explicit recovery](STORAGE_RECOVERY_V2.md) operates only on recognized
 one-child profile-2 staging and likewise cannot adopt or repair this profile 1.
+The [MB-03D comparator](FORK_CHOICE_V2.md) chooses between complete accepted in-memory
+branches; it performs no storage mutation and adds no replacement API to this profile.
 Legacy `BlockStore` and node recovery are separate and unchanged; their automatic create/repair behavior
 is never called by either V2 profile.
 
@@ -259,8 +261,9 @@ and an explicit action. Its strict supported-state table does not apply to this
 immutable profile. Ordinary opening still rejects all staging, and unknown data
 is never automatically deleted or promoted.
 
-**Next MB-03D:** specify and implement canonical development fork choice before
-durable membership-aware branch replacement and peer reconstruction. MB-04 supplies
-the persistent V2 node/API.
+The [MB-03D comparator](FORK_CHOICE_V2.md) now ranks accepted branches under
+independent network identity, without treating a storage record as selection authority.
+**Next MB-03E:** durable membership-aware branch replacement with reviewed publication
+and recovery rules, followed by fresh-peer reconstruction. MB-04 supplies the V2 node/API.
 Human finality, real fingerprint/ECG admission and private matching remain later
 gates. No economics, founder privilege, fee, mint or grant is introduced here.

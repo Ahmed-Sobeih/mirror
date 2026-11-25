@@ -13,9 +13,10 @@ atomic ledger execution and actual V2 block acceptance/replay. **MB-03A/B supply
 verified storage components:** immutable selected-chain initialization, lifetime
 ownership, checked reopening and bounded one-block append publication with failure
 fencing. MB-03C adds explicit recovery of one independently authorized interrupted
-append; current source and verification evidence are recorded below.
-Next is **MB-03D: canonical development fork choice**, followed by durable membership
-reorganization and peer reconstruction.
+append. MB-03D adds comparison of complete accepted branches under an independent
+network identity; current source and verification evidence are recorded below.
+Next is **MB-03E: durable membership-aware branch replacement**, with separately
+reviewed publication/recovery rules, followed by fresh-peer reconstruction.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -86,6 +87,15 @@ the same validator and an external expected checkpoint. A false final root with
 valid mining work is rejected without changing the chain. The
 [chain contract](docs/CHAIN_V2.md) records exact rules, resource caps and trust.
 
+The separate [development fork comparator](docs/FORK_CHOICE_V2.md) compares only
+already accepted `ChainV2` values under the same independently selected configuration
+and genesis. Because every block uses that configuration's fixed target, accepted
+post-genesis block count is an exact normalized work ordering. A strictly longer
+candidate is preferred; ties retain the current input. The result identifies the
+actual common ancestor and borrows the entire selected chain, including its complete
+membership and counters. It performs no durable replacement or network operation.
+Equal competing tips can remain different across peers; this is not human finality.
+
 `mirror_storage::v2` supplies two explicitly selected storage profiles. Immutable
 `StoreV2` retains its frozen MSS2 generation-zero contract. The separate
 `AppendStoreV2` uses MSU2 profile 2 to publish one completely accepted child at a
@@ -112,23 +122,28 @@ states, caller authority, suffix-only completion, parent retention and finite re
 allowance. No automatic migration, implicit repair, branch replacement or live V2
 daemon is provided.
 
-The MB-03C implementation is published at
-[`e8302052ab724f59ff4a212dc64aea9575a6d4b3`](https://github.com/Ahmed-Sobeih/mirror/commit/e8302052ab724f59ff4a212dc64aea9575a6d4b3),
-with source tree `dc9eb2c02436f0952ac54593ba8d02317e9d9314`, matching the locally
-tested tree. Local gates passed **707 workspace tests** (658 retained + 49 new),
-three retained compile-fail doctests, all required release suites, **eight
-independent references** and **nine synthetic examples**. The release storage
-suite passed 194 tests. Release reruns and scenarios inside a test are not
-additional unique tests. Recovery adds no format or hash domain.
+Latest MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
+Source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`.
+Focused checks passed 28 new branch-comparison integration tests, three new
+compile-fail ownership/type cases and the new `fork_choice_v2_demo` example.
+Full checkpoint verification:
 
-Exact-source
-[push CI 44748718086](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086)
-and [PR CI 44748724632](https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632)
-both **SUCCEEDED**. The complete push-job log confirmed checkout of the source
-commit above and every required verification step. **MB-03C is a verified bounded
-recovery component.** [CURRENT_STATUS.md](CURRENT_STATUS.md) records the detailed
-acceptance evidence separately from later documentation heads. The master plan
-retains historical MB-03A/B acceptance.
+Published-source [push CI 45703714223](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703714223)
+and [PR CI 45703726306](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703726306)
+both passed. Full push-job `139520118282` logs confirmed the exact implementation
+checkout, **735 workspace tests, six compile-fail doctests, all required release
+suites, eight independent references, ten examples and the allocation/runtime-data
+audit**. The single intentionally ignored subprocess helper is invoked by parent
+tests and is not another pass. Release reruns are not additional unique tests.
+MB-03D is **VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON**. Subsequent
+documentation-head CI is checked separately and recorded on PR #1.
+
+[CURRENT_STATUS.md](CURRENT_STATUS.md) records exact source acceptance separately
+from later documentation-head CI. Historical MB-03C acceptance remains in
+master-plan section 20 and the decision record: 707 workspace tests, three
+doctests, eight references and nine examples at that earlier source. Release
+reruns are not additional unique tests. Fork comparison adds no encoded score,
+wire format, hash domain or dependency.
 
 All three storage examples create temporary synthetic stores. The append example
 adds accepted mixed and empty blocks, then reopens and checks the complete state.
@@ -136,6 +151,9 @@ The recovery example constructs known partial-write shapes, completes an append,
 repeats it idempotently, retains another parent, and then performs an ordinary next
 append. These are controlled software scenarios, not physical power-loss tests.
 They do not start a persistent V2 network; that integration remains MB-03/04.
+The fork-choice example compares frozen branches with equal account bytes and
+different membership, demonstrates sticky ties, and borrows the complete longer
+selected branch without changing either input or a store.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -179,6 +197,7 @@ cargo run -p mirror-personhood --example state_v2_demo --locked
 cargo run -p mirror-core --example block_v2_demo --locked
 cargo run -p mirror-state --example ledger_v2_demo --locked
 cargo run -p mirror-chain --example chain_v2_demo --locked
+cargo run -p mirror-chain --example fork_choice_v2_demo --locked
 cargo run -p mirror-storage --example storage_v2_demo --locked
 cargo run -p mirror-storage --example append_v2_demo --locked
 cargo run -p mirror-storage --example recovery_v2_demo --locked

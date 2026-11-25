@@ -443,9 +443,77 @@ The caller's request has no persistence or operator-selection UI in this slice.
 The new recovery example uses only public fixtures and newly owned temporary paths;
 all eight prior reference checks remain required and the example count becomes nine.
 
-**Next is MB-03D: canonical development fork-choice specification and implementation**,
+**At the MB-03C checkpoint, next was MB-03D: canonical development fork choice**,
 before durable membership-aware branch replacement and peer reconstruction.
 MB-03 remains in progress; the persistent V2 node/API and final human consensus
 remain subsequent work. No monetary formula, mint/grant/nonzero fee/reward API,
 founder privilege, marketing reserve, private biometric matching or actual-device
 support is added. D-01/D-04 remain open and Gate A/B remain unmet.
+
+## MB-03D engineering choices — MIRROR-MB03D-001
+
+Source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
+Source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`.
+Focused verification passed 28 new integration cases, three new compile-fail
+ownership/type cases and the synthetic `fork_choice_v2_demo` example.
+Full checkpoint verification:
+
+Published-source [push CI 45703714223](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703714223)
+and [PR CI 45703726306](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703726306)
+both passed. Full push-job `139520118282` logs confirmed the exact implementation
+checkout, **735 workspace tests, six compile-fail doctests, all required release
+suites, eight independent references, ten examples and the allocation/runtime-data
+audit**. The single intentionally ignored subprocess helper is invoked by parent
+tests and is not another pass. Release reruns are not additional unique tests.
+MB-03D is **VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON**. Subsequent
+documentation-head CI is checked separately and recorded on PR #1.
+
+The [fork-choice contract](FORK_CHOICE_V2.md) adds pure comparison of two complete,
+already accepted `ChainV2` values. The caller independently selects C and exact
+genesis. The comparator checks current C, current genesis, candidate C and
+candidate genesis in that order before scoring or ancestry work. Reported peer
+height, arbitrary work scores, block proposals, caches and local storage markers
+cannot substitute for accepted input types.
+
+The fixed-target development profile uses accepted post-genesis block count as
+its normalized score: `score = height`, bounded to 0..=4095. Every accepted block
+within one selected identity has the same literal configured target. If its
+positive work contribution is W, comparing `(height + 1) * W` is exactly comparing
+heights. The implementation therefore needs no accumulated big integer, unchecked
+work multiplication, target reinterpretation or new serialized score.
+
+Only a strictly higher candidate score is preferred. Equal scores keep the input
+designated as current. This makes no global tie-breaking or finality claim: two
+peers can retain different equal-score branches until a strictly stronger accepted
+branch appears, and a finite cap or terminal timestamp may prevent that. Lower
+individual hash, nonce, timestamp, account value, membership/population counts and
+storage generation contribute no extra weight. This is not the future equal-human
+consensus or a reward rule.
+
+Actual accepted hashes are compared forward to the first mismatch. The result
+records the last common accepted block's full checkpoint and distinguishes identical
+histories, either proper-prefix relationship and divergent branches. It borrows
+both inputs immutably and exposes the complete selected chain by reference. All
+accounts, membership, permanent reservations, approvals and resource counters stay
+with their accepted history. No values are combined across branches and no state
+is mutated, cloned into a new authority or published to storage.
+
+The comparison performs at most 4,096 hash pairs / 8,192 fixed-header hashes,
+uses constant additional state and allocates no collection or replayed ledger.
+Its fields are private, and it has no public constructor or encoded certificate.
+Copied enum/checkpoint data remains diagnostic and may become stale after the
+borrowing result is no longer used. Future durable publication must revalidate
+identity, current store selection and exact candidate under exclusive ownership.
+
+Existing block/configuration/state/storage bytes, all independent references,
+finite per-branch budgets and user policy remain unchanged. The example uses
+synthetic frozen membership-divergent histories and performs no network or disk
+publication. This slice adds no dependency, new hash domain or encoded format.
+
+**Next is MB-03E: durable membership-aware branch replacement**, with reviewed
+publication, interruption and recovery rules, followed by fresh-peer reconstruction.
+It must retain the stable locked root and cannot treat a local MSU2 generation as
+fork weight. MB-03 remains in progress; persistent V2 node/API and human finality
+remain later work. No monetary formula, mint/grant/nonzero fee/reward API, founder
+privilege, marketing reserve, biometric intake, private matching or anonymity is
+introduced. D-01/D-04 stay open; Gate A and Gate B remain unmet.

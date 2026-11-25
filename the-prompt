@@ -1,53 +1,52 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
 Work directly in GitHub. The user expects implemented, verified increments and a
-current handoff, not repeated fragile paste/replace scripts. Updated 2026-11-20.
+current handoff, not repeated fragile paste/replace scripts. Updated 2026-11-26.
 This prompt never overrides newer verified repository work.
 
 RECOVER LIVE STATE FIRST
 Verify the default and active branches, PRs, recent commits and comments, and CI
 for the exact published source and later documentation head. Preserve newer or
 unpushed work and runtime data. Never reset to this snapshot or merge solely to
-publish checkpoint documents.
-PR #1 is OPEN and NOT MERGED: https://github.com/Ahmed-Sobeih/mirror/pull/1
+publish handoff files.
+PR #1 is OPEN and UNMERGED: https://github.com/Ahmed-Sobeih/mirror/pull/1
 Active branch: work/personhood-register-v0.1.
 Main remains ad7ffd120fb451fe44cf59cb909176785b33bf8f.
-Published MB-03C source: e8302052ab724f59ff4a212dc64aea9575a6d4b3.
-Source tree: dc9eb2c02436f0952ac54593ba8d02317e9d9314, identical to the locally checked source tree.
-Source increment: 9 files, 3,138 insertions and 1 deletion.
-Source push CI: 44748718086; source PR CI: 44748724632.
-Both source runs SUCCEEDED. The full push-job log, job 136330677456, was
-inspected: its checkout is exactly e8302052ab724f59ff4a212dc64aea9575a6d4b3.
-Workspace/doctest/release counts, all eight references, all nine examples and
-the allocation/runtime-data audit passed.
-Push run: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748718086
-PR run: https://github.com/Ahmed-Sobeih/mirror/actions/runs/44748724632
-Documentation follows source; verify its later exact-head CI separately.
-Prior final handoff 6c53f188ef7d5052f96577ed04f5f909f56966c1 passed push CI
-44650139143 (full job 136002692765 logs inspected) and PR CI 44650145750.
-Historical MB-03B source ecf5e762, tree 06d7c3 and exact-source CI remain in
-master-plan section 19. MB-03A evidence is in section 18.
+MB-03D source: b9a2e870996fcafe1128dcb5cfdfb6b01b158ded.
+Tested source tree: dd0a3fc29f429dcd4999261801c2bc7897d6aace.
+Published-source [push CI 45703714223](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703714223)
+and [PR CI 45703726306](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703726306)
+both passed. Full push-job `139520118282` logs confirmed the exact implementation
+checkout, **735 workspace tests, six compile-fail doctests, all required release
+suites, eight independent references, ten examples and the allocation/runtime-data
+audit**. The single intentionally ignored subprocess helper is invoked by parent
+tests and is not another pass. Release reruns are not additional unique tests.
+MB-03D is **VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON**. Subsequent
+documentation-head CI is checked separately and recorded on PR #1.
+Documentation follows source; verify its own exact-head CI separately on PR #1.
+The previous final handoff c3de6f4be32fd2c22523f06674a96295da8ec48e passed push
+CI 44750251798 (full job 136335938572 inspected) and PR CI 44750262332.
+MB-03C source e8302052ab724f59ff4a212dc64aea9575a6d4b3 and its evidence remain
+in master-plan section 20. Append and immutable storage evidence remain in
+sections 19 and 18 respectively.
 
 CURRENT POSITION
-Roadmap MIRROR-PLAN-001. MB-01A design, MB-01B/B1–B4, MB-02A/B/C and MB-03A/B
-remain verified components. MB-03C checkpoint MIRROR-MB03C-001 is
-VERIFIED_COMPONENT — EXPLICIT ONE-CHILD RECOVERY within explicit one-child recovery scope.
+Roadmap MIRROR-PLAN-001. Prior MB-01/02 and MB-03A/B/C remain verified components.
+MB-03D checkpoint MIRROR-MB03D-001: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON.
 MB-03 remains IN PROGRESS.
-NEXT: MB-03D canonical development fork-choice specification and implementation,
-then durable membership-aware branch replacement and peer reconstruction.
-Gate A and Gate B remain UNMET. Component tests do not establish mainnet readiness,
-physical crash safety, an external audit, biological uniqueness, anonymity,
-final human consensus or actual-device readiness.
+NEXT: MB-03E durable membership-aware branch replacement, then fresh-peer
+reconstruction. Gate A and Gate B remain UNMET. Component verification does not
+establish mainnet readiness, device readiness, human finality, biological
+uniqueness or anonymity.
 
 READ FIRST
-AGENTS.md
-CURRENT_STATUS.md
-MASTER_PLAN.md (current tracker and section 20; historical sections 18–19)
-NEXT_SESSION.md
-docs/DECISIONS.md
-docs/STORAGE_RECOVERY_V2.md (explicit recovery authority/state machine and limits)
-docs/STORAGE_APPEND_V2.md (frozen MSU2 append and strict clean-state reconciliation)
-docs/STORAGE_V2.md (frozen immutable MSS2 profile)
+AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (current tracker and section 21),
+NEXT_SESSION.md and docs/DECISIONS.md.
+Normative contracts:
+docs/FORK_CHOICE_V2.md
 docs/CHAIN_V2.md
+docs/STORAGE_V2.md
+docs/STORAGE_APPEND_V2.md
+docs/STORAGE_RECOVERY_V2.md
 docs/LEDGER_STATE_V2.md
 docs/CORE_V2_ENCODING.md
 docs/CONFIG_V2_ENCODING.md
@@ -60,203 +59,200 @@ docs/MEMBERSHIP_TEST_MATRIX.md
 docs/PERSONHOOD_V0_1.md
 docs/DEVICE_INPUT_CONTRACT.md
 
-LATEST IMPLEMENTATION — MB-03C
-AppendRecoveryRequestV2::new(parent, candidate, exact_block) owns independently
-retained AppendCheckpointV2 endpoints and the exact intended BlockV2. Private
-fields and immutable parent()/candidate()/block() accessors prevent mutation.
-The constructor bounds parent/candidate height and generation, requires adjacent
-height/generation and same network, and checks the child header against both pins.
-Construction does not establish actual block validity.
+LATEST IMPLEMENTATION — MB-03D
+compare_branches_v2<'a>(
+    expected: ManifestIdentityV2,
+    current: &'a ChainV2,
+    candidate: &'a ChainV2,
+) -> Result<BranchComparisonV2<'a>, ForkChoiceErrorV2>
 
-AppendStoreV2::recover_interrupted(root, identity, &request, action) acquires
-exclusive ownership of an EXISTING append store. Consuming store.recover(&request,
-action) retains the SAME writer lock, even from a fenced writer; its last confirmed
-memory checkpoint must match one request endpoint. A read-only handle cannot
-recover. Every failure returns no handle; no drop/reacquire gap, raw descriptor,
-mutable chain access or PID takeover exists.
+Both inputs must already be complete accepted ChainV2 values. Check the independent
+expected identity in this order: current configuration, current genesis, candidate
+configuration, candidate genesis. Errors WrongConfiguration { branch } and
+WrongGenesis { branch } use BranchSideV2::{Current, Candidate}. The comparison
+accepts no raw block, peer-advertised height, caller-supplied score, cache or
+storage-generation parameter.
 
-The complete old prefix is loaded from disk using independently chosen network and
-parent pins. The exact proposed child is accepted through ChainV2, including work,
-signatures, order, account/membership execution, roots and cumulative budgets.
-Both exact canonical MSU2 selectors are derived from accepted histories; checksum-
-correct but wrong manifest or byte-total metadata still rejects. Full candidate
-validation is also required for RetainParent before any deletion.
+Each accepted block uses the same configured literal PoW target. The normalized
+post-genesis score equals height, from 0 through 4,095, preserving the ordering of
+constant-target accumulated work. The shared genesis contribution cancels:
+total work = (height + 1) * W, where W is the same positive constant for each block.
+The implementation only compares heights. It performs no work multiplication or
+accumulation, and therefore cannot overflow those operations. The score is not a
+claim about the number of hashes actually attempted. A lower individual block hash,
+attempt count, nonce, money, population, approval count, encoded byte count, resource
+counter, timestamp or local generation adds no score. A configuration or genesis
+that differs from the independently selected identity is rejected.
 
-SUPPORTED RECOVERY STATES
-The root contains exactly manifest.v2, blocks/, selection.v2 and, when present,
-selection.pending. Every complete parent block uses its canonical filename: a
-20-digit height followed by .mrb2. Only the next-height residual may be additional.
-Here OLD means the exact parent selector and NEW means the exact candidate selector.
+ForkChoiceV2::{KeepCurrent, PreferCandidate}: a strictly higher candidate height
+wins; every tie keeps the ordered current input. This is a sticky local preference,
+not a globally unique tie winner or human finality. Two peers with different
+current tips of equal score may remain different. The chain cap or a terminal
+timestamp can prevent further extension. Future variable-target or human-weighted
+profiles need separately reviewed replacement rules.
 
-- OLD with no tail or pending selector: Complete explicitly resumes the retained
-  candidate append; RetainParent resynchronizes the old selection.
-- OLD with an empty, partial-prefix or complete exact child and no pending selector:
-  Complete writes only the missing canonical suffix and publishes it. RetainParent
-  removes that authorized unselected child and retains the old selection.
-- OLD with the complete exact child and an empty, partial-prefix or complete exact
-  candidate selector: Complete finishes and publishes the selector. RetainParent
-  removes the pending selector, then the child, in the synchronized order below.
-- NEW with the complete exact child and no pending selector: Complete replays and
-  resynchronizes idempotently without advancing the generation again. RetainParent
-  rejects; it cannot roll back a selected candidate.
-- A pending selector with a missing or partial child rejects. NEW with a missing
-  or partial child, or with any pending selector, also rejects. Foreign bytes,
-  non-prefix or trailing data, unknown names, extra heights, wrong pins, unsafe
-  aliases, and missing or corrupt selected history are preserved and rejected.
+BranchRelationV2 distinguishes Identical, CandidateExtendsCurrent,
+CurrentExtendsCandidate and Diverged. Compare actual accepted block hashes from
+genesis until the first mismatch; the last matching block is the common ancestor.
+Matching accounts or state roots alone do not define ancestry. The result returns
+the ancestor's complete checkpoint: configuration, genesis, height, hash and
+ledger root.
 
-Interrupted initialization and arbitrary corruption repair remain unsupported.
+BranchComparisonV2 has private fields and no public constructor or decoder. It
+borrows both inputs immutably; safe Rust prevents either input from changing while
+the result remains in use. Its accessors are identity(), relation(), choice(),
+common_ancestor(), current_score(), candidate_score(), current_checkpoint(),
+candidate_checkpoint() and selected_chain().
 
-The request is the caller's narrow authorization for these paths. Empty/common
-prefixes do not prove who created files; prefix equality is a byte constraint,
-not historical or cryptographic provenance. The component does not persist the
-request or choose authority from the damaged record, peer or highest generation.
-No journal, intent file, storage profile, hash domain or wire encoding was added.
+selected_chain() returns &'a ChainV2 pointing to the complete preferred input.
+Manifest, blocks, accounts, membership, approvals, permanent records, population
+and resource counters remain together. No state copying or grafting, mutation,
+I/O, reexecution or publication occurs. Copied diagnostic enums and checkpoints
+can become stale after the borrow ends. A future durable API must recheck the
+exact current and candidate histories under its own lock.
 
-Before mutation, recovery resynchronizes validated parent manifest/history,
-directories and current marker. Complete opens a safe current regular file,
-rechecks observed prefix and descriptor/path identity, appends only the missing
-suffix, verifies the complete bytes, and synchronizes the block and blocks/
-directory. It does the same for the pending selector, rechecks the old marker and
-artifacts, renames the pending selector over selection.v2, and synchronizes the
-stable root. It never truncates a mismatched file.
-
-RetainParent works only while OLD is selected. It compares the old marker and
-known artifact bytes before deletion. It removes the matching pending selector
-and synchronizes the root BEFORE removing the matching tail and synchronizing
-blocks/. This preserves recognized states for a retry. It never deletes an unknown
-artifact or a selected block. Final success for either action requires the existing
-strict clean loader, equality with the complete expected ChainV2, ledger and resource
-counters, and file/directory resynchronization.
-
-RecoveryIncomplete does not claim that cleanup or preparation persisted.
-PublicationUncertain applies once publication was attempted or NEW was already
-selected at entry.
-Retry uses the same independently authorized request and revalidates actual disk
-state. All normal open_writer/inspect/clean-state reconcile entry points still
-reject staging. There is no automatic cleanup, repair, migration, global freshness,
-branch choice or state-cache shortcut.
-
-RETAINED STORAGE FOUNDATION
-StoreV2 profile 1 is immutable. Its exact 232-byte MSS2 record uses encoding
-version 2, storage profile 1 and generation zero. AppendStoreV2 profile 2 uses the
-exact 280-byte MSU2 envelope: a 16-byte wrapper containing magic, version 2,
-profile 2 and a u64 generation; the unchanged 232-byte MSS2 snapshot; and a SHA256d
-checksum over MIRROR_STORAGE_APPEND_SELECTION_V2 followed by the first 248 bytes.
-Embedded MSS2 retains profile 1 and generation zero. MNM2/MRB2 bytes and all prior
-fixtures and hash domains remain unchanged.
-
-Initialization is explicit in a new or empty root using an already accepted
-ChainV2. Generation zero may start at a nonzero accepted height. Each published
-child advances height and generation once. Generation cannot exceed height and
-is not branch weight. Normal opening requires independent ManifestIdentityV2 and
-AppendCheckpointV2 values, followed by complete actual-chain replay.
-
-Successful append synchronizes before advancing memory. Disk discrepancies or
-mutation failures fence chain(), selection() and checkpoint() access.
-last_confirmed_checkpoint describes prior successful memory, not current disk
-authority. Consuming clean-state reconcile retains the same lock and returns an
-unfenced writer only after complete selected replay and resynchronization.
-Inspection holds a shared lock and performs no application write, synchronization
-or repair.
-
-OWNERSHIP, BOUNDS AND ASSUMPTIONS
-Cooperative nonblocking Linux locks attach to the stable root inode. A writer
-holds an exclusive lock; inspectors hold shared locks for their handle lifetimes.
-There is no root swap, clone, raw lock handle or stale-lock cleanup. The lock is
-released when the last descriptor sharing its open file description closes.
-Inherited fork descriptors may prolong ownership. Keep the parent process-test
-mutex isolation; do not hide ownership failures with sleeps or retries.
-
-Local owners and parent directories are trusted. Correct operating-system locking,
-atomic rename, and file/directory synchronization are assumptions. Static alias,
-file-type and current-identity checks are not protection against a hostile same-user
-process or proof of historical inode provenance. Verification covers recorded local
-Linux filesystems and Ubuntu CI. WSL2 native storage is intended but not directly
-verified. DrvFS, native Windows, NFS and SMB remain unverified.
-
-Chain caps remain 4,096 blocks including genesis, 16 MiB of complete MRB2 bytes and
-1,048,576 cumulative abstract state/configuration items. The MNM2 cap is 2,781,636
-bytes. MSS2 and MSU2 selectors are 232 and 280 bytes respectively. The profile-2
-clean selected encoded maximum is 19,559,132 bytes. Recovery's separate distinct
-encoded-input maximum is 19,559,412 bytes, including the full intended child and
-both selectors.
-
-Every payload read, comparison and final replay is conservatively charged,
-including one-byte sentinels, against MAX_APPEND_RECOVERY_READ_BYTES_V2, which is
-156,508,096 bytes per call. The existing strict loader receives an upfront charge
-for its maximum read phase; its two marker comparisons are charged separately.
-Metadata counts are bounded independently. These are not resident-memory or total
-write-volume limits. There is no unbounded scan, retry, pruning, history eviction,
-cached-counter authority or silent cap increase.
+Comparison uses at most 4,096 accepted hash pairs, or 8,192 fixed-header hashes,
+with O(1) extra state and no heap allocation. Each branch retains its separate
+caps: 4,096 blocks including genesis, 16 MiB of MRB2 bytes, and 1,048,576 cumulative
+abstract state/configuration items. Comparison does not relax or combine those
+caps. Hashing uses the existing stack preimage; actual hash magnitudes never rank
+branches. No encoding, hash domain, codec, dependency, fixture, work target or
+monetary rule was introduced or changed.
 
 VERIFICATION
-All required local gates passed with locked dependencies and Rust 1.98.0:
-707 workspace/all-target tests, comprising 658 retained and 49 new cases, plus
-three retained compile-fail doctests. The 49 additions comprise 39 recovery
-integration tests, nine private interruption tests and one real process parent test.
-Release checks passed for core (121), personhood (234 plus the same three doctests),
-state (49), consensus (23), chain (57) and storage (194).
+Local verification used Rust 1.98.0 and locked dependencies. All required gates passed:
 
-One intentionally ignored subprocess helper is invoked by parent tests; it is not
-counted as another passing test. All eight independent references and nine synthetic
-examples passed. No new format required an additional reference; all prior vectors
-remain frozen. Focused formatting, diff and dependency checks passed. Ninety-nine
-retained source, dependency, reference and fixture files were byte-identical.
-Cargo.lock, monetary rules and legacy history were unchanged.
+- **735 workspace/all-target tests = 707 retained + 28 new integration tests.**
+- **Six compile-fail doctests = three retained + three new ownership/type checks.**
+- Release suites: core **121**, personhood **234** plus its three retained doctests,
+  state **49**, consensus **23**, chain **85** plus its three new doctests, and
+  storage **194**. These reruns are not additional unique tests.
+- **All eight independent reference checks and all ten synthetic examples passed.**
+- The single subprocess-only helper remains intentionally ignored in ordinary
+  enumeration and is explicitly invoked by parent tests; it is not another pass.
+- Focused formatting and preservation checks passed: **105 retained source,
+  dependency, reference and fixture files are byte-identical**. Existing ChainV2
+  validation code is unchanged; its module gains documentation and exports only.
+The 28 new integration functions cover all branch relations, reversed ties and
+lower hashes, membership divergence with identical account bytes, the complete
+selected pointer/state/counters, expiry, independent identity errors on both
+sides and their ordering, a valid alternate identity, invalid-block acceptance
+boundaries, common ancestors, terminal timestamps and full 4,096-block histories.
 
-The nine private tests cover 28 completion boundaries across three initial shapes
-(84 scenarios), 21 retention boundaries, 16 synchronization boundaries for an already
-selected candidate, and all 11 original append boundaries with both recovery actions.
-They also cover changes after writes and before publication, prefix changes, root
-replacement, unknown layouts, aliases introduced after opening, and sentinel-budget
-rejection before payload reads. Scenarios inside a test and release reruns are not
-additional unique tests.
+Three new compile-fail doctests check attempted mutations of both borrowed inputs
+and rejection of raw BlockV2 as the wrong comparison input type. The prior three
+compile-fail doctests remain, bringing the total to six. One subprocess-only helper
+remains intentionally ignored during ordinary enumeration and is invoked by its
+parent tests; it is not another passing test. Release reruns and scenarios within
+a test are not additional unique tests.
 
-The new process parent test has two scenarios. A child completes recovery and holds
-the returned writer; it then either drops that handle while remaining alive or is
-terminated. Parent recovery, writer opening and inspection must report Busy while
-the child owns the store. After release, the parent performs a checked reopen and
-accepts the next block. The existing helper and mutex are preserved. No sleep,
-retry or weaker assertion was introduced.
+The 105 retained source, dependency, reference and fixture files are byte-identical.
+The old ChainV2 validation body is unchanged; module exports and documentation are
+additive. CI adds the tenth example. Two source/contract reviews found no blocking
+discrepancy within the private accepted-chain invariants. This is not an independent
+security audit or a physical power-loss test.
 
-These tests do not simulate physical power loss, torn kernel writes or disk firmware.
-Two source/contract reviews found no blocking discrepancy within the stated
-assumptions. This is component verification, not an external security audit.
+The new fork_choice_v2_demo uses only public synthetic fixtures. At height 3, the
+main and fork histories tie, retaining current even though their account bytes are
+equal and membership differs. Extending the candidate to height 4 prefers its
+complete state. The common ancestor remains height 1; neither input is mutated
+and no storage is written.
+Selected tip:
+74ace822b0cbdc059fc8cfef336f5f3c88668a76ca437107443af0279860f666
+Ledger root:
+2654699af4ccfeeffb0fca1b7b9ade6a76201134285de1737bb10cc964cbe0fd
+Membership root:
+37be0ae6dba87db37d26c280c5024047766e6e7eb139dd260dd1f292baec5d67
+Active / pending / high-water: 1 / 1 / 2.
+Encoded bytes: 3,605. Cumulative state items: 73.
 
-The new recovery_v2_demo uses only synthetic inputs and invocation-owned temporary
-directories. It completes a partial child, retries without another generation,
-retains the parent through a fenced writer with matching pending data, then performs
-an ordinary append and checked reopening. Its final tip is:
-36b8ccbfdaa75ae33f3e522f7f636ddf02ff2c6b4c23df4ea694d207ada01c6b
-Its final ledger root is:
-3f0c9f7ef212a7cae71717004d7a0206f027109490be8dcd07cba032ce32f86e
+RETAIN STORAGE AND RECOVERY BOUNDARIES
+Immutable StoreV2 profile 1 retains the 232-byte MSS2 record and generation zero.
+AppendStoreV2 profile 2 retains the 280-byte MSU2 envelope, which wraps unchanged
+MSS2 metadata with a local generation and checksum. MNM2, MRB2, MCF2 and prior
+fixtures remain frozen. Generation starts at zero at any initialized height,
+advances once per published child and never exceeds height. It is neither branch
+weight nor global freshness. Independent network, complete checkpoint and
+generation pins remain mandatory on reopening.
 
-Run every required gate from AGENTS.md: workspace tests with all targets, workspace
-doctests, release tests for core/personhood/state/consensus/chain/storage, all eight
-independent reference checks and all nine examples. The examples are registry_demo,
-operation_v2_demo, state_v2_demo, block_v2_demo, ledger_v2_demo, chain_v2_demo,
-storage_v2_demo, append_v2_demo and recovery_v2_demo. Inspect the exact published CI
-checkout and full results. A subsequent documentation head requires its own CI.
+Kernel locks attach to the stable root inode: exclusive writers and shared
+inspectors. Roots and parent directories are trusted, and all processes must
+cooperate. There is no PID takeover, root replacement or explicit-unlock shortcut.
+Inherited fork descriptors can prolong locks. Preserve process-test isolation and
+do not hide ownership failures with retries. WSL, DrvFS, native Windows and network
+mounts remain unverified by Ubuntu CI.
 
-EXACT NEXT WORK — MB-03D
-Follow NEXT_SESSION.md: specify and implement canonical DEVELOPMENT branch
-comparison over complete already accepted ChainV2 inputs with independently
-selected same-network identity. Freeze work/score calculation, finite arithmetic,
-equal-score tie behavior, identical/extension/divergence outcomes and common-
-ancestor discovery before code. A peer's height/score, local storage generation,
-population count or unusually low block hash cannot replace accepted history.
-Keep comparison separate from durable publication; do not call it human finality.
+Append validates the complete child and replays the selected disk history. It
+synchronizes the block and its directory, prepares the pending selector, compares
+the old selection, renames the selector and synchronizes the root before memory
+advances. Disk discrepancies and mutation failures fence normal access and further
+writes. last_confirmed_checkpoint describes prior confirmed memory only. Clean
+reconciliation and opening fully replay and resynchronize selected history, and
+reject all staging.
 
-Use real membership-divergent fixtures, including equal account state with
-different membership, and test all valid branch relationships, identity mismatch,
-resource/arithmetic edges and no mutation on rejection. If new encoded selection
-metadata is needed, specify/version/reference it independently first.
-After that, separately specify durable membership-aware branch replacement and
-interrupted replacement under stable ownership, then peer reconstruction.
-Orphaned approvals/population/counters must not survive canonical replacement.
-MB-03 remains in progress. MB-04 supplies the persistent V2 daemon, pool, wallet
-and operator API; MB-06 supplies human consensus. No monetary or device decisions
-are needed for this branch-comparison task.
+MB-03C's explicit AppendRecoveryRequestV2 independently retains the parent and
+candidate checkpoints and exact child, with adjacent heights and generations.
+recover_interrupted acquires ownership of an existing root. Consuming recover
+keeps the same lock, accepts an ordinary or fenced writer, and requires its last
+confirmed checkpoint to match one endpoint. Every error returns no handle.
+Fully replay the parent and validate the child before either recovery action.
+
+Complete fills missing canonical suffixes and publishes the candidate. RetainParent
+removes only matching authorized pending selection and then the unselected tail,
+with root and blocks-directory synchronization in the specified order. Retention
+is permitted only while the parent remains selected. An already selected candidate
+supports idempotent Complete and cannot be rolled back.
+
+A pending selector requires the full candidate child. A selected child requires
+clean complete history without a pending selector. Unknown or non-prefix data,
+unsafe aliases, and missing or corrupt selected history remain preserved and
+rejected. Prefix equality does not prove file origin; the external request
+authorizes only the named staging paths. There is no on-disk intent journal,
+automatic repair, migration, or authority derived from checksums or the highest
+generation.
+
+Validated parent files are synchronized before mutation. Bytes, current file
+identity and selection are rechecked. Strict final replay, complete ledger/counter
+equality and resynchronization are required before a usable writer is returned.
+RecoveryIncomplete and PublicationUncertain retain their documented meanings.
+Arbitrary corruption, interrupted initialization and lost-intent recovery remain
+unsupported. Distinct encoded recovery inputs are bounded to 19,559,412 bytes.
+The conservative per-call payload-read allowance is 156,508,096 bytes, including
+comparisons, sentinels and final replay. Preserve finite bounds and trusted-owner
+assumptions. These are not RSS limits or unconditional crash-safety claims.
+
+EXACT NEXT WORK — MB-03E
+Follow NEXT_SESSION.md. Specify and implement durable membership-aware branch
+replacement using an independently selected network, exact current checkpoint
+and local generation, and a complete accepted candidate. Recheck them all under
+the same stable exclusive root lock. Comparison alone does not publish a branch.
+
+Existing height-named files cannot hold two different fork blocks at the same
+path. Review separate staging and selection layouts, with a new version if needed.
+Preserve prior profile bytes. Never overwrite selected history early or replace
+the locked root inode. Any new encoded metadata needs a versioned contract and
+independent vectors before expected values are frozen.
+
+Keep candidate blocks, manifest, accounts, membership, permanent reservations,
+approvals, sequences, population peaks and resource counters together. Orphaned
+effects must not remain canonical. Freeze old/new selected layouts, synchronization
+and rename ordering, fencing and uncertainty, independent retry intent, recovery
+and retry behavior, and bounded reads before implementing writes. Unknown artifacts
+remain untouched. One-child Complete/RetainParent is not a generic reorganization.
+
+Test real membership forks with identical accounts. Reopen the complete chosen
+state and cover every failure boundary, wrong or stale pins, ownership by a second
+process, finite bounds and idempotent recovery. Do not enable minting or choose
+monetary policy. If the design is large, specification and implementation can be
+separate explicit steps; do not claim unimplemented publication is complete.
+Fresh-peer reconstruction follows. MB-04 supplies the persistent node, pool,
+wallet and operator API; MB-06 supplies human consensus.
+
+Run all AGENTS.md gates using Rust 1.98.0 and locked dependencies: workspace tests
+with all targets, documentation tests, release tests for core/personhood/state/
+consensus/chain/storage, all eight reference checks and all ten examples, including
+fork_choice_v2_demo. Verify the exact published source and full CI logs, then check
+the subsequent documentation head's CI separately.
 
 FOUNDATION TO PRESERVE
 Legacy chain: signed transfers, fixed easy PoW, persistence/restart, TCP sync and reorg.
@@ -313,7 +309,7 @@ anonymity is unfinished. No actual capture or hardware purchase is needed for th
 EARLIER PERCENTAGE DISCUSSION
 The prior rough 20% (15–25%) estimate concerned Gate A: integrated software ready for
 device integration using synthetic inputs. It was a scoped judgment, not a measured
-completion ratio, test fraction, time forecast or security percentage. MB-03C adds explicit interrupted-append recovery; do not infer a new percentage from it.
+completion ratio, test fraction, time forecast or security percentage. MB-03D adds fixed-target development branch comparison; do not infer a new percentage from it.
 Actual device/recognition evidence belongs to Gate B.
 
 KEEP HANDOFF CURRENT
