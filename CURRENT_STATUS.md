@@ -6,6 +6,28 @@ Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C components remain verified
 **MB-03D: VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON.**
 **MB-03 remains IN PROGRESS. Next: MB-03E — durable membership-aware branch replacement.**
 
+## Progress estimate — 2026-11-26 discussion
+
+For the user's question about finishing the software before fingerprint/ECG device
+integration, the current rough estimate is **20–25% of Gate A**. This is an
+engineering judgment about the agreed scope, not a measured completion ratio,
+test-count fraction, time forecast or security score. It remains broadly consistent
+with the earlier roughly 20% estimate; MB-03D alone does not imply a fixed increase.
+
+The implemented foundations cover accepted blocks, combined balances/membership,
+bounded storage/append/recovery and branch comparison. Durable V2 branch replacement,
+peer reconstruction, persistent node/wallet interfaces, the complete Ant Kiss
+workflow, human-based consensus, policy-dependent money rules, protected off-chain
+intake/matching interfaces and integrated hardening remain substantial work.
+Gate A means the complete agreed flow works with synthetic readings and is prepared
+for compatible device adapters. Actual device compatibility, captures and recognition
+evidence belong to Gate B. Both gates remain unmet.
+
+This discussion changes no implementation, policy gate or next task. The last
+verified documentation checkpoint remains `ff7bf31080a047bd612cb79adc4eba854c0a6845`,
+with successful push CI 45704514304 and PR CI 45704523896. This later documentation-only
+update adds no test result; check its own head's CI separately.
+
 ## Exact source and publication
 
 Active branch: `work/personhood-register-v0.1`.

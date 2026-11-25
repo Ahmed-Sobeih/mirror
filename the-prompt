@@ -306,11 +306,30 @@ on-chain or in GitHub. Key/evidence equality is not biological uniqueness; new k
 and evidence still need private deduplication. Public review metadata is linkable;
 anonymity is unfinished. No actual capture or hardware purchase is needed for this work.
 
-EARLIER PERCENTAGE DISCUSSION
-The prior rough 20% (15–25%) estimate concerned Gate A: integrated software ready for
-device integration using synthetic inputs. It was a scoped judgment, not a measured
-completion ratio, test fraction, time forecast or security percentage. MB-03D adds fixed-target development branch comparison; do not infer a new percentage from it.
-Actual device/recognition evidence belongs to Gate B.
+PROGRESS ESTIMATE — DISCUSSION ON 2026-11-26
+The user asked how far we are from finishing the software before getting fingerprint
+and ECG devices. The current rough estimate is 20–25% of Gate A: the agreed integrated
+software milestone ready for compatible-device integration using synthetic inputs.
+This is a broad engineering judgment, not a measured ratio, task/test-count fraction,
+time forecast or security percentage. It remains broadly consistent with the earlier
+roughly 20% (15–25%) estimate. Do not infer a fixed percentage increase from MB-03D
+or from 735 passing tests.
+
+Substantial foundations exist: accepted blocks, combined balances/membership,
+bounded storage/append/recovery and accepted-branch comparison. Remaining work
+includes durable branch replacement, V2 peer reconstruction, persistent node/wallet
+interfaces, the complete Ant Kiss lifecycle, human-based consensus, policy-dependent
+issuance/rewards, protected off-chain intake/matching interfaces and integrated
+hardening. At Gate A completion, the complete agreed flow must work with simulated
+readings and be prepared for compatible adapters. Actual device compatibility,
+capture and recognition evidence belong to Gate B. Neither gate is complete.
+
+This was a discussion-only update: no implementation or policy change, no new tests,
+and no advancement beyond MB-03D. Next remains MB-03E. The last fully verified
+documentation checkpoint is ff7bf31080a047bd612cb79adc4eba854c0a6845, with successful
+push CI 45704514304 (full job 139522902032 inspected) and PR CI 45704523896.
+Source remains b9a2e870996fcafe1128dcb5cfdfb6b01b158ded. Check any subsequent
+documentation-only head's CI separately; do not label it tested from this record.
 
 KEEP HANDOFF CURRENT
 Before EVERY Mirror final response refresh this file and relevant master/status/next/

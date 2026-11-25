@@ -29,6 +29,16 @@ status; sections 17–20 preserve the earlier acceptance records. Local verifica
 source CI and later documentation-head CI are distinct evidence. Gate A/B remain
 unmet.
 
+**Progress estimate, reaffirmed in discussion on 2026-11-26: roughly 20–25% of
+Gate A, software readiness for device integration.** This is a broad engineering
+judgment, not a measured percentage, task/test-count calculation, time forecast or
+security guarantee. The existing foundations are substantial; the remaining
+network/operator, Ant Kiss, human-consensus, monetary-policy, private intake/matching
+and end-to-end acceptance work keeps the full milestone in its early stages.
+Gate A uses synthetic readings; actual compatible-device capture and recognition
+acceptance remain Gate B. This discussion changes no implementation status or next
+task and is not a claim of an automatic percentage increase from MB-03D.
+
 Read [AGENTS.md](AGENTS.md), [CURRENT_STATUS.md](CURRENT_STATUS.md),
 [NEXT_SESSION.md](NEXT_SESSION.md), [decisions](docs/DECISIONS.md), and
 [the-prompt](the-prompt). Active branch `work/personhood-register-v0.1`; PR #1 is
