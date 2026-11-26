@@ -18,9 +18,12 @@ network identity. **MB-03E1 adds bounded replacement-selection metadata and chec
 in-memory preparation** of a preferred complete branch. **MB-03E2a adds actual
 whole-branch publication to a separate replacement store**, with stable root
 ownership, checked old-copy cleanup, failure fencing and clean reconciliation.
-Current acceptance evidence is in [CURRENT_STATUS.md](CURRENT_STATUS.md) and
-master-plan section 23. Next is **MB-03E2b: explicit recovery of interrupted
-replacement staging and cleanup**, followed by fresh-peer reconstruction.
+**MB-03E2b adds explicit recovery of recognized interrupted replacement staging
+and cleanup**, using independently retained old/candidate histories and an explicit
+completion or retention action. Current acceptance evidence is in
+[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+Next is **MB-03F: fresh-peer reconstruction**, followed by persistent V2 node
+integration in MB-04.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -150,16 +153,25 @@ most two. Every disk discrepancy or failed update fences ordinary access and fur
 writes. Reopening and consuming reconciliation require independent full endpoint
 and generation pins and accept only a clean complete selected layout. Pending
 selectors, extra generations and partial cleanup remain preserved and rejected.
-**Explicit interrupted-replacement recovery is MB-03E2b.** Its retained request must
-include both exact accepted old and candidate histories: once old files have been
-removed, the old endpoint alone cannot authorize cleanup of the remaining bytes.
-The selected new generation cannot be rolled back through a retain-old action.
+
+The separate [replacement recovery contract](docs/STORAGE_REPLACEMENT_RECOVERY_V2.md)
+defines explicit `Complete` and `RetainOld` actions. A request borrows both exact
+accepted histories and retains their independently selected full checkpoints and
+local generations. Recovery first checks the complete selected history and all
+remaining prescribed files. It can finish authorized candidate byte prefixes or
+remove that staging while old remains selected. Once the candidate is selected,
+only its completion and exact old-copy cleanup are allowed; `RetainOld` cannot
+roll it back. Arbitrary surviving subsets are checked file by file, and unknown or
+different bytes remain preserved and rejected. The same exclusive root ownership
+continues through final clean replay/synchronization. Errors return no writer.
+Missing/corrupt selection and interrupted initialization remain unsupported.
 
 ## Verification checkpoints
 
-Current MB-03E2a verification and publication evidence is tracked in
-[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md), section
-23. The following MB-03D record is retained as a **historical accepted checkpoint**;
+Current MB-03E2b verification and publication evidence is tracked in
+[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+MB-03E2a's prior acceptance remains in master-plan section 23. The following
+MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
 MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
@@ -185,7 +197,7 @@ doctests, eight references and nine examples at that earlier source. Release
 reruns are not additional unique tests. Fork comparison adds no encoded score,
 wire format, hash domain or dependency.
 
-Four storage examples create temporary synthetic stores. The append example
+Storage examples create temporary synthetic stores. The append example
 adds accepted mixed and empty blocks, then reopens and checks the complete state.
 The recovery example constructs known partial-write shapes, completes an append,
 repeats it idempotently, retains another parent, and then performs an ordinary next
@@ -201,6 +213,11 @@ publishes the preferred main branch at height 4 as local generation 1, retires t
 old copy, and independently reopens and reconstructs the complete candidate state.
 It also exercises clean reconciliation; it does not repair interrupted replacement
 staging or cleanup.
+The separate `replacement_recovery_v2_demo` constructs authorized partial candidate
+files, explicitly completes replacement, reopens the complete result and repeats
+completion idempotently. It rejects rolling back the selected candidate and shows
+`RetainOld` in a second owned store. It simulates residual layouts, not a physical
+power cut. Its histories and endpoint pins come from frozen independent fixtures.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -251,6 +268,7 @@ cargo run -p mirror-storage --example append_v2_demo --locked
 cargo run -p mirror-storage --example recovery_v2_demo --locked
 cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
 cargo run -p mirror-storage --example replacement_store_v2_demo --locked
+cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

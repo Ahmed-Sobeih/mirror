@@ -1,9 +1,9 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-03E2a durable whole-branch
-replacement and strict clean-state reconciliation**, below. Exact acceptance evidence is
-tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and master-plan section 23.
+and V2 design. Current implementation update: **MB-03E2b explicit interrupted
+whole-branch replacement recovery**, below. Exact acceptance evidence is
+tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md).
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
 review. This is an engineering review, not an audit certification.
@@ -14,7 +14,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A/B/C/D/E1 evidence, plus the current MB-03E2a verification status,
+MB-02A/B/C and MB-03A/B/C/D/E1/E2a evidence, plus the current MB-03E2b verification status,
 are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
@@ -25,9 +25,10 @@ accepted branches under independent network identity and returns the complete
 preferred branch as an immutable reference. MB-03E1 adds independently pinned
 selection metadata and preparation that retains both complete accepted histories.
 MB-03E2a adds synchronized whole-branch publication, exact old-copy cleanup and
-fencing under stable cooperative ownership. Explicit interrupted replacement
-recovery, arbitrary corruption repair, peer integration and human finality remain unfinished;
-source publication/CI is tracked separately.
+fencing under stable cooperative ownership. MB-03E2b adds explicit completion or
+retention of the narrowly recognized replacement residue under independent pins
+and both complete accepted histories. Arbitrary corruption repair, peer integration
+and human finality remain unfinished; source publication/CI is tracked separately.
 
 ## Historical B3 implementation update
 
@@ -893,9 +894,10 @@ MB-03D adds the independently pinned, fixed-target comparison of complete accept
 branches described above. MB-03E1 adds bounded MSR2 metadata and pure preparation
 under independent current-selection pins. MB-03E2a adds the bounded replacement
 store described below, including full-state publication and exact old-copy cleanup.
-**Next: MB-03E2b explicit interrupted-replacement recovery**, followed by
-fresh-peer reconstruction. Repair of partial staging/cleanup, human finality,
-a live V2 daemon and Gate A/Gate B remain unfinished.
+MB-03E2b adds explicit recovery of recognized partial staging/cleanup, with both
+exact accepted histories retained as authority.
+**Next: MB-03F bounded fresh-peer candidate import and reconstruction.** Arbitrary
+corruption repair, human finality, a live V2 daemon and Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
 
@@ -938,15 +940,15 @@ cleanup interruptions and write fencing were still required. No crash-safety res
 followed from in-memory preparation. E2a's narrower durable implementation follows;
 F09–F11, human finality and the existing policy gates remain open.
 
-## MB-03E2a durable replacement and strict reconciliation update
+## Historical MB-03E2a durable replacement and strict reconciliation update
 
 The [replacement-store contract](STORAGE_REPLACEMENT_STORE_V2.md) specifies
 `ReplacementStoreV2` around unchanged MSR2 profile-3 metadata. The implementation
 adds explicit initialization, independently pinned writer reopening/shared
 inspection, complete accepted-branch replacement, failure fencing and consuming
-clean-state reconciliation. It does **not** implement repair of interrupted
-replacement staging or cleanup. Those states remain rejected and preserved until
-an independently authorized E2b recovery operation exists.
+clean-state reconciliation. At that checkpoint it did **not** implement repair of
+interrupted replacement staging or cleanup. Ordinary opening/reconciliation still
+rejects and preserves those states; the separate E2b operation is recorded below.
 
 Written coverage adds **49 test functions: 32 filesystem integration, 14 private
 fault/read-budget and three process ownership tests**, mapped in
@@ -1064,9 +1066,122 @@ still applies. Static path/type/link checks and root-inode comparisons do not
 establish hostile same-user race resistance. Untested WSL/DrvFS, native Windows and
 network filesystems are not represented as supported or verified.
 
-F08 is mitigated for this bounded successful replacement and clean-reconciliation
-path, **not closed for arbitrary interruption repair or deployment**. MB-03E2b,
-fresh-peer reconstruction, persistent V2 node integration, human finality, private
-biological matching and other existing policy/security gates remain unfinished.
+At the E2a checkpoint F08 was mitigated for the bounded successful replacement and
+clean-reconciliation path, **not closed for arbitrary interruption repair or
+deployment**. MB-03E2b, fresh-peer reconstruction, persistent V2 node integration,
+human finality, private biological matching and the other policy/security gates
+remained unfinished. E2b's subsequent bounded recovery scope is recorded below.
 No founder/marketing privilege, monetary formula, mint/reward API, real biometric
 capture or anonymity guarantee is introduced. MB-03 and Gate A/B remain incomplete.
+
+## MB-03E2b explicit interrupted replacement recovery update
+
+The [recovery contract](STORAGE_REPLACEMENT_RECOVERY_V2.md) and
+[implementation](../crates/mirror-storage/src/v2/replacement_recovery.rs) add
+`ReplacementStoreV2::recover_interrupted` and consuming `recover`, with explicit
+`Complete` or `RetainOld` actions. Normal opening, shared inspection and clean
+reconciliation retain their existing strict behavior. No MSR2/MSS2/MSU2, MNM2 or
+MRB2 bytes, old fixture, dependency or monetary rule changes.
+
+This section records the reviewed implementation boundaries. Exact source/tree,
+actual test counts, release gates, reference checks, examples and CI results remain
+separate [CURRENT_STATUS.md](../CURRENT_STATUS.md) evidence, with coverage mapped
+in [the test matrix](MEMBERSHIP_TEST_MATRIX.md). It is not an external security audit.
+
+### Both histories and independent intent constrain recovery
+
+`ReplacementRecoveryRequestV2` immutably borrows both complete accepted histories
+and retains independently supplied old/candidate checkpoints and generations.
+Construction checks the request relation; recovery repeats network, strict
+preference, exact endpoint and adjacent-generation checks under owned storage.
+The candidate must be strictly preferred by the existing development rule, not
+merely stored in a greater-numbered directory.
+
+Both complete reference histories are required even when some old files have
+already been retired. An old endpoint alone cannot authorize surviving old bytes
+after deletion makes old replay impossible. Loss of the old reference remains an
+availability problem: independent reconstruction must precede this API, and an
+untrusted peer, residual marker or directory scan cannot supply the missing trust.
+The API provides neither persistent custody of these references nor an operator
+interface for recovering their authority.
+
+The selected marker must equal a complete canonical old or candidate MSR2, including
+its exact manifest and block-byte metadata. Recovery fully replays the selected
+complete history and compares the entire result with its accepted reference.
+Missing/corrupt selected history rejects; it is never filled from staging. Both
+ledger components, all retained membership history, sequences, population and
+resource counters come from the selected branch as one complete state.
+
+### Residual bytes and directory ordering
+
+Before any file mutation, bounded layout and length checks cover all recognized
+paths, and every surviving residual byte is checked against independent canonical
+encodings. Old-selected candidate staging can be any subset of prescribed files,
+each an exact canonical prefix, including empty files. A pending selector prefix
+requires the complete exact candidate; even an empty pending file carries that
+prerequisite. Prefix equality limits contents but does not prove who created them.
+
+Once the candidate is selected, it must be complete with no pending selector.
+Old residue may contain arbitrary subsets of exact **complete** old files.
+Partial old files reject. If the old blocks directory exists, the full old manifest
+must also exist; manifest-only, empty and absent old-generation shapes are allowed.
+Unknown entries, differing bytes and unsafe static aliases reject before removal.
+An invalid late old file prevents deletion of an earlier valid old file during
+the initial all-residue validation. Whole residue is rechecked after synchronization
+and again before the cleanup phase; each named file is compared at removal.
+
+Recovery synchronizes the validated selected history, its directories, selector
+and stable root before any unselected-copy deletion. This is necessary even when
+the new marker is already visible, because the prior call may have stopped after
+rename but before root synchronization. `RetainOld` durably removes any pending
+selector before deleting candidate staging; it cannot leave pending metadata
+alongside a candidate it has made incomplete.
+
+Cleanup synchronizes the old generation after blocks-directory removal and before
+manifest unlink. Crucially, it also performs that synchronization when the blocks
+directory was **already absent on recovery entry**. Observed absence after a restart
+does not prove the earlier removal was synchronized. Reestablishing this ordering
+prevents a retry from letting manifest deletion persist before the earlier
+blocks-directory removal. Only exact named files and empty prescribed directories
+are removed; the locked root is never replaced and no recursive deletion exists.
+
+### Explicit retries, bounded resources and retained limits
+
+`Complete` extends authorized prefixes through checked read/append descriptors,
+without truncation, verifies/synchronizes complete candidate history, publishes the
+canonical marker, then retires only authorized old residue. Already-selected
+completion is idempotent. `RetainOld` operates only while old remains selected;
+it never rolls the selected candidate back. A caller may choose completion after
+an interrupted retention, because the still-selected old endpoint and both exact
+histories remain the independent authorization.
+
+Consuming recovery retains the existing writer lock continuously, including from
+a fenced writer, and checks that its last-confirmed memory checkpoint is one of
+the independently retained endpoints. An inspector or unrelated handle rejects.
+All successful paths finish strict clean replay and synchronization before returning
+an unfenced writer; every failure returns no handle. An error after publication
+was attempted, or when the candidate was already selected, can represent a
+published but unfinished result. There is no automatic rollback or unbounded retry.
+
+The distinct encoded-input ceiling remains **39,118,264 bytes**, and one shared
+**313,011,680-byte** allowance charges every payload read and growth sentinel,
+including reads through existing prefix descriptors. Per-chain limits remain
+4096 blocks, 16 MiB MRB2 and 1,048,576 cumulative state/configuration items.
+Successful old-selected completion uses at most four full replays and
+**293,447,607 charged bytes**; the contract derives smaller upper bounds for the
+other two successful action paths. These are conservative upper bounds on those
+finite paths, not total resident memory, metadata calls, latency or write volume.
+
+Failure hooks and synthetic partial-file fixtures cover bounded recognized retry
+states; they do not reproduce all torn writes, physical power loss or firmware
+faults. Cooperative Linux locks and trusted local ownership/parents remain
+assumptions. No hostile same-user race guarantee or newly certified WSL/DrvFS,
+native Windows or network-filesystem support follows from these checks.
+
+F08 gains explicit recovery of this one independently authorized replacement's
+recognized staging and cleanup. Interrupted initialization, missing/corrupt
+selected markers, unknown residue, arbitrary corruption repair, reference-history
+custody, fresh-peer reconstruction and persistent node integration remain outside
+the component. **Next is MB-03F**, then the separate MB-04 node/operator work.
+F09–F11, human finality, biological matching/privacy and Gate A/B remain open.
+No founder/marketing privilege, issuance/reward API or real biometric data is added.

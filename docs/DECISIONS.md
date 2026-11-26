@@ -635,9 +635,9 @@ whole-branch publication, independently pinned reopening, write fencing and stri
 clean-state reconciliation to the separate profile-3 lifecycle. The existing MSR2
 bytes, MSS2/MSU2 stores, MNM2/MRB2 encodings, previous recovery API, dependencies and
 independent reference fixtures remain unchanged. No persisted intent format or
-implicit migration is introduced. Current implementation, acceptance and exact
-source/CI evidence is recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
-[MASTER_PLAN.md](../MASTER_PLAN.md), section 23.
+implicit migration is introduced. Historical E2a implementation, acceptance and
+exact source/CI evidence remains in [MASTER_PLAN.md](../MASTER_PLAN.md), section 23;
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) tracks the latest increment separately.
 
 The chosen layout uses canonical `generation-{generation:020}` directories under
 one stable locked root. A clean store has exactly one selected generation and
@@ -677,9 +677,10 @@ Enumeration and per-file limits remain separate. These bounds are not resident
 memory, elapsed-time or physical power-loss guarantees. Cooperative Linux locking
 and trusted local owners/parent paths remain explicit assumptions.
 
-**Next is MB-03E2b: explicit recovery of interrupted replacement staging and
-cleanup.** The state table is recorded, but no completion/retention recovery entry
-point is implemented by E2a. Recovery must independently retain or reconstruct
+**At the E2a checkpoint, MB-03E2b was next: explicit recovery of interrupted
+replacement staging and cleanup.** E2a recorded the state table but implemented
+no completion/retention recovery entry point. The following E2b record now tracks
+that implementation. Recovery must independently retain or reconstruct
 **both exact accepted old and candidate histories**, their full checkpoints and
 local generations, plus the explicit action. An old endpoint and candidate alone
 cannot authenticate partially removed old history. Authorized residue may contain
@@ -697,3 +698,68 @@ human consensus or an end-to-end enrollment flow. Gate A and Gate B remain unmet
 All accepted monetary and enrollment/accessibility decisions are preserved. No
 founder or marketing privilege, grant/mint/fee/reward formula, biometric capture or
 device requirement is added.
+
+## MB-03E2b engineering choices — MIRROR-MB03E2B-001
+
+The separate [replacement recovery contract](STORAGE_REPLACEMENT_RECOVERY_V2.md)
+implements explicit completion or retention for recognized interrupted profile-3
+replacement layouts. Ordinary open, inspect and clean reconciliation remain strict;
+they never call recovery automatically. MSS2, MSU2, MSR2, MNM2 and MRB2 bytes,
+existing store APIs, dependencies and independent reference fixtures remain frozen.
+This increment introduces no journal, persisted intent, implicit migration or
+directory-scanning authority.
+
+`ReplacementRecoveryRequestV2` borrows **both complete accepted old and candidate
+histories** and retains their full independently chosen checkpoints and adjacent
+local generations. Construction checks the endpoints and strict branch preference;
+the explicit recovery operation also checks the caller's independent network
+identity. A partly removed old directory cannot reconstruct its own missing
+authority. Matching byte prefixes constrain authorized content without proving who
+created it. Independently retained histories and an explicit `Complete` or
+`RetainOld` action authorize the prescribed paths.
+
+Before changing a file, recovery validates the selected complete history and every
+remaining permitted artifact. While old remains selected, candidate entries may
+be arbitrary subsets with canonical byte prefixes, including empty files or absent
+manifest entries. A pending selector, even an empty prefix, requires a complete
+candidate. `Complete` finishes the authorized prefixes without truncating or
+recreating existing files, synchronizes and validates the candidate before selection,
+then performs checked old-copy cleanup. `RetainOld` removes only authorized staging
+while preserving the fully validated selected old chain. Repeated allowed actions
+are explicit and idempotent; generation still advances once per preferred branch.
+
+After candidate selection, that complete history must remain present and no pending
+selector is accepted. Recovery may finish removing arbitrary subsets of exact full
+old files. If an old blocks directory survives, its exact old manifest must still
+exist; later supported shapes are manifest-only, empty old generation or absent
+old generation. Partial old files and unsupported cleanup ordering are rejected
+unchanged. `RetainOld` cannot roll back an already selected candidate.
+
+New-lock and consuming-writer recovery both preserve the stable root inode.
+Consuming recovery keeps the same exclusive descriptor throughout and requires
+the retained memory checkpoint to be one of the request's endpoints. A complete
+final replay and synchronization precede returning an unfenced writer. Any error
+returns no handle; interrupted recovery can be explicitly retried against the same
+independent authority. Unknown artifacts, missing/corrupt selected markers and
+interrupted initialization remain preserved and unsupported. Cooperative Linux
+locking, trusted local owners/parents and finite per-history/payload-read limits
+remain assumptions and boundaries, not physical power-loss certification.
+
+Focused public verification passed **38 integration tests** and the new synthetic
+`replacement_recovery_v2_demo`. The scenarios include genuine personhood forks
+with identical account bytes, sparse staging and cleanup, canonical metadata,
+wrong pins/history/network, complete state reconstruction, unsafe paths, strict
+ordinary reopening, fenced consuming recovery and both explicit actions. Multiple
+residual shapes inside a test are scenarios rather than additional tests. Full
+local acceptance subsequently passed **891 runtime tests, eight retained doctests,
+all required release suites, nine independent references and thirteen examples**,
+including the corrected absent-old-blocks-directory synchronization ordering.
+Exact source, private fault/retry, process-ownership and published CI evidence are
+tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and the
+[master plan](../MASTER_PLAN.md), separately from the focused result above.
+
+**Next is MB-03F: fresh-peer reconstruction**, then persistent V2 node/operator
+integration under MB-04. E2b completes a bounded local recovery component, not
+MB-03 as a whole or Gate A/B. It changes no monetary, grant, reward, fee, founder,
+marketing, biometric, accessibility or human-consensus policy. No device support,
+biological uniqueness, anonymity, public launch or real-money readiness is claimed.
