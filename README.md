@@ -32,18 +32,21 @@ and unfinished intent requires an explicit recovery decision. MB-04A1 is a
 VERIFIED_COMPONENT within this finite control/restart scope. **MB-04A2 now adds
 the separate finite `mirror-node-v2` operator executable**, with explicit
 `init`, `status`, `sync-once` and `recover` commands using that unchanged A1
-authority. Current source, required-gate and CI acceptance are recorded separately
+authority. **MB-04B1 adds finite `serve` lifecycle and draining shutdown**:
+one fixed accepted history, one held controller, one listener and one cumulative
+session owner, with explicit attempt/byte/admission limits and SIGINT/SIGTERM.
+Current source, required-gate and CI acceptance are recorded separately
 in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04B1: bounded V2 provider lifecycle and shutdown**, beginning with
-design before implementation. It must define explicit paths, network identity and
-listen address; clean A1 ownership before bind; one fixed accepted history under
-held ownership; process-wide attempt/active-connection, aggregate-byte and
-lifecycle budgets; and bounded shutdown. New F2 owners must not replenish these
-budgets. Concurrent A2 commands will observe busy ownership. Persistent
-reconnect/rejoin scheduling, multi-peer policy, transaction pool and wallet remain
-unfinished. **MB-04 remains IN_PROGRESS; Gate A and Gate B are unmet.** The existing
-V1 executable remains separate.
+Next is **MB-04B2: finite rejoin and serve coordination**, beginning with an
+explicit design. Specify one deliberately selected peer receive, complete
+keep/adopt, then serving under retained control and one cumulative transport
+budget. Define shutdown and possible-completion outcomes for each phase, then
+verify independent seed-provider, rejoining-node and requester processes, clean
+restart/rejoin, complete-state agreement and pending-state refusal. Automatic
+reconnect/recovery, discovery, multi-peer scheduling, transaction pool and wallet
+remain separate work. **MB-04 remains IN_PROGRESS; Gate A and Gate B are unmet.**
+The existing V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -288,11 +291,12 @@ cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- sync-once \
   --peer "$mirror_peer_address" --timeout-ms 5000 --max-io-bytes 157129488
 ```
 
-The peer must already serve the finite F2 protocol. This executable starts no
-provider or daemon. The timeout bounds the peer attempt, excluding local opening
-and later durable adoption; it does not preempt synchronous validation or bound
-output writes. The byte allowance counts actual session application I/O, including
-partial operations, rather than local storage, memory or TCP overhead.
+The peer must already serve the finite F2 protocol; the separate `serve` command
+below provides a fixed accepted history. The timeout bounds the receiving peer
+attempt, excluding local opening and later durable adoption; it does not preempt
+synchronous validation or bound output writes. The byte allowance counts actual
+session application I/O, including partial operations, rather than local storage,
+memory or TCP overhead.
 
 Recovery is a separately requested action. Set `mirror_recovery_action` to
 `complete` or `retain-old` only after reviewing the unresolved state. A selected
@@ -305,15 +309,108 @@ cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- recover \
   --action "$mirror_recovery_action"
 ```
 
+### Serving a fixed accepted history
+
+The [provider contract](docs/NODE_PROVIDER_V2.md) specifies the finite `serve`
+command. Select a numeric listen address with a **nonzero port**; all five
+provider options are required:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- serve \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --listen "$mirror_listen_address" --max-attempts 8 \
+  --max-io-bytes 157129488 --timeout-ms 5000 --admission-ms 30000
+```
+
+Startup strictly opens clean A1 control before binding. Missing, pending,
+invalid, mismatched or busy state refuses startup without initialization or
+recovery. The command holds both roots and serves that same accepted history
+through one listener and one F2 owner. Concurrent `status` and `sync-once` return
+busy. At most one admitted connection is active; successful and failed sessions
+share the explicit total attempt and actual-I/O allowances. A TCP handshake in
+the kernel backlog is not application admission.
+
+SIGINT or SIGTERM requests graceful stop. Idle admission ends at the next bounded
+check. An already admitted session completes or rejects under its **original**
+timeout; no additional session is admitted. Admission-window expiry uses the
+same final-drain rule. The serving allowance is the admission window plus at most
+one final attempt timeout, each capped at 60,000 ms. Initial local opening/replay
+and final output are outside this interval. Synchronous work and scheduling are
+not preempted, so this is not a hard process-return guarantee.
+
+There is no readiness or progress output while ownership is held. After all
+sockets and owners are released, one record reports `status=stopped`, the fixed
+selected pins, stop reason, attempts, completed/rejected sessions, actual wire
+bytes and the last static session-error category. Reaching a configured limit or
+honoring graceful stop exits 0, even when earlier peers were rejected. A blocked
+final output consumer cannot prolong listener or directory ownership.
+
 Output uses bounded `key=value` records. Exit 0 means help, clean status or a
 completed operation; 1 means an operational failure; 2 means rejected command
 input before effects. Status alone uses 3 for missing control and 4 for unresolved
 intent. Pending status labels `store_selection=uninspected`; it does not assert
 which endpoint is currently selected or that both recovery actions are available.
-If output fails after a mutation, `operation_may_have_completed=true` directs the
-operator to inspect status. A lost response is not authority to repeat a mutation.
+If output fails after a mutating command or serving, `operation_may_have_completed=true`
+directs the operator to inspect status. A lost response does not authorize an
+automatic mutation retry or provider restart.
 
 ## Verification checkpoints
+
+### Current MB-04B1 provider checkpoint
+
+Checkpoint **MIRROR-MB04B1-001**. The current acceptance record belongs to
+master-plan section 29 and
+[test-matrix section 21](docs/MEMBERSHIP_TEST_MATRIX.md#21-mb-04b1-finite-provider-lifecycle-and-draining-shutdown).
+
+**MB-04B1 is VERIFIED_COMPONENT — FINITE PROVIDER / DRAINING SHUTDOWN.**
+All **38 local command gates** and **43 source-CI steps** passed. Full source-CI
+logs confirm **1,167 runtime tests and eleven compile-fail doctests**, zero failures
+and three retained parent-exercised ignored helpers. The actual synthetic checkout
+`cdb00671509b4f2876d51bd677ab39d861833396` has no file differences from the implementation
+commit. All **17 published implementation/test/contract/dependency/workflow files**
+were read back byte-for-byte. Later documentation-head CI is recorded separately
+on PR #1; source acceptance does not assert that a future head has passed.
+
+| B1 evidence field | Recorded value |
+|---|---|
+| Implementation source | [ed631eae05ebeebe2b3a58a433ab8a0cc5753150](https://github.com/Ahmed-Sobeih/mirror/commit/ed631eae05ebeebe2b3a58a433ab8a0cc5753150) |
+| Source tree | `dc32d623bf6a8e5e3ab03023b699a729e0c630a1` |
+| Parent checkpoint | `f507827aabcaecda85c02d66f0de6a10db8972ac` |
+| Published implementation/contract/workflow files | 17 |
+| Workspace runtime tests | 1,167 |
+| New runtime tests | 30 |
+| Node runtime tests | 148 |
+| Network runtime tests | 108 |
+| Source PR CI run / full job | [45904484131](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45904484131) / `140197823058` |
+
+The new cases comprise six parser tests, nine accepted-connection transport
+tests and fifteen actual-provider process tests. The required set retains eleven
+compile-fail doctests, three parent-exercised ignored helpers, twelve independent
+references, sixteen examples, all required release suites and all 38 local
+command gates. The workflow has 43 steps; its job budget changes from 15 to
+20 minutes while every command remains unchanged. Reruns, parameterized scenarios
+and child invocations are not additional unique tests.
+
+Process evidence covers both graceful signals, fixed complete history, refused
+startup, cumulative failure/byte limits, admission expiry, ownership during
+serving, actual forced termination and output failure. A full-pipe test observes
+the child blocked in its final stdout write while a fresh status process succeeds,
+proving ownership release before output. Admission observation uses bounded
+Linux direct-parent `/proc` access to the child's exact socket, FD and blocked
+receive syscall; it does not infer admission from a handshake or sleep. Those
+observations require the tested Linux `/proc` access policy. SIGKILL evidence
+establishes forced release, not graceful drain or physical power-loss safety.
+
+Compatibility comparison retains **153 of 161 source/reference/fixture paths
+byte-identical**; eight deliberate changes supply the F2 accepted-stream
+integration, finite command plumbing, node dependency edge and workflow budget.
+The node uses Linux-target `libc = "=0.2.189"` already present in Cargo.lock; no
+package version, source or checksum changes. Existing A1/store/V1 behavior and all
+frozen protocol/storage/hash bytes remain unchanged. Implementation-source
+acceptance and later documentation-head CI are recorded separately.
+
+### Historical MB-04A2 operator checkpoint
 
 The **MB-04A2 acceptance record** belongs to master-plan section 28 and
 [test-matrix section 20](docs/MEMBERSHIP_TEST_MATRIX.md#20-mb-04a2-finite-v2-operator-commands).
@@ -463,6 +560,8 @@ Use Rust 1.98.0 and locked dependencies. The focused operator checks are:
 ```sh
 cargo +1.98.0 test -p mirror-node --bin mirror-node-v2 --locked
 cargo +1.98.0 test -p mirror-node --test operator_commands_v2 --locked
+cargo +1.98.0 test -p mirror-node --test provider_commands_v2 --locked
+cargo +1.98.0 test -p mirror-network --test provider_connection_v2 --locked
 ```
 
 The complete required gates remain:

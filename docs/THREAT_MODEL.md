@@ -1,9 +1,10 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-04A2 finite V2 operator
-commands**, composing A1's durable local control/restart authority below. Exact
-acceptance evidence is tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+and V2 design. Current implementation update: **MB-04B1 finite V2 provider
+lifecycle and draining shutdown**, retaining A1's durable local control/restart
+authority and A2's finite operator commands below. Exact acceptance evidence is
+tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MASTER_PLAN.md](../MASTER_PLAN.md).
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
@@ -15,8 +16,8 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C, MB-03A/B/C/D/E1/E2a/E2b/F1/F2 and MB-04A1 evidence, plus the current MB-04A2
-verification status, are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+MB-02A/B/C, MB-03A/B/C/D/E1/E2a/E2b/F1/F2 and MB-04A1/A2 evidence, plus the current
+MB-04B1 verification status, are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
 branch acceptance, complete-block replay, immutable selected-store reopening and
@@ -38,11 +39,14 @@ persists trusted full local checkpoints and both exact accepted histories in a
 separate operator-owned control directory before store mutation. Its finite library
 and process-restart harness are a VERIFIED_COMPONENT. MB-04A2 exposes that unchanged
 authority through finite `init`, `status`, `sync-once` and explicit `recover`
-commands in a separate executable. **Next is MB-04B1: bounded V2 provider lifecycle
-and shutdown, beginning with design.** Arbitrary corruption repair, process-wide
-provider admission, persistent serving/reconnect, multi-peer scheduling, transaction
-pool, wallet and human finality remain unfinished. MB-04 is IN_PROGRESS and Gate A/B
-remain unmet; exact source and later documentation-head CI are tracked separately.
+commands in a separate executable. MB-04B1 adds finite `serve` with one fixed
+accepted history, held controller, listener and cumulative F2 owner, explicit
+admission limits and SIGINT/SIGTERM draining shutdown. Its scope and evidence are
+recorded in the B1 update below. **Next is MB-04B2: finite rejoin and serve
+coordination, beginning with design.** Arbitrary corruption repair, automatic
+reconnect, broader persistent scheduling, transaction pool, wallet and human
+finality remain unfinished. MB-04 is IN_PROGRESS and Gate A/B remain unmet; exact
+source and later documentation-head CI are tracked separately.
 
 ## Historical B3 implementation update
 
@@ -955,10 +959,11 @@ independent whole-branch adoption and explicit recovery with retained histories.
 preserving independent C/genesis and trusted current pins plus both exact histories
 outside the strict store root before mutation. **MB-04A2 adds finite V2 operator
 commands** for attachment-only init, read-only status, one sync attempt and explicit
-recovery. **Next: MB-04B1 bounded V2 provider lifecycle and shutdown, design first.**
-Arbitrary corruption repair, process-wide provider admission, persistent
-serving/reconnect/multi-peer policy, transaction pool, wallet, human finality and
-Gate A/Gate B remain unfinished; MB-04 is still IN_PROGRESS.
+recovery. **MB-04B1 adds finite fixed-history serving and draining shutdown** under
+one retained controller and one cumulative F2 owner. **Next: MB-04B2 finite rejoin
+and serve coordination, design first.** Arbitrary corruption repair, automatic
+reconnect, broader persistent/multi-peer scheduling, transaction pool, wallet,
+human finality and Gate A/Gate B remain unfinished; MB-04 is still IN_PROGRESS.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
 
@@ -1814,7 +1819,8 @@ tests serialize to prevent unrelated inherited descriptors from extending locks.
 These tests do not model physical power cuts, hostile local owners, every kernel/
 filesystem or global resource exhaustion.
 
-**Next: MB-04B1 — bounded V2 provider lifecycle and shutdown, design first.**
+**At the A2 checkpoint, next was MB-04B1 — bounded V2 provider lifecycle and
+shutdown, design first.**
 The design must require explicit paths, network identity and listen address;
 strictly clean A1 ownership before bind; and a fixed accepted history under held
 ownership for the entire provider lifetime. Concurrent A2 calls must observe busy
@@ -1828,3 +1834,205 @@ MB-04 remains IN_PROGRESS; Gate A/B remain unmet. The final human consensus,
 biological uniqueness/private matching, accessibility/device compatibility and
 policy-gated economy retain their separate requirements. No founder privilege,
 biometric archive, real enrollment or monetary-policy change is introduced here.
+
+## MB-04B1 finite provider lifecycle and draining shutdown update
+
+Checkpoint **MIRROR-MB04B1-001**, 2026-11-27. The
+[provider contract](NODE_PROVIDER_V2.md) was written and accepted before
+implementation. It extends the separate V2 executable with `serve` and a narrow
+[F2 accepted-stream entry](PEER_SESSION_V2.md), retaining the existing checked
+request/EOF/history exchange and A1's clean ownership boundary.
+
+**MB-04B1 is VERIFIED_COMPONENT — FINITE PROVIDER / DRAINING SHUTDOWN.**
+All **38 local command gates** and **43 source-CI steps** passed. Full source-CI
+logs confirm **1,167 runtime tests and eleven compile-fail doctests**, zero failures
+and three retained parent-exercised ignored helpers. The actual synthetic checkout
+`cdb00671509b4f2876d51bd677ab39d861833396` has no file differences from the implementation
+commit. All **17 published implementation/test/contract/dependency/workflow files**
+were read back byte-for-byte. Later documentation-head CI is recorded separately
+on PR #1; source acceptance does not assert that a future head has passed.
+
+### Source and evidence boundary
+
+Implementation source:
+[ed631eae05ebeebe2b3a58a433ab8a0cc5753150](https://github.com/Ahmed-Sobeih/mirror/commit/ed631eae05ebeebe2b3a58a433ab8a0cc5753150);
+tree: `dc32d623bf6a8e5e3ab03023b699a729e0c630a1`;
+parent checkpoint: `f507827aabcaecda85c02d66f0de6a10db8972ac`.
+The source publication changes **17 implementation/contract/workflow files**.
+Source PR CI is
+[45904484131](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45904484131),
+full job `140197823058`. Exact-source acceptance and later documentation-head CI
+remain separate records in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+master-plan section 29.
+
+The required workspace count is **1,167 runtime tests**, including
+**30 new** functions: six parser tests, nine accepted-stream
+transport tests and fifteen actual-provider process tests. Node records
+**148 runtime tests plus one retained compile-fail doctest**;
+network records **108 runtime tests plus two retained
+doctests**. The gate set retains all eleven workspace compile-fail doctests,
+three parent-exercised ignored helpers, twelve references, sixteen examples,
+every required release suite and all 38 local command gates. All 43 CI steps
+remain; the job budget alone changes from 15 to 20 minutes. Release reruns,
+parameterized scenarios and child processes are not additional unique tests.
+[Matrix section 21](MEMBERSHIP_TEST_MATRIX.md#21-mb-04b1-finite-provider-lifecycle-and-draining-shutdown)
+maps the complete new test set to the retained rules.
+
+Compatibility comparison preserves **153 of 161 retained source/reference/fixture
+paths byte-for-byte**. Eight deliberate existing-file changes supply the F2
+accepted-stream integration, finite command plumbing, node manifest/lockfile
+dependency edge and CI duration. The Linux-target direct dependency
+`libc = "=0.2.189"` uses the already locked package; no package version, source or
+checksum changes. A1, storage, V1, independent references and frozen
+protocol/storage/hash bytes remain unchanged. These tests establish the finite
+component's behavior, not an audit, physical-failure certificate or launch gate.
+
+### F07/F08: strict local authority precedes public admission
+
+Every provider input is deliberate: trusted control/store paths, independent
+C/genesis, numeric nonzero-port listen address and all four resource limits.
+The existing 32-argument, 4,096-byte-token and 16,384-byte-total parsing bounds
+remain. Syntax, canonical numbers and ranges are checked before filesystem or
+socket work; no environment/configuration-file/stdin fallback or DNS is added.
+
+Startup strictly opens clean A1 control before binding. Missing, pending,
+corrupt, mismatched or busy local state cannot become a provider and never
+causes implicit initialization, recovery or repair. The same controller and its
+complete accepted history remain held until serving ends. It does not reload
+history, reopen roots or give a peer selection authority between sessions.
+Concurrent A2 `status` and `sync-once` observe busy ownership. Trusted parent
+directories, cooperative Linux locks and the trusted local operator remain
+required; provider bounds do not protect against a hostile owner replacing root
+inodes or coordinating rollback of both control and store.
+
+### F09/T21/T30–T32: one invocation has one cumulative transport allowance
+
+The provider owns one nonblocking listener and one F2 session owner for
+**1..8 admitted attempts**, **at most one active admitted stream** and
+**1..157129488 total application bytes**. It checks stop, admission time and
+remaining budgets before accepting, then checks stop/time again before passing
+an accepted stream to F2. A stream caught by that second check is closed unread
+without becoming an admitted attempt. A signal can arrive after the final check;
+an attempt already admitted at that boundary drains under its original timeout.
+Kernel-established connections may wait in a backlog without being application
+sessions. Kernel buffers, TCP/IP traffic, other processes and unread bytes are
+outside the counted allowance.
+
+`PeerSessionsV2::serve_connection` consumes the supplied stream and installs its
+shutdown guard before local network/budget preflight. It retains the same owner's
+counters and shares the checked MPQ2 request, mandatory request EOF and complete
+F1 frame-writing routine. No duplicate decoder, fallback or resumption of a
+failed stream is introduced. Existing `serve_once` still includes its
+listener wait within its original attempt deadline.
+
+Invalid, wrong-network, short or trailing requests receive no history.
+Malformed and partial I/O retain every actual positive byte and charged attempt;
+a later successful client cannot refill either allowance or clear the last
+rejection category. The original absolute deadline is checked through the
+exchange, including request EOF and semantic completion. Short operations,
+interruptions and drip-fed input do not restart it. Buffer sizes stay within
+the remaining allowance, and a one-byte EOF probe needs unspent capacity.
+Synchronous work is not preempted, so these caps are neither a hard CPU/RSS bound
+nor a guarantee of continuing service against repeated hostile clients.
+
+Local history, allocation, listener/setup and internal-limit failures are fatal
+operational errors. Peer refusal and deadline outcomes are accounted rejected
+sessions. On normal exit, completed plus rejected sessions equals admitted
+attempts. The normal stop-reason priority is shutdown, admission timeout, wire
+limit, then attempt limit. Limits and graceful stop exit 0 even if earlier peers
+were rejected; local/output failures exit 1 and usage failures exit 2.
+
+### T30/T32: graceful stop drains the original attempt
+
+Scoped Linux SIGINT/SIGTERM handling sets only a sticky atomic stop flag; it
+performs no output, socket or filesystem work inside the handler. The idle loop
+checks in bounded waits. A signal does not abort an admitted session or reset
+its timer: that session finishes or rejects under its original F2 deadline,
+then no further session is admitted. Admission-window expiry has the same
+final-drain rule. Signal dispositions are restored on normal and error returns.
+
+Both the admission window and original attempt timeout must be **1..60000 ms**.
+The admission clock starts immediately before binding, after strict A1 opening.
+The configured serving allowance is the admission window plus at most one final
+attempt timeout, at most **120000 ms** at the ceilings. Initial opening/replay and
+final output are outside that interval. Synchronous work and scheduling remain
+non-preemptible; this is not a hard total process-return deadline or a
+process-independent availability guarantee.
+
+### T29/T30: release precedes final output
+
+The provider writes no readiness or progress records while it owns the roots.
+It releases the accepted stream, listener and controller before writing its
+single final record, bounded to 4,096 bytes. The record identifies the fixed
+selected checkpoint, stop reason, actual attempts/completions/rejections, charged
+application bytes and the latest static session error. A later writer can
+change selection after ownership is released; the record identifies what this
+invocation served, not a perpetually current checkpoint.
+
+A completed provider session means the local checked writes and shutdown
+completed. It does not prove that a requester validated, retained or durably
+adopted the history. A failed output write/flush can occur after successful
+serving; it reports `operation_may_have_completed=true` and `inspect-status`.
+It never restarts serving or retries a mutation. A blocked consumer can still
+delay process exit after every provider resource has been released.
+
+### Actual-process observation and its limits
+
+The [fifteen provider process tests](../crates/mirror-node/tests/provider_commands_v2.rs)
+use the actual executable and synthetic complete histories. They exercise input
+and local-state refusal before bind; bind failure; repeated fixed-history
+transfers; charged malformed requests and aggregate partial output; exclusive
+ownership; idle and active SIGINT/SIGTERM; admission expiry; forced termination;
+closed stdout; and blocked final output. Complete-state comparisons include
+accounts, memberships, approvals and population state. Only synthetic fixtures
+and development keys are used; no real enrollment or biometric data is introduced.
+
+The [bounded Linux helper](../crates/mirror-node/tests/support_provider_v2/mod.rs)
+serializes ownership-sensitive parent cases and kills/reaps owned children on
+failure. Synthetic responses have one absolute receive deadline and a byte cap;
+each read uses the remaining duration. Busy assertions require the exact wrapped
+`StorageErrorV2::Busy`. A numeric nonzero port is reserved and released immediately
+before launch; an actual bind collision is a visible failure with no production
+retry or test retry.
+
+Readiness requires a child-owned listening socket. To distinguish an admitted
+request from a queued handshake, observation matches the exact loopback TCP
+tuple, established socket inode, child-owned FD and blocked read/receive syscall
+on that FD, including the one-byte EOF probe where needed. This uses bounded
+direct-parent `/proc` access and native Linux syscall constants, under the access
+policy tested here. A restricted `/proc` mount fails explicitly. Successful TCP
+handshake or an arbitrary sleep is not substituted for that admission evidence.
+These checks establish the selected Linux child states; they do not test every
+kernel, architecture, filesystem or scheduler.
+
+The full-pipe case observes the child blocked in its real final stdout write
+while its listener is gone and a newly launched status process succeeds.
+Ownership release is therefore observed before output can finish. The separate
+closed-stdout case checks the possible-completion diagnostic and no restart.
+SIGKILL tests force release of a provider blocked in network receipt and verify
+unchanged selected state. They establish neither graceful drain nor physical
+power-loss safety. A1's retained process stops at durable publication boundaries
+remain separate evidence; B1 does not add a storage recovery policy.
+
+### Exact next component and remaining threats
+
+**MB-04B2 begins with an explicit finite rejoin and serve coordination design.**
+Specify one receive from a deliberate numeric peer, complete keep/adopt through
+the existing authority, then serving of the resulting fixed history. Retain the
+returned controller and one cumulative F2 attempt/byte owner across both phases;
+do not silently reopen storage or replenish budgets.
+
+Define stop behavior while receiving, before adoption, during synchronous
+durable adoption and during serving. Preserve original deadlines and A1's
+intent/confirmation ordering. A later bind, serving or output failure must
+report that adoption may already have completed and direct explicit
+inspection/recovery. Verification must use independent seed-provider, rejoining
+node and requester processes/directories, then clean restart/rejoin, complete
+state agreement, pending-state refusal and continued no-rollback/ownership checks.
+That is the next design scope, not an implemented B1 capability.
+
+No automatic reconnect/recovery, discovery, multi-peer scheduler, pool or wallet
+is added. Full MB-04 remains IN_PROGRESS and Gate A/B remain UNMET. Existing
+monetary, enrollment, combined ECG+pinky and AntKiss, accessibility and private
+device/matching policies remain unchanged. Neither a signature nor synthetic
+history agreement proves biological uniqueness, privacy or human finality.
