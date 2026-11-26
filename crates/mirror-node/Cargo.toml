@@ -14,3 +14,6 @@ mirror-chain = { path = "../mirror-chain" }
 mirror-storage = { path = "../mirror-storage" }
 mirror-network = { path = "../mirror-network" }
 mirror-protocol = { path = "../mirror-protocol" }
+
+[dev-dependencies]
+mirror-personhood = { path = "../mirror-personhood" }

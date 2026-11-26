@@ -191,6 +191,7 @@ dependencies = [
  "mirror-core",
  "mirror-crypto",
  "mirror-network",
+ "mirror-personhood",
  "mirror-protocol",
  "mirror-state",
  "mirror-storage",
