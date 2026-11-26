@@ -1,11 +1,12 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MB-04A1 — durable node control state and
-restart authority**, with source/test mapping in section 19. A1 is a
-**VERIFIED_COMPONENT within finite operator-owned control/restart scope**.
+Current implementation checkpoint: **MB-04A2 — finite V2 operator commands**,
+with source/test mapping and acceptance fields in section 20. A1 remains a
+**VERIFIED_COMPONENT within finite operator-owned control/restart scope**;
+section 19 preserves its accepted evidence.
 MB-03F2, MB-03F and MB-03 remain verified within finite storage and peer sessions;
-persistent serving and the remaining node/operator integration remain MB-04.
+persistent serving and the remaining node integration remain MB-04.
 These 35 rows are acceptance requirements, **not 35 passing tests**. B1–B4 and
 MB-02A/B/C are verified components; MB-02 supplies actual bounded in-memory branch
 acceptance. MB-03A adds explicit immutable-store initialization, cooperative
@@ -24,9 +25,11 @@ uses that receiver over bounded TCP sessions, compares complete accepted branche
 and publishes only a preferred candidate through owned storage with both histories
 retained for explicit recovery. MB-04A1 persists the trusted local checkpoint and
 both exact histories in separate bounded control records before store mutation,
-then requires explicit recovery after restart with unfinished intent. Arbitrary
-corruption repair, global connection admission and persistent V2 service remain
-unfinished.
+then requires explicit recovery after restart with unfinished intent. MB-04A2
+exposes that unchanged authority through a separate finite executable: explicit
+attachment, read-only status, one peer receive/adoption, or separately requested
+completion/retention. Arbitrary corruption repair, process-wide provider admission
+and persistent V2 service remain unfinished.
 
 Historical counts and exact-source CI remain in sections 3–9: B1 added 31 cases,
 B2 39, B3 51, B4 69, and MB-02C added 61 to reach its **523-test baseline**. Those
@@ -105,13 +108,23 @@ integration, twelve real-process restart and six private failure cases**, mapped
 in section 19. Full local gates passed **1,083 runtime tests, eleven compile-fail
 doctests, all required release suites, twelve references and sixteen examples**.
 Three subprocess helpers are intentionally ignored and invoked by their parents.
-The node release gate reruns 73 runtime cases and one documentation case.
+At the A1 checkpoint, the node release gate reran 73 runtime cases and one
+documentation case; A2 extends that gate below.
 
-**Next is MB-04A2: finite V2 init/status/sync-once/explicit-recover operator
-commands**, using A1's persisted local authority and explicit recovery contract.
-Persistent serving/reconnect/global admission/multi-peer policy, transaction pool,
-wallet, human finality, biological deduplication, live economy and Gate A/B remain
-outside these component checks.
+MB-04A2 adds **54 runtime test functions**: 23 parser, four output,
+three diagnostic unit cases and **24 actual-command process
+cases**. Section 20 maps the finite command surface and records source, required
+gates and exact-source CI separately. Full required gates passed **1,137 runtime
+tests and eleven compile-fail doctests**, with no failures.
+
+**Next is MB-04B1: bounded V2 provider lifecycle and shutdown**, beginning with
+design before implementation. It must retain explicit paths/network/listen
+selection, clean A1 before bind, fixed accepted history under ownership,
+process-wide attempt/active/aggregate-byte/lifecycle budgets and bounded shutdown.
+Repeated F2 owners must not replenish those budgets. Persistent reconnect,
+multi-peer policy, transaction pool, wallet, human finality, biological
+deduplication and live economy remain outside these component checks. **MB-04
+remains IN_PROGRESS; Gate A and Gate B are unmet.**
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
@@ -136,14 +149,15 @@ Bounded peer-history framing and candidate reconstruction:
 [PEER_HISTORY_V2.md](PEER_HISTORY_V2.md). Finite TCP sessions and completed-candidate
 adoption: [PEER_SESSION_V2.md](PEER_SESSION_V2.md) and
 [CANDIDATE_ADOPTION_V2.md](CANDIDATE_ADOPTION_V2.md). Durable local control and
-restart authority: [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md).
+restart authority: [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md). Finite command input,
+output and operator boundaries: [NODE_OPERATOR_V2.md](NODE_OPERATOR_V2.md).
 
 ## 1. Rule-to-assertion map
 
 | Case | Required assertion / proposed acceptance name | Owner and current coverage |
 |---|---|---|
-| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; E2a rejects implicit storage-profile migration; F1 rejects MIRR/V1 and MPN2/V2 cross-decoding; F2 uses separate MPQ2 request selection without fallback and preserves legacy transport/node code; persistent V2 node integration remains MB-04 |
-| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; storage and comparison require independent network/endpoint authority; MB-03F1 checks both Begin and actual MNM2 against independently supplied C/genesis and never promotes peer terminal claims to trusted selection |
+| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; E2a rejects implicit storage-profile migration; F1/F2 reject legacy/version fallback; A2 adds a separate V2 executable and attachment-only init while default-run preserves the existing V1 command; persistent provider lifecycle remains MB-04B1 design work |
+| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; storage/comparison/F1 require independent network authority; A2 requires explicit external C/genesis and initial full checkpoint flags, with actual wrong-network command rejection before peer contact; no peer terminal claim becomes trusted selection |
 | T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction, B3 ordinary seed runtime rights and MB-02C all-proof manifest construction/decoding VERIFIED; production bootstrap/admission policy remains gated |
 | T04/R04 | `v2_operations_have_exact_lengths`: prefix131; signed Transfer243/Enroll291/Approve227/Withdraw227; reject all truncations, versions/kinds, oversized/trailing bytes before mutation. | B2 membership plus MB-02A Transfer/unified codecs VERIFIED COMPONENTS; all four lengths and preserved membership bytes covered |
 | T05/R05 | `every_signed_field_is_bound`: altered kind/context/anchor/window/key/sequence/evidence/profile/target invalidates signature; malformed keys/signatures do not panic. | B2 membership plus MB-02A Transfer authentication, domain separation and strict signatures VERIFIED COMPONENTS |
@@ -162,18 +176,18 @@ restart authority: [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md).
 | T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | Prior final-state high-water and genuine membership forks retained; MB-03E2a/b replacement and explicit recovery retain the selected branch's own membership, approvals and population peaks even when account bytes agree; no losing-branch counters are grafted into the winner |
 | T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | Prior staged/accepted rollback and MB-03B invalid-child rejection retained; MB-03C validates both parent and candidate before mutation and returns complete selected state or no usable handle after failure |
 | T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | Prior execution/replay count, byte and state-work bounds retained; MB-03C counts the full intended child before payload reads even when only a prefix exists, and never prunes accepted history to restore capacity; MB-03D compares at most 4,096 accepted pairs without new accumulation/allocation |
-| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior codec/storage bounds retained; F2 calls consuming F1 header admission and checks remaining owner bytes before payload allocation/read; actual I/O is capped before each syscall and charged across failures; finite per-owner attempt/connection/deadline limits are verified, not global availability |
+| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior codec/storage/F1/F2 bounds retained; A2 parses all flags and bounded arguments before effects, forwards one deliberately bounded F2 attempt and retains actual partial-I/O accounting; parser, history, session, control and store limits are distinct, without a total RSS or process-global availability claim |
 | T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | Permanent history and identity reservations survive full selected replay; MB-03E2a removes only the exact unselected old branch copy after new selection, retaining the candidate's complete history and original limits; no pruning or counter/cache bypass |
 | T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A bytes/hashes and MB-02B roots now joined by MB-02C exact genesis, configuration/height/parent/time/target/work/body/ledger-root acceptance VERIFIED IN MEMORY |
 | T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment retained; actual acceptance/replay recomputes it; MB-03E2a stages exact complete MRB2 files and replays the entire candidate before and after publication; no operation filtering or reordering |
-| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | Canonical combined roots and accepted-header checks retained; F2 receives equal-account/different-membership histories across real processes, publishes only the locally preferred whole branch and strictly reopens its complete state, approvals, permanent records, population and resource counters |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 execution reconstructs candidate state under independent network pins; F2 requires matching End plus EOF, then separate complete-branch comparison and owned publication; strict reopen uses independently retained local pins; no global freshness or automatic repair is supplied |
+| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | Canonical combined roots and accepted-header checks retained; F2 and A2 actual-process TCP cases receive equal-account/different-membership histories, publish only the locally preferred whole branch and strictly reopen its complete state, approvals, permanent records, population and resource counters |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 execution reconstructs candidate state under independent network pins; F2 and A2 require matching End plus EOF before whole-branch comparison/publication, and strict A1 reopen checks retained local authority; pending command status reports endpoints as uninspected, not a current-store or global-freshness claim |
 | T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | Prior mixed execution and false-root rollback retained; MB-03C accepts the exact child before either action, preserves rejected unrelated bytes and does not expose a partial ledger through an error |
-| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | VERIFIED_COMPONENT — DURABLE LOCAL RESTART AUTHORITY: A1 retains the full canonical checkpoint/generation and both exact accepted histories in separately versioned trusted control records; independent C/genesis remains external; load replays both histories and ordinary restart verifies the selected store; no greatest-generation selection, peer-derived pins or global freshness claim |
-| T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | PARTIAL beyond the finite verified scope: E2b retains bounded explicit storage recovery; A1 adds actual process termination at intent, store-return, confirmation and retirement boundaries, repeated recovery interruption, durable intent before mutation, confirmation before retirement and selected-candidate no-rollback; unknown/corrupt input remains preserved; physical power loss and arbitrary-corruption repair are not established |
-| T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | A1 verifies separate non-nested safe paths, control-before-store nonblocking cooperative Linux ownership, competing controller/direct-writer exclusion, bounded regular single-link records, read-only Missing/Clean/RecoveryRequired status and no handle after failure; shared status rejects active exclusive ownership; hostile same-user races, process-global admission and untested filesystems remain outside scope |
-| T31/R31 | `network_versions_do_not_fallback`: MPN2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | VERIFIED_COMPONENT — FINITE SESSION PATH: separate fixed MPQ2/version2 request, independently selected provider/requester network, unchanged MPN2 admission before socket payload allocation, no fallback or resynchronization; persistent daemon/global admission remain MB-04 |
-| T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | VERIFIED_COMPONENT — FINITE SESSION PATH: unchanged F1 history caps plus one live connection/request per owner attempt, at most eight attempts, cumulative actual I/O at most 157129488 bytes and one absolute deadline of at most 60s per attempt; matching End plus EOF required; partial/failed I/O remains charged and storage untouched on reception failure; CPU preemption/global availability are not claimed |
+| T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | VERIFIED_COMPONENT — DURABLE LOCAL RESTART AUTHORITY: A1 retains the full canonical checkpoint/generation and both exact accepted histories in separate trusted control records; external C/genesis and full selected replay remain required; A2 exposes attachment/status/explicit recovery with those unchanged pins, never greatest-generation selection or peer-derived authority |
+| T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | PARTIAL beyond the finite verified scope: E2b and A1 retain bounded recovery, actual publication-boundary SIGKILL and repeated recovery interruption with no candidate rollback; A2 checks canonical pending fixtures through real commands, kills a blocked receive before publication and observes broken stdout after completed init; these are separate evidence and do not establish physical power-loss or arbitrary-corruption repair |
+| T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | A1 verifies separate safe roots, control-before-store cooperative Linux ownership and bounded regular records; A2 commands preserve read-only status and rejected layouts, hold both roots through TCP receipt/adoption and fail competing commands before contact; actual process exit releases ownership; hostile same-user races, global admission and untested filesystems remain outside scope |
+| T31/R31 | `network_versions_do_not_fallback`: MPN2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | VERIFIED_COMPONENT — FINITE SESSION PATH: separate MPQ2/version2 request and unchanged MPN2 admission under independent network identity, no fallback or resynchronization; A2 selects a numeric peer explicitly and requires clean local A1 ownership before TCP; persistent provider lifecycle/global admission remain later MB-04 work |
+| T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | VERIFIED_COMPONENT — FINITE SESSION PATH: F1 history caps and F2 actual-I/O/deadline rules are retained; A2 fixes one attempt and one peer with explicit allowance at most 157129488 bytes and timeout at most 60s, matching End plus EOF; reception failure preserves selection; local opening/adoption/output, CPU preemption and global availability are outside that attempt deadline |
 | T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 and MB-02A use fixed signed fields, no archive/URL schema; real custody/canary/privacy acceptance remains MB-08/09, fixed fields not a privacy proof |
 | T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3/MB-02A closed kinds and MB-02B explicit allocations/no privileges retained through MB-02C actual-block supply conservation; no mint/reward mechanism or founder/marketing bonus; live economy remains MB-07 |
 | T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02C actual acceptance retains the disabled mint/reward/fee profile; D-01/D-04 remain unresolved; real admission, human consensus and finality protection remain later gates including MB-06/07 |
@@ -1430,9 +1444,10 @@ of completed test functions or a project-readiness percentage.
 
 Checkpoint **MIRROR-MB04A1-001**. **MB-04A1 is VERIFIED_COMPONENT — DURABLE LOCAL
 CONTROL / EXPLICIT RESTART RECOVERY**, within the finite library/harness scope.
-T28 now includes durable local custody. T29 retains its broader physical-failure
-boundary; T31/T32 remain verified for the existing finite TCP path. The V2 operator
-CLI and persistent service are separate work.
+T28 includes durable local custody. T29 retains its broader physical-failure
+boundary; T31/T32 remain verified for the existing finite TCP path. At this A1
+checkpoint, the V2 operator CLI and persistent service were separate work. Section
+20 records A2's later finite command layer without changing this historical record.
 
 Implementation source:
 [`32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0`](https://github.com/Ahmed-Sobeih/mirror/commit/32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0).
@@ -1525,11 +1540,129 @@ active/pending/peak **1/1/2**, two approvals, **3,605 MRB2 bytes** and **73 stat
 Full state and canonical metadata match; equal account bytes do not hide changed
 membership or population history. The example uses public APIs and synthetic data.
 
+### Next component recorded at the A1 checkpoint
+
+**At this historical checkpoint, next was MB-04A2 — finite V2
+init/status/sync-once/explicit-recover operator commands.** Section 20 records
+that command layer. The A1 API and accepted-layout contract remain intact.
+The 35 original requirements stay intact and are not a project-completion percentage.
+
+## 20. MB-04A2 finite V2 operator commands
+
+Checkpoint **MIRROR-MB04A2-001** adds the separate `mirror-node-v2` executable.
+The implemented contract is [NODE_OPERATOR_V2.md](NODE_OPERATOR_V2.md); it composes
+the accepted A1 controller and F2 sessions without changing prior production
+runtime, storage, consensus or wire semantics. The implementation is finite:
+`init` attaches control to an existing accepted profile-3 store, `status` observes,
+`sync-once` receives one candidate then adopts it, and `recover` performs only the
+explicit requested action. No fresh-store/bootstrap policy is supplied.
+
+### Exact source and acceptance fields
+
+All 38 required local command gates and all 43 exact-source CI steps passed.
+These fields record inspected full logs and published readback; full acceptance is
+in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+[master-plan section 28](../MASTER_PLAN.md). Later documentation-head CI remains separate.
+
+| Evidence | Recorded value |
+|---|---|
+| Implementation source | [eea42a403fef2a1442e553df2a6823b1b25da616](https://github.com/Ahmed-Sobeih/mirror/commit/eea42a403fef2a1442e553df2a6823b1b25da616) |
+| Tested source tree | `cda30cd7e8b564a82d09a46b7067012e7112e2dd` |
+| Parent checkpoint | `957599df1b8a424ba333d0e0c10247b2807c3a09` |
+| Published implementation/contract file count | 9 |
+| Exact-source PR CI run | [45882757484](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45882757484) |
+| Inspected full job | `140125894368` |
+| Inspected synthetic merge checkout | `7dbc9921785f52c4c0136c27dc5890f9b0188e2c` |
+
+Runtime accounting is **1,137 workspace/all-target tests**, comprising
+**1,083 retained plus 54 new**. New test functions are:
+
+| Location | New runtime functions | Evidence boundary |
+|---|---:|---|
+| [args.rs](../crates/mirror-node/src/bin/mirror-node-v2/args.rs) | 23 | Complete bounded parsing, mandatory independent inputs, command separation and pre-effect rejection |
+| [output.rs](../crates/mirror-node/src/bin/mirror-node-v2/output.rs) | 4 | Bounded records, truthful uninspected status and fallible write/flush handling |
+| [errors.rs](../crates/mirror-node/src/bin/mirror-node-v2/errors.rs) | 3 | Distinct static identity/ownership/transport diagnostics with no raw input echo |
+| [operator_commands_v2.rs](../crates/mirror-node/tests/operator_commands_v2.rs) | 24 | Actual executable invocation, sockets, state/metadata preservation, complete adoption, recovery choices, ownership and output failure |
+
+The node gate accounts for **127 runtime tests and one retained
+compile-fail documentation case**. The complete required gates passed eleven
+workspace compile-fail doctests, all required release suites, twelve independent
+references and sixteen synthetic examples. A2 adds no reference program, frozen
+format vector or example gate. Existing ignored subprocess entry points remain
+parent-invoked helpers; parameterized cases, spawned children, examples and release
+reruns are not extra unique runtime tests.
+
+Compatibility comparison found **153 of 154 retained source/reference/fixture
+files byte-identical** to the parent. Only `crates/mirror-node/Cargo.toml` adds
+`default-run = "mirror-node"`, preserving the prior V1 invocation when the separate
+V2 executable is present. Cargo.lock, previous runtime code, all prior fixtures,
+byte/hash domains, monetary behavior and dependencies remain unchanged.
+
+### Requirement-to-source mapping
+
+Dispatch and ownership live in
+[main.rs](../crates/mirror-node/src/bin/mirror-node-v2/main.rs). The table names
+unit cases in the files above and actual-command cases in `operator_commands_v2.rs`.
+The [process/socket helper](../crates/mirror-node/tests/support_operator_v2/mod.rs)
+reuses the unchanged synthetic A1/F2 history and complete-state assertions.
+
+| Boundary | Implemented test functions | Assertion and evidence scope |
+|---|---|---|
+| T01/T28 explicit attachment | `init_requires_explicit_attach_and_all_full_checkpoint_flags`, `explicit_init_attaches_existing_store_and_a_fresh_process_verifies_it`, `init_refuses_existing_control_and_never_creates_a_missing_selected_store` | No implicit fresh store, overwritten control or init-after-open-failure; exact successful pins survive a fresh process |
+| T02/T28 independently selected authority | `init_rejects_each_wrong_independent_identity_and_full_selection_pin`, `independent_config_and_genesis_mismatches_fail_before_connecting`, `hashes_accept_ascii_case_and_normalize_output` | Both external network pins and every initial selection field are checked; wrong identity fails without peer contact or changed state |
+| T21/T30 strict command admission | `malformed_missing_duplicate_and_cross_command_arguments_have_no_effects`, `invalid_hash_numeric_peer_and_limit_arguments_are_rejected_before_effects`, `non_utf8_control_characters_and_argument_budgets_are_bounded_without_effects`, `init_checkpoint_bounds_are_checked_before_any_action` | Usage exit 2 precedes filesystem/socket effects; explicit size/count/range bounds reject malformed or ambiguous command input |
+| T28/T30 missing and clean status | `missing_status_reports_uninspected_without_creating_or_reading_a_store`, `clean_status_verifies_full_pins_without_application_writes`, `invalid_clean_control_or_store_returns_failure_and_preserves_every_object` | Actual exits 3/0/1 distinguish missing control, fully replayed clean selection and invalid state; application bytes/layout/inode/mtime stay unchanged |
+| T28/T29 unresolved status | `pending_status_reports_authority_endpoints_without_inspecting_or_repairing_store`, `pending_record_labels_intent_without_claiming_current_store_selection` | Exit 4 reports confirmed/old/candidate pins with `store_selection=uninspected`, no selected claim and no guessed action, even with an invalid unresolved store |
+| T30/T31 local readiness precedes contact | `sync_rejects_missing_pending_or_malformed_local_state_before_any_tcp_connection`, `sync_requires_all_three_deliberate_session_options`, `sync_peer_is_numeric_ipv4_or_bracketed_ipv6_with_nonzero_port` | Ready A1 ownership under explicit identity is required before numeric TCP contact; missing/pending/malformed state leaves no queued connection |
+| T25/T26/T32 whole-branch transfer | `actual_tcp_identical_shorter_and_tied_histories_keep_complete_local_state`, `actual_tcp_preferred_membership_fork_survives_fresh_strict_reopen` | One actual TCP receive keeps current without writes or publishes the complete preferred accounts/membership/approvals/population state; output reports one attempt and actual charged bytes |
+| T21/T32 consuming transport failure | `incomplete_trailing_and_invalid_block_transfers_preserve_selected_state`, `valid_end_without_terminal_eof_reaches_the_supplied_deadline_without_adoption`, `positive_tiny_wire_budget_is_enforced_by_the_actual_session` | Partial/invalid/extra data, missing terminal EOF and exhausted actual-byte allowance cannot expose/adopt a candidate; selected bytes and strict reopen remain unchanged |
+| T28/T29 explicit recovery | `explicit_complete_command_publishes_the_canonical_pending_candidate`, `explicit_retain_old_command_retires_intent_without_changing_selected_store`, `candidate_selected_confirming_or_confirmed_can_only_complete_never_roll_back` | Command dispatch uses canonical persisted authority and the requested action only; selected/confirming/confirmed candidate cannot roll back |
+| T29/T30 preserved unsupported state | `unknown_and_partial_control_artifacts_are_rejected_and_preserved` | Partial control initialization, unpublished intent and unknown files/directories reject across status/init/recovery without cleanup or promotion |
+| T30 actual lifetime ownership | `sync_holds_both_roots_during_receive_and_kill_releases_ownership_without_adoption` | A real child owns both roots while response is blocked; another command fails busy without contacting its listener; killing/reaping the owner releases locks and preserves the old state |
+| T29/T30 usable failure reporting | `broken_stdout_reports_possible_completed_init_and_fresh_status_resolves_it`, `broken_writes_and_failed_flushes_return_errors_without_panics`, `diagnostics_do_not_copy_untrusted_nested_error_text`, `transport_budget_deadline_and_terminal_failures_remain_distinct` | Broken actual stdout can follow completed initialization; exit 1 carries possible-completed/inspect-status advice, then a fresh command resolves clean state; diagnostics remain static and distinguish useful failure categories |
+| T01 finite help | `help_is_finite_and_requires_no_paths_or_network`, `help_is_deliberate_and_standalone` | Help succeeds only as a standalone command and requires no selected data or peer |
+
+### Process evidence, limits and excluded claims
+
+Every new process case launches the actual executable. Listeners bind before the
+child starts, so there is no released-port race or arbitrary readiness sleep.
+Explicit channels hold a request or terminal End open until the parent has checked
+ownership/deadline behavior. Child exit/readiness and synthetic peer waits are
+bounded; children are killed and reaped on failure. The executable's tests share
+one serialization gate to avoid unrelated inherited ownership descriptors.
+
+The A2 recovery cases **construct canonical pending layouts** from accepted A1
+records and storage APIs. They establish real command handling of those layouts,
+not new publication-boundary termination evidence. A1's section 19 still supplies
+the actual SIGKILL cases at six initialization and sixteen adoption boundaries,
+plus interrupted recovery. A2 adds one actual killed child blocked in receive,
+before candidate publication. Its deterministic broken-output case closes the
+receiving stdout endpoint before child launch, observes the failed response after
+successful init, then verifies clean status and released ownership.
+
+Accepted command input is bounded to 32 arguments, 4,096 bytes each and 16,384
+cumulative bytes. One sync uses exactly one F2 attempt, timeout 1–60,000 ms and
+application I/O allowance 1–157,129,488 bytes. The deadline covers the peer attempt,
+including End and EOF; initial local replay, durable adoption and output-channel
+writes are outside it. Validation is synchronous, with late completion rejected,
+not preempted. Actual-byte limits exclude local storage/RSS/kernel/TCP overhead.
+Existing F1, A1 and store bounds remain independent and unchanged.
+
+Status is read-only at the application level; the operating system may update
+access time. Output is at most 4,096 bytes, but a blocked consumer has no output
+deadline. Operation failure or output loss alone cannot establish what reached
+durable storage. These cooperative Linux/process tests establish neither hostile
+local-owner protection, global availability nor physical power-loss certification.
+
 ### Exact next component
 
-**Next: MB-04A2 — finite V2 init/status/sync-once/explicit-recover operator commands.**
-The A1 library now supplies persisted local authority, bounded intent and explicit
-restart recovery; its API and accepted-layout contract must remain intact.
-Persistent serving, reconnect/rejoin scheduling, multi-peer policy, global admission,
-transaction pool, wallet and later human/economic/device gates remain unfinished.
-The 35 original requirements stay intact and are not a project-completion percentage.
+**Next: MB-04B1 — bounded V2 provider lifecycle and shutdown; design first.**
+The design must require explicit control/store paths, independent identity and
+listen address; strictly clean A1 ownership before bind; and one fixed accepted
+history for the provider lifetime under held control/store ownership. Concurrent
+A2 invocations must observe busy ownership. Process-wide attempts, active
+connections, aggregate actual bytes and lifecycle budgets must survive replacement
+of a finite F2 session owner, with explicit bounded shutdown and tested release.
+No auto initialization/recovery, reconnect policy, multi-peer scheduling, pool or
+wallet is included. MB-04 remains IN_PROGRESS; the original 35 requirements and
+Gate A/B remain broader than this finite command component.

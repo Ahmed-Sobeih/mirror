@@ -1133,10 +1133,12 @@ pinky/Ant Kiss plus accessible-route proposals remain unchanged and retain their
 later decision/evaluation gates. No actual personal records, device capture or
 hardware purchase is needed for this software acceptance.
 
-### Exact next increment — MB-04A2
+### Historical A1 continuation — MB-04A2
 
-**Next: finite V2 init/status/sync-once/explicit-recover operator commands.** Build
-these through the accepted A1 library and existing F2 bounded peer-session APIs.
+**At the A1 checkpoint, next was finite V2 init/status/sync-once/explicit-recover
+operator commands.** The following was that continuation plan; the A2 engineering
+record follows below. Build these through the accepted A1 library and existing F2
+bounded peer-session APIs.
 Keep network/path selection and initialization explicit; failed opening cannot
 silently initialize or repair. Status remains read-only. Sync-once preserves F2
 attempt/deadline limits and A1's complete durable-intent ordering, and unresolved
@@ -1144,3 +1146,124 @@ intent requires a separately requested recovery action. Verify command output,
 failure exits, independent process restart and whole-branch state. Persistent
 serving/reconnect/multi-peer scheduling, transaction pool and wallet remain later
 MB-04 work; do not bundle them into this operator increment.
+
+## MB-04A2 engineering choices — MIRROR-MB04A2-001
+
+The separate `mirror-node-v2` executable implements finite explicit operator
+commands through the existing A1 control and F2 receiver APIs. Its source contract
+is [NODE_OPERATOR_V2.md](NODE_OPERATOR_V2.md); acceptance evidence belongs to
+the [master plan](../MASTER_PLAN.md), section 28, and
+[CURRENT_STATUS.md](../CURRENT_STATUS.md). This is a bounded component of MB-04,
+which remains **IN_PROGRESS**. Provider lifecycle and scheduling, pool and wallet
+remain unfinished; Gate A and Gate B remain unmet.
+
+Implementation source: **eea42a403fef2a1442e553df2a6823b1b25da616**.
+Tested source tree: **cda30cd7e8b564a82d09a46b7067012e7112e2dd**.
+Parent checkpoint: **957599df1b8a424ba333d0e0c10247b2807c3a09**.
+[Source PR CI 45882757484](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45882757484)
+passed all **43 steps**. Full job `140125894368` logs were inspected and confirm
+**1,137 runtime tests and eleven compile-fail doctests**, with zero failures.
+Its actual synthetic PR checkout `7dbc9921785f52c4c0136c27dc5890f9b0188e2c` has no file differences
+from the implementation commit. All **9 published implementation/contract
+files** were read back byte-for-byte against locally tested content.
+Later documentation-head CI is checked separately and recorded on PR #1; source
+acceptance does not assert that a future head is tested. PR #1 remains OPEN and
+UNMERGED on `work/personhood-register-v0.1`. Main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+### Explicit finite commands and validation before effects
+
+All operational commands require deliberate control/store directories and
+independently selected C/genesis. `init` uses the allowed attach alternative:
+mandatory valueless `--attach-existing` and independent full endpoint/generation
+pins for an already initialized profile-3 store. It creates no chain or store,
+chooses no bootstrap distribution and never falls back after a failed open.
+Existing A1 initialization failures may leave empty/partial control state; the
+operator command preserves that state and reports failure.
+
+`status` calls only A1's read-only observation. Missing means missing control,
+not missing storage. Valid pending status reports confirmed/old/candidate intent
+pins with `store_selection=uninspected`, without selecting a recovery action or
+claiming the current store endpoint. `recover` directly requests the explicit
+`complete` or `retain-old` action and preserves A1's recognized-layout and
+selected/confirmed-candidate no-rollback boundaries.
+
+The parser admits at most 32 arguments after the executable name, 4,096 bytes
+per token and 16,384 total bytes. It rejects non-UTF-8/control input, duplicates,
+unknown/foreign-command flags, extras, missing values and malformed or overflowing
+numbers/hashes. Hashes are exactly 64 ASCII hex characters; both cases are accepted
+and output is lowercase. Unsigned decimal has no leading zero except `0`. Init
+requires height at most 4,095 and generation no greater than height before A1 can
+create a directory.
+All command and session-limit validation completes before filesystem/socket work.
+No environment/config-file fallback, DNS or implicit working-directory selection
+is introduced. Standalone help performs no filesystem or network operation.
+
+### One ready owner, one request and bounded reporting
+
+`sync-once` requires an explicit numeric nonzero-port peer, 1–60,000 ms timeout and
+positive F2 I/O allowance at most 157,129,488 bytes. It strictly opens the clean A1
+controller before contacting the peer, holds that same owner throughout exactly one F2
+request, then consumes it through A1 adoption. Missing, pending, malformed,
+mismatched or busy local state rejects before TCP contact. Peer data never becomes
+independent identity. Complete-branch comparison, transport validation, actual
+I/O charging and durable intent/confirmation ordering remain in their existing
+layers. There is no second attempt, reconnect, automatic recovery or action switch.
+
+Output uses a fixed 4,096-byte `key=value` buffer. Completed sync reports the
+choice, previous/selected full pins, one actual attempt and charged I/O bytes.
+No success record is emitted for an operation that fails. Static diagnostic
+categories omit raw arguments, paths, peer payloads and nested error text. Exit
+0 means help, clean status or operation success; 1 means operational/output
+failure; 2 means usage failure before effects; status alone uses 3 for missing
+control and 4 for valid unresolved intent.
+
+Writes and flushes are fallible. Output failure after init/sync/recover reports
+`operation_may_have_completed=true` and directs status inspection without retry.
+An A1 error after intent retirement may already leave confirmed clean state;
+unknown/corrupt control is not automatically repaired. The session timeout excludes
+opening, adoption and output, whose writes have no deadline. Argument/encoded-byte
+bounds are not RSS or physical power-loss guarantees. Local ownership still assumes
+cooperating Linux processes and trusted operator/parent paths.
+
+### Acceptance checkpoint and preserved policy
+
+Verified source acceptance records **1,137 passed** workspace/all-target runtime
+tests, including 54 new tests: 30 binary tests (23 parser, four output,
+three diagnostic) and 24 actual-command process tests. Required
+documentation coverage remains eleven compile-fail doctests. The node release
+suite records 127 runtime tests plus one doctest. All existing
+Rust 1.98.0/locked workspace, documentation and release gates, twelve independent
+references and sixteen synthetic examples all passed locally and in exact-source CI.
+Release reruns and multiple scenarios within one test are not new unique tests.
+
+Compatibility verification confirms **153 of 154 retained source/reference/
+fixture files byte-identical**. The sole retained change is node
+Cargo.toml's `default-run = "mirror-node"`, preserving V1's default invocation
+after adding a second binary. Cargo.lock, dependencies, lower-layer/V1 source,
+existing byte formats/hash domains and frozen fixtures remain unchanged. This
+record accepts the tested implementation; later documentation-head CI is checked
+and recorded separately.
+
+No monetary formula, grant, reward, founder/marketing privilege, production
+admission threshold or final human-consensus policy is selected. The user's
+combined ECG/designated-pinky/human-supervised Ant Kiss preference and proposed
+accessible exception route remain as recorded above, with private limitation
+details, identity continuity and unresolved evaluation/decision gates. No real
+keys, personal records, biometric capture or hardware purchase is needed here.
+
+### Exact next increment — MB-04B1
+
+**Next: bounded V2 provider lifecycle and shutdown, starting with an explicit
+design before implementation.** Specify deliberate paths, independent network
+identity and listen address, strict clean A1 opening before bind, and a fixed
+accepted history served under the held owner. Current exclusive A1 ownership
+makes concurrent A2 status/sync commands busy; the design must state that tradeoff.
+
+Define process-level session, active-connection, aggregate-byte and lifecycle
+bounds that survive creation of new F2 owners rather than silently resetting
+allowances. Specify explicit idle and in-flight shutdown, stopping admission and
+bounded resource/ownership release, with actual-process verification. These are
+future design/implementation requirements, not a completed provider or daemon.
+No auto-init/recovery, reconnect/multi-peer scheduling, transaction pool or wallet
+is included in B1. The remaining MB-04 and Gate A/B work stays incomplete.

@@ -50,10 +50,12 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-04A2, finite
-V2 init/status/sync-once/explicit-recover operator commands. MB-04A1 is a verified
-durable control/restart component; persistent serving, scheduling, pool and wallet
-remain later MB-04 work.
+NEXT_SESSION.md points to the next unfinished task: currently MB-04B1, bounded
+V2 provider lifecycle and shutdown, beginning with an explicit design before
+implementation. MB-04A1 is a verified durable control/restart component. MB-04A2
+is VERIFIED_COMPONENT — FINITE V2 OPERATOR COMMANDS; exact-source acceptance is
+recorded below. Provider lifecycle, scheduling, pool and wallet remain later
+MB-04 work; the B1 design is not an implemented capability.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -85,19 +87,36 @@ MB-04A1 adds NodeControlV2's separate durable confirmed record and exact
 old/candidate intent, clean restart, read-only status and explicit recovery.
 It is VERIFIED_COMPONENT — DURABLE V2 CONTROL / EXPLICIT RESTART RECOVERY.
 F2's own recovery inputs remain memory-only; A1 supplies a separate persistent
-wrapper. Finite operator commands are next in MB-04A2; daemon/reconnect/multi-peer
-scheduling, pool and wallet remain later MB-04. Gate A/B remain unmet. Current
-source/test/publication evidence belongs to the checkpoint files, not a task-count
-percentage. A1 acceptance records 1,083 runtime tests, eleven doctests, twelve
-references and sixteen examples; release reruns are not additional unique tests.
+wrapper. At the A1 checkpoint, finite operator commands were next. MB-04A2 now
+implements separate explicit attach-existing initialization, read-only status,
+one receive/adoption and explicit recovery through A1/F2. MB-04 remains IN_PROGRESS;
+provider lifecycle, reconnect/multi-peer scheduling, pool and wallet are unfinished.
+Gate A/B remain unmet. Current source/test/publication evidence belongs to the
+checkpoint files, not a task-count percentage. A1's historical acceptance records
+1,083 runtime tests, eleven doctests, twelve references and sixteen examples;
+release reruns are not additional unique tests.
+
+A2 exact-source acceptance passed: 1,137 workspace runtime
+tests, including 54 new tests (30 binary tests: 23 parser, four output,
+three diagnostic; 24 actual-command process tests), eleven
+doctests, twelve references and sixteen examples. The node release suite records
+127 runtime tests plus one doctest. Implementation source:
+`eea42a403fef2a1442e553df2a6823b1b25da616`; tree: `cda30cd7e8b564a82d09a46b7067012e7112e2dd`; source CI: `45882757484`, job `140125894368`,
+checkout `7dbc9921785f52c4c0136c27dc5890f9b0188e2c`; published source-file readback: 9 files.
+All 43 source-CI steps passed; full logs and published readback were inspected.
+Compatibility verification confirms 153 of 154 retained source, reference and
+fixture files byte-identical; the sole retained change is
+node Cargo.toml's explicit V1 default-run. Cargo.lock and lower-layer/V1 source,
+dependencies, formats and frozen fixtures must remain unchanged. See master
+section 28 for the A2 checkpoint and separate later documentation-head evidence.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
 docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_V2.md,
 docs/STORAGE_REPLACEMENT_STORE_V2.md, docs/STORAGE_REPLACEMENT_RECOVERY_V2.md,
 docs/PEER_HISTORY_V2.md, docs/PEER_SESSION_V2.md, docs/CANDIDATE_ADOPTION_V2.md,
-docs/NODE_CONTROL_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
-docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
+docs/NODE_CONTROL_V2.md, docs/NODE_OPERATOR_V2.md, docs/MEMBERSHIP_STATE_V2.md,
+docs/REPLAY_V2.md, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
 membership. The trusted parent view must come from locally validated stable ancestry.
@@ -403,18 +422,61 @@ confirmation staging delegates explicit Complete/RetainOld to existing recovery.
 A selected or confirmed candidate cannot roll back. Never weaken storage's accepted
 layouts, delete unknown data or add control artifacts inside the store root.
 
-## Exact next increment — MB-04A2
+## MB-04A2 finite operator invariants
 
-Implement finite, separate V2 init/status/sync-once/explicit-recover operator
-commands through the accepted A1 control and F2 transport APIs. Keep independent
-network/path selection explicit. Initialization is separately requested and never
-an automatic fallback after failed opening. Status must not initialize, synchronize,
-mine, contact peers or repair. Sync-once uses F2's bounded owner/deadlines and A1's
-persisted-intent ordering; unresolved intent requires an explicit recovery command.
-Verify useful operator output, failure exits, restart behavior and full whole-branch
-state through independent process tests. Do not bundle a daemon, reconnect/multi-peer
-scheduler, transaction pool or wallet into this increment. No unresolved monetary,
-enrollment or device policy blocks these dependency-ready operator commands.
+Read [docs/NODE_OPERATOR_V2.md](docs/NODE_OPERATOR_V2.md) before modifying the separate
+mirror-node-v2 executable. Preserve V1's source and explicit package default-run.
+The commands are init, status, sync-once, recover and standalone help. Require
+explicit control/store paths and independent C/genesis; no environment/config-file
+fallback, DNS, implicit initialization, automatic recovery or retry is permitted.
+
+Validate the entire command before filesystem/socket effects: at most 32 arguments
+after the executable name, 4,096 bytes per token and 16,384 total bytes. Reject
+non-UTF-8/control input, duplicate/unknown/mixed-command flags, positional extras,
+missing values and malformed/overflowing numbers or hashes. Use canonical unsigned
+decimal and exact 64-character ASCII hex; accept either hex case and output lowercase.
+Init requires valueless --attach-existing plus independent height/tip/root/generation;
+height must be 0 through 4,095 and generation no greater than height before calling
+A1. It attaches control to an already initialized profile-3 store and never creates
+fresh storage.
+
+Status calls only A1 status: missing control exits 3, verified clean exits 0,
+valid pending intent exits 4, invalid/operational errors exit 1. Pending output
+labels confirmed/old/candidate pins and store_selection=uninspected; it never
+asserts the unresolved store's selected endpoint. Usage errors exit 2 before effects.
+Other commands use exit 1 for missing/pending operational failures.
+
+Sync validates a numeric nonzero-port address, 1–60,000 ms timeout and positive
+I/O allowance at most 157,129,488 bytes, then strictly opens the ready A1 owner
+before network contact. Hold that same controller through exactly one F2 request and consuming
+adoption; pending, malformed, mismatched or busy local state must contact no peer.
+The timeout covers the session, not local opening/adoption or output. Recovery
+takes an explicit complete/retain-old action and preserves every A1 no-rollback rule.
+
+Emit bounded 4,096-byte key=value records only after API success; report actual
+attempts/charged I/O and previous/selected pins for successful sync. Diagnostics
+use static categories without raw arguments, paths or nested error text. Use
+fallible writes/flushes; output loss after init/sync/recover can follow durable
+success and must report operation_may_have_completed=true plus inspect-status.
+Never retry a mutation because output failed or claim all errors leave intent.
+
+## Exact next increment — MB-04B1
+
+Begin with an explicit design for bounded V2 provider lifecycle and shutdown,
+then implement against that contract. Require explicit paths, independent network
+identity and listen address; strictly open clean A1 control before binding. Serve
+one fixed accepted history under the held owner. With current exclusive A1 ownership,
+concurrent A2 status/sync commands are busy; do not promise shared availability or
+silently refresh the selected history.
+
+Define process-level session, active-connection, aggregate-byte and lifecycle
+bounds that cannot reset merely by creating another F2 owner. Specify explicit
+shutdown while idle and in flight, cessation of admission and bounded resource/
+ownership release. Verify these boundaries with actual processes before claiming
+provider completion. This is planned work, not an existing server or daemon.
+No auto-init/recovery, reconnect/multi-peer scheduler, transaction pool or wallet
+belongs to B1. No unresolved monetary, enrollment or device policy blocks this
+dependency-ready engineering design.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

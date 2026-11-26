@@ -29,13 +29,21 @@ their finite storage and peer-session scope.** **MB-04A1 now adds durable node
 control state and restart authority** in a separate operator-owned directory:
 confirmed local pins and both exact accepted histories survive process restart,
 and unfinished intent requires an explicit recovery decision. MB-04A1 is a
-VERIFIED_COMPONENT within this finite control/restart scope. Current acceptance
-is recorded in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+VERIFIED_COMPONENT within this finite control/restart scope. **MB-04A2 now adds
+the separate finite `mirror-node-v2` operator executable**, with explicit
+`init`, `status`, `sync-once` and `recover` commands using that unchanged A1
+authority. Current source, required-gate and CI acceptance are recorded separately
+in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04A2: finite V2 init/status/sync-once/explicit-recover operator
-commands**, using the A1 library. Persistent serving, reconnect/rejoin scheduling,
-global connection admission, multi-peer policy, transaction pool and wallet remain
-unfinished. The existing V1 executable remains separate.
+Next is **MB-04B1: bounded V2 provider lifecycle and shutdown**, beginning with
+design before implementation. It must define explicit paths, network identity and
+listen address; clean A1 ownership before bind; one fixed accepted history under
+held ownership; process-wide attempt/active-connection, aggregate-byte and
+lifecycle budgets; and bounded shutdown. New F2 owners must not replenish these
+budgets. Concurrent A2 commands will observe busy ownership. Persistent
+reconnect/rejoin scheduling, multi-peer policy, transaction pool and wallet remain
+unfinished. **MB-04 remains IN_PROGRESS; Gate A and Gate B are unmet.** The existing
+V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -228,9 +236,117 @@ consume the ready node owner and return no ordinary storage writer. The operator
 and parent directories are trusted; checksums and cooperative Linux locks do not
 establish protection against a hostile owner or physical power-loss guarantees.
 
+## Running the finite V2 operator
+
+The [operator contract](docs/NODE_OPERATOR_V2.md) defines the separate executable,
+required options, output and failure behavior. Help needs no paths or network:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- --help
+```
+
+Every operational command requires explicit `--control-dir`, `--store-dir`,
+`--config-hash` and `--genesis-hash`. Choose separate trusted directories with
+existing parents. Network hashes are independently retained 64-character hex
+values. There is no configuration-file, environment or working-directory fallback.
+The shell variables in the following invocations stand for those operator-supplied
+values; set them from your trusted local records before running the commands.
+
+Read-only status verifies a clean selection, or reports missing control or valid
+unresolved intent without repairing it:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- status \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash"
+```
+
+Initialization **only attaches control to an already initialized profile-3
+replacement store**. Supply the independently retained full checkpoint and local
+generation. This command does not create a fresh chain/store or import bootstrap
+history; those remain explicit existing library operations. Existing control is
+not overwritten, and a failed execution may leave an empty or partial control
+directory that remains preserved.
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- init \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --attach-existing --height "$mirror_height" --tip-hash "$mirror_tip_hash" \
+  --ledger-root "$mirror_ledger_root" --generation "$mirror_generation"
+```
+
+One synchronization requires an explicitly selected numeric peer address with a
+nonzero port, timeout and application-byte allowance. It opens the ready local
+controller before contacting that peer, holds both roots through receipt/adoption,
+requires matching End plus EOF, and performs one attempt with no retry:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- sync-once \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --peer "$mirror_peer_address" --timeout-ms 5000 --max-io-bytes 157129488
+```
+
+The peer must already serve the finite F2 protocol. This executable starts no
+provider or daemon. The timeout bounds the peer attempt, excluding local opening
+and later durable adoption; it does not preempt synchronous validation or bound
+output writes. The byte allowance counts actual session application I/O, including
+partial operations, rather than local storage, memory or TCP overhead.
+
+Recovery is a separately requested action. Set `mirror_recovery_action` to
+`complete` or `retain-old` only after reviewing the unresolved state. A selected
+or confirming candidate cannot roll back; unsupported artifacts remain rejected.
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- recover \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --action "$mirror_recovery_action"
+```
+
+Output uses bounded `key=value` records. Exit 0 means help, clean status or a
+completed operation; 1 means an operational failure; 2 means rejected command
+input before effects. Status alone uses 3 for missing control and 4 for unresolved
+intent. Pending status labels `store_selection=uninspected`; it does not assert
+which endpoint is currently selected or that both recovery actions are available.
+If output fails after a mutation, `operation_may_have_completed=true` directs the
+operator to inspect status. A lost response is not authority to repeat a mutation.
+
 ## Verification checkpoints
 
-Current MB-04A1 source is
+The **MB-04A2 acceptance record** belongs to master-plan section 28 and
+[test-matrix section 20](docs/MEMBERSHIP_TEST_MATRIX.md#20-mb-04a2-finite-v2-operator-commands).
+All 38 required local command gates and all 43 exact-source CI steps passed.
+The fields below come from inspected full logs and published source readback.
+
+| A2 evidence field | Recorded value |
+|---|---|
+| Implementation source | [eea42a403fef2a1442e553df2a6823b1b25da616](https://github.com/Ahmed-Sobeih/mirror/commit/eea42a403fef2a1442e553df2a6823b1b25da616) |
+| Tested source tree | `cda30cd7e8b564a82d09a46b7067012e7112e2dd` |
+| Parent checkpoint | `957599df1b8a424ba333d0e0c10247b2807c3a09` |
+| Published implementation/contract file count | 9 |
+| Workspace runtime tests | 1,137 |
+| New runtime tests | 54 |
+| Actual-command process tests | 24 |
+| Node runtime tests | 127 |
+| Exact-source PR CI run / full job | [45882757484](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45882757484) / `140125894368` |
+| Inspected synthetic merge checkout | `7dbc9921785f52c4c0136c27dc5890f9b0188e2c` |
+
+The new binary has 23 parser, four output and three diagnostic unit cases; its
+actual-command integration suite is counted separately above. The retained gate
+set passed all eleven compile-fail doctests (including the node's one case),
+all required release suites, twelve independent references and sixteen synthetic
+examples. A2 introduces no additional example/reference gate. Parameterized
+scenarios, spawned processes and release reruns do not add unique tests.
+
+Compatibility comparison against the parent found **153 of 154 retained source,
+reference and fixture files byte-identical**. Only the node Cargo manifest adds
+`default-run = "mirror-node"`, preserving the V1 default after the second binary
+is added. Cargo.lock, all prior runtime code, formats and fixtures remain unchanged.
+The exact source/CI and later documentation-head evidence remain separate.
+
+The following MB-04A1 source is a **historical accepted checkpoint**:
 [`32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0`](https://github.com/Ahmed-Sobeih/mirror/commit/32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0),
 with tested tree `d79080968d822a2267ce5f1b1196efcf16d2e546` and parent
 `37010bc5c5827f5a8dd886af0e79d079ebfe1d4e`.
@@ -261,7 +377,7 @@ subprocess entry points are exercised by their parent tests; they are not additi
 passing cases. Exact-source CI and later documentation-head evidence are tracked in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 Earlier MB-03E2a/E2b and F1 acceptance remains in master-plan sections 23–25;
-F2 is preserved in section 26 and A1 is recorded in section 27. The following
+F2 is preserved in section 26, A1 in section 27 and A2 in section 28. The following
 MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
@@ -341,6 +457,15 @@ Never use these keys for assets with value. Never upload biometric records,
 secrets or `mirror-data` to GitHub.
 
 ## Development checks
+
+Use Rust 1.98.0 and locked dependencies. The focused operator checks are:
+
+```sh
+cargo +1.98.0 test -p mirror-node --bin mirror-node-v2 --locked
+cargo +1.98.0 test -p mirror-node --test operator_commands_v2 --locked
+```
+
+The complete required gates remain:
 
 ```sh
 cargo test --workspace --all-targets --locked
