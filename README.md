@@ -22,11 +22,17 @@ ownership, checked old-copy cleanup, failure fencing and clean reconciliation.
 and cleanup**, using independently retained old/candidate histories and an explicit
 completion or retention action. **MB-03F1 adds separate V2 history frames and an
 in-memory receiver that executes a complete candidate from genesis**, under an
-independently selected network. Current acceptance evidence is in
+independently selected network. **MB-03F2 adds finite TCP sessions and explicit
+durable adoption of a completely validated candidate**, including retained inputs
+for explicit recovery. **MB-03F2, MB-03F and MB-03 are VERIFIED_COMPONENT within
+their finite storage and peer-session scope.** Current acceptance evidence is in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
-Next is **MB-03F2: bounded peer sessions and durable candidate adoption**, followed
-by persistent V2 node integration in MB-04.
-MB-03 as a whole and the V2 node/API remain unfinished.
+
+Next is **MB-04A1: durable node control state and restart authority**. It must
+preserve independent network/current-selection pins and exact replacement intent,
+including both histories, outside the strict store root before mutation. Restart
+recovery must remain explicit. MB-04A2 then adds operator commands. The persistent
+V2 daemon, global connection admission, wallet and operator APIs remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -74,8 +80,8 @@ final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.
 and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
 authority; a caller-supplied hash alone is not proof of actual block validity.
 Actual V2 validation and storage now exist in the separate layers below. Bounded
-tip updates and explicit recovery of recognized one-child staging are implemented;
-V2 peer messages and rewards remain later work.
+tip updates and explicit recovery of recognized one-child staging are implemented.
+Separate V2 peer sessions are described below; grants and rewards remain later work.
 
 `mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
 MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
@@ -174,16 +180,43 @@ network independently, validates every actual block through `ChainV2`, and expos
 a candidate only after terminal consistency and full accounting pass. A peer's
 claimed endpoint identifies its promised transfer; it cannot select the local
 canonical chain. Header admission checks phase, length and remaining budgets
-before a future transport allocates its payload. Any receiving error consumes
+before the TCP adapter allocates its payload. Any receiving error consumes
 the attempt and its private partial chain. The immutable sender produces one frame
 at a time from an accepted branch. This F1 component opens no socket and publishes
-no stored selection; actual session/adoption integration is F2.
+no stored selection. The separate F2 session and adoption layers compose it below.
+
+The [V2 session contract](docs/PEER_SESSION_V2.md) adds one fixed 72-byte MPQ2
+request and one complete unchanged F1 response per TCP connection. Both endpoints
+use independent configuration/genesis pins. The requester must receive a matching
+End and response EOF before obtaining a candidate. A non-Clone session owner permits
+one active connection, at most eight sequential attempts, a finite cumulative
+read/write allowance and one absolute deadline of at most 60 seconds per attempt.
+Partial reads/writes and failed attempts remain charged; slow fragments cannot
+refresh that deadline. These are per-owner bounds, not global availability or
+hard CPU-preemption guarantees.
+
+The [candidate adoption contract](docs/CANDIDATE_ADOPTION_V2.md) checks the complete
+received candidate against the locally selected current history and independently
+retained current checkpoint. Tied or shorter histories keep current without writes.
+A preferred branch is published through the existing owned replacement store.
+Both exact histories and local checkpoints are retained before publication; failure
+preserves ownership for explicit recovery and exposes no ordinary writer. These
+recovery inputs are in memory, so persisting restart authority is the next node task.
+Fresh initialization remains a separate explicit operation, never a fallback after
+an existing-store open fails.
 
 ## Verification checkpoints
 
-Current MB-03F1 verification and publication evidence is tracked in
+Current MB-03F2 source is
+[`851193ea6428198441e6cdf29361b1885fae157b`](https://github.com/Ahmed-Sobeih/mirror/commit/851193ea6428198441e6cdf29361b1885fae157b).
+All required local gates passed **1,010 runtime tests, ten compile-fail doctests,
+all required release suites, eleven independent references and fifteen synthetic
+examples**. The 59 new runtime cases include actual TCP processes, malformed/stalled
+traffic, whole-membership-fork adoption and explicit recovery ownership. Two ignored
+subprocess entry points are exercised by their parent tests; they are not additional
+passing cases. Exact-source CI and later documentation-head evidence are tracked in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
-MB-03E2a/E2b acceptance remains in master-plan sections 23–24. The following
+Earlier MB-03E2a/E2b and F1 acceptance remains in master-plan sections 23–25. The following
 MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
@@ -215,7 +248,7 @@ adds accepted mixed and empty blocks, then reopens and checks the complete state
 The recovery example constructs known partial-write shapes, completes an append,
 repeats it idempotently, retains another parent, and then performs an ordinary next
 append. These are controlled software scenarios, not physical power-loss tests.
-They do not start a persistent V2 network; that integration remains MB-03/04.
+They do not start a persistent V2 daemon; that integration remains MB-04.
 The fork-choice example compares frozen branches with equal account bytes and
 different membership, demonstrates sticky ties, and borrows the complete longer
 selected branch without changing either input or a store.
@@ -231,6 +264,11 @@ files, explicitly completes replacement, reopens the complete result and repeats
 completion idempotently. It rejects rolling back the selected candidate and shows
 `RetainOld` in a second owned store. It simulates residual layouts, not a physical
 power cut. Its histories and endpoint pins come from frozen independent fixtures.
+The new `peer_session_v2_demo` starts separate real provider processes over localhost
+TCP. It explicitly initializes and strictly reopens a fresh peer, keeps current
+on an equal-height membership fork, then adopts and reopens a preferred fork whose
+accounts match but memberships and population history differ. Each provider and
+receiver use their own synthetic store; the example is finite and is not a daemon.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -271,6 +309,7 @@ python3 tools/reference_storage_v2.py --check
 python3 tools/reference_append_storage_v2.py --check
 python3 tools/reference_replacement_storage_v2.py --check
 python3 tools/reference_peer_history_v2.py --check
+python3 tools/reference_peer_session_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
@@ -285,6 +324,7 @@ cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
 cargo run -p mirror-storage --example replacement_store_v2_demo --locked
 cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked
 cargo run -p mirror-network --example history_receiver_v2_demo --locked
+cargo run -p mirror-network --example peer_session_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

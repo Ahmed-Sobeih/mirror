@@ -60,7 +60,8 @@ create a new identity. Both readings remain protected off-chain.
 The revised [device input draft](DEVICE_INPUT_CONTRACT.md) records these boundaries
 and primary engineering references. This discussion adds no device support, changes
 no consensus or monetary rule, and does not advance implementation past MB-03D.
-Next remains MB-03E; the rough Gate A progress estimate remains 20–25%.
+At this discussion checkpoint, next remained MB-03E; the rough Gate A progress
+estimate remained 20–25%.
 
 ## User proposal — accessible enrollment, 2026-11-26
 
@@ -80,7 +81,7 @@ has not authorized public medical descriptions or selected a replacement biometr
 Later design must preserve identity/claim continuity and allow reviewed corrections
 without casual toggles or an irreversible inaccurate label. This is future work
 under MB-05/08/09/10/12 and D-02/D-05/D-06. No current API, policy threshold, money
-rule or implementation status changes. Next remains MB-03E.
+rule or implementation status changes. At this discussion checkpoint, next remained MB-03E.
 
 ## User clarification — combined initial enrollment profiles, 2026-11-26
 
@@ -102,8 +103,8 @@ preserve cross-profile duplicate scope and membership/claim continuity. Shared
 physical descriptions are context, not an independent uniqueness guarantee. Later
 upgrades cannot retroactively validate earlier admissions. These refinements are in
 [the accessibility proposal](ACCESSIBLE_ENROLLMENT_PROPOSAL.md) and
-[device draft v0.3](DEVICE_INPUT_CONTRACT.md). Next remains MB-03E; no code/test or
-progress milestone is added by this discussion.
+[device draft v0.3](DEVICE_INPUT_CONTRACT.md). At this discussion checkpoint, next
+remained MB-03E; no code/test or progress milestone was added by this discussion.
 
 ## Implementation boundaries for this milestone
 
@@ -424,7 +425,7 @@ No data is deleted, pending candidate promoted, or generation selected merely to
 make recovery succeed. **At the MB-03B checkpoint, next was MB-03C: explicit
 interrupted-append staging recovery**, followed by reviewed canonical branch
 selection, durable membership reorganization and peer reconstruction. MB-03
-remains in progress; MB-04's live
+remained in progress at that checkpoint; MB-04's live
 V2 node/API and MB-06 human finality remain later work.
 
 The independent append reference derives new MSU2 bytes from pinned prior
@@ -758,18 +759,18 @@ Exact source, private fault/retry, process-ownership and published CI evidence a
 tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and the
 [master plan](../MASTER_PLAN.md), separately from the focused result above.
 
-**Next is MB-03F: fresh-peer reconstruction**, then persistent V2 node/operator
-integration under MB-04. E2b completes a bounded local recovery component, not
+**At the E2b checkpoint, next was MB-03F: fresh-peer reconstruction**, then persistent
+V2 node/operator integration under MB-04. E2b completes a bounded local recovery component, not
 MB-03 as a whole or Gate A/B. It changes no monetary, grant, reward, fee, founder,
 marketing, biometric, accessibility or human-consensus policy. No device support,
 biological uniqueness, anonymity, public launch or real-money readiness is claimed.
 
 ## MB-03F1 engineering choices — MIRROR-MB03F1-001
 
-MB-03F is split into a checked transfer/reconstruction component (F1), followed by
+MB-03F was split into a checked transfer/reconstruction component (F1), followed by
 actual bounded peer-session and durable-adoption integration (F2). F1 implements
 the separate [MPN2 framing and candidate receiver](PEER_HISTORY_V2.md). This split
-does not mark network reconstruction or MB-03 as a whole complete. Verification
+alone did not mark network reconstruction or MB-03 as a whole complete. Verification
 and exact source/publication evidence belong to CURRENT_STATUS and master section 25.
 
 The new protocol uses its own magic, version and Begin/Manifest/Block/End kinds.
@@ -804,8 +805,9 @@ limits. Its complete encoded transfer ceiling is 19,641,112 bytes in at most
 has its exact empty-block size. The decoded configuration further restricts child
 sizes, and every block header admission reserves the minimum/maximum space for
 all remaining blocks. Bounds are per transfer, not resident-memory, wall-clock or
-global connection limits. F2 must supply session ownership, deadlines, I/O failure
-handling and explicit accepted-branch adoption without weakening these checks.
+global connection limits. At this checkpoint, F2 was assigned session ownership,
+deadlines, I/O failure handling and explicit accepted-branch adoption without
+weakening these checks; its later completion is recorded below.
 
 Two existing workspace crates, mirror-chain and mirror-core, become mirror-network
 runtime dependencies. Existing mirror-consensus and mirror-personhood are test-only
@@ -814,3 +816,178 @@ cases. No third-party dependency version changes. The old V1 code, earlier V2
 formats/hash domains, monetary policy and stored history remain unchanged.
 No enrollment rule, device adapter, biometric storage, founder privilege or reward
 formula is selected by this networking component.
+
+## MB-03F2 engineering choices — MIRROR-MB03F2-001
+
+Implementation source:
+[`851193ea6428198441e6cdf29361b1885fae157b`](https://github.com/Ahmed-Sobeih/mirror/commit/851193ea6428198441e6cdf29361b1885fae157b).
+Tested tree: `cf2e4bb9d29b250a000bb4680d1571e0355d1126`.
+Parent: `f47b4306b13c4d079859472f2fdd919debd83eda`.
+Exact-source CI and any later documentation-head results belong to
+[CURRENT_STATUS.md](../CURRENT_STATUS.md), separately from the local results below.
+
+F2 implements [finite V2 TCP sessions](PEER_SESSION_V2.md) and
+[complete-candidate adoption](CANDIDATE_ADOPTION_V2.md), composed with the unchanged
+F1 receiver, accepted-history comparator and owned replacement/recovery APIs.
+MB-03F2 is **VERIFIED_COMPONENT — FINITE TCP / DURABLE ADOPTION**;
+MB-03F is **VERIFIED_COMPONENT — BOUNDED FRESH-PEER RECONSTRUCTION**; and MB-03 is
+**VERIFIED_COMPONENT — V2 STORAGE / EXPLICIT RECOVERY / FINITE PEER SYNCHRONIZATION**.
+These statuses identify the implemented finite component boundary. Persistent
+restart authority, daemon lifecycle, global scheduling, reconnect/multi-peer policy,
+pool, wallet and operator APIs remain MB-04. Gate A and Gate B remain unmet.
+
+### Dedicated request and terminal socket boundary
+
+One exact 72-byte MPQ2 request carries version 2, full-history request kind 1 and
+independently selected configuration/genesis hashes. It carries no height, local
+generation, signed checkpoint or personhood claim. The provider independently
+checks both its accepted history and the request against its locally selected
+identity before responding. MPQ2 is a separate preamble; frozen MPN2 F1 frames,
+V1 MIRR bytes/APIs and legacy node commands remain unchanged.
+
+The requester sends the one request and shuts down its write half. The provider
+requires request EOF before it streams one immutable accepted history. The
+requester must accept every unchanged F1 frame, including matching End, and then
+observe response EOF before `finish` releases the candidate. One trailing byte
+rejects in either direction. EOF alone cannot complete an unfinished history;
+End without EOF cannot complete this dedicated socket session. All errors close
+the owned socket and discard the receiver/pending owner. No scanning, resumption,
+fallback, multiplexing, DNS or automatic reconnect is introduced.
+
+### Finite owner budgets and absolute deadline
+
+`PeerSessionsV2` is a non-Clone synchronous owner. Its validated configured bounds
+permit 1..=8 attempts, positive cumulative actual read/write bytes up to
+157,129,488, a positive per-attempt duration through 60 seconds, and at most one
+connected/accepted stream at a time. The byte ceiling is
+`8 * (19,641,112 + 72 + 2)`; all F1 per-transfer and chain limits still apply.
+Every real positive read/write result is charged, including malformed input,
+partial output and rejected trailing bytes. Failure never refunds consumed budget.
+EOF is zero bytes, but its one-byte rejection probe needs one unspent byte of
+capacity before reading. Buffer sizes cannot exceed the remaining allowance.
+
+The deadline begins before connection establishment or accept waiting. Every
+individual read/write syscall uses the original deadline's remaining time, and
+post-syscall plus semantic-processing checks reject late completion. Short reads,
+partial writes and Interrupted errors cannot renew the deadline. Fixed F1 headers
+are checked through consuming admission, then the complete admitted payload must
+fit the remaining owner allowance before allocation or reading.
+
+Synchronous decoding/execution is not preempted. The bounds establish the stated
+I/O and acceptance behavior, not a hard CPU-return deadline, resident-memory cap,
+kernel-buffer cap, bandwidth guarantee or availability promise. Creating another
+owner creates another explicit budget; this component is not a global process
+admission policy or the future persistent node's scheduler. A provider success
+means its local writes and half-close succeeded, not remote validation or adoption.
+
+### Whole-candidate selection, publication and retained recovery
+
+Adoption requires a completed actually executed candidate, owned writer,
+independent C/genesis and the separately retained full current checkpoint plus
+local generation. Preparation checks those inputs and canonical current metadata
+without filesystem I/O. Tied, shorter and identical candidates keep the unchanged
+store and do not increment generation or perform publication filesystem calls.
+
+Only strict preference creates retained recovery intent. Before publication it
+clones the exact old accepted history once, moves the received candidate without
+cloning, and retains the independent identity and both full local checkpoints.
+The candidate checkpoint is derived from accepted state and the next local
+publication generation. The provider transmits no generation, and peer endpoint
+claims never become independent current pins.
+
+Publication calls the unchanged `ReplacementStoreV2::replace`, which repeats actual
+disk/identity/preference validation under the held lock. The selected candidate
+replaces the whole history: accounts, membership, permanent reservations, approvals,
+sequences, population peaks and resource counters stay together, including on forks
+whose account bytes match. The new local generation advances once per publication,
+even across several heights.
+
+Pure preparation rejection returns the unchanged owned inputs. Publication failure
+privately retains the same store lock and both exact histories, exposing no normal
+writer. Its last-confirmed checkpoint describes prior successful memory only;
+the disk may already select the candidate. Explicit consuming recovery uses the
+same lock and existing `Complete`/`RetainOld` rules. Recovery failure returns no
+handle while preserving root and exact inputs; a later explicit retry acquires
+fresh ownership and revalidates the same authorization. There is no implicit
+retry, cleanup or promotion. A selected candidate can never be retained back to old.
+
+Fresh initialization remains a separately requested operation with its own
+independent network check. Failed opening never authorizes initialization,
+overwriting existing data or storage-profile migration. The additional old-chain
+clone and store replays are not covered by encoded-input memory claims. Adoption
+runs after transport acceptance and is outside the socket session deadline.
+
+**F2 recovery intent remains in memory only.** It is neither a persisted journal nor
+an automatic history archive. A process restart cannot recover missing authority
+from a higher generation, peer claim or damaged residue. Preserving independent
+node selection and both exact histories across restart is the next increment.
+
+### Verification and unchanged policy
+
+Required local gates with Rust 1.98.0 and locked dependencies passed:
+**1,010 workspace runtime tests** (951 retained plus 59 new), **10 doctests**,
+all required release suites, **11 independent references** and **15 synthetic
+examples**, including `peer_session_v2_demo`. Release runs and multiple scenarios
+within a test are not additional unique tests. The real-process demonstration and
+tests cover complete fresh reconstruction, fragmentation, premature closure,
+stall/deadline rejection, oversized headers, changed End, invalid actual blocks,
+equal-account membership ties/preferred forks, durable publication and strict
+reopen. Adoption tests retain explicit recovery ownership and reject unknown or
+corrupt residue. These are executed software scenarios, not physical power-loss
+certification or an external security audit. Local results do not assert a CI run
+or future documentation head has passed.
+
+The only new runtime workspace dependency is mirror-storage in mirror-network;
+no external dependency version changes. Existing F1/V1 protocols, prior V2 byte
+formats/hash domains, storage/recovery implementations, monetary code and historical
+fixtures are preserved. No founder or marketing privilege, grant, reward, fee,
+biometric/accessibility requirement, admission rule or human-consensus policy is
+selected by this work.
+
+## Next engineering increment — MB-04A1, not yet implemented
+
+**Next: MB-04A1 — bounded persistent node control state and restart recovery
+authority.** This is a technical continuation plan, not a new user monetary or
+enrollment-policy decision. MB-04A2 will subsequently expose the separate V2
+operator commands; daemon/reconnect/multi-peer scheduling, pool and wallet follow.
+
+Specify and implement a separate bounded, versioned operator-owned control layer
+outside the strict selected-store root. It must retain independently chosen
+C/genesis, the confirmed complete selected checkpoint/generation, and at most one
+pending replacement intent containing **both exact complete accepted old/candidate
+histories and both local checkpoints**. Loading intent must bound input before
+allocation, replay both histories and validate their exact authorized relationship.
+Integrity checksums do not establish authority against a hostile owner who can
+replace all local files. Define deterministic control/store ownership and lock order.
+
+The required ordering is: persist, validate and synchronize exact intent before
+any store mutation; invoke existing owned publication; persist and synchronize
+confirmed current pins only after successful publication or explicit recovery;
+retire intent only after those pins are durable. This must cover a restart after
+candidate storage selection but before the node's confirmed pin was updated.
+
+Startup/status must leave missing or invalid control state unchanged and clearly
+distinguish uninitialized, invalid and recovery-required states. No highest-generation
+scan, silent fallback initialization, automatic completion/retention or inferred
+authorization is permitted. A separate
+explicit recovery action selects Complete or RetainOld under the recorded exact
+inputs; candidate selection still prohibits rollback. Initially reject/preserve
+partial control initialization or partial intent unless a separately specified and
+tested control-layer recovery rule authorizes that case.
+
+A1 acceptance must exercise separate-process clean restart; read-only status for
+missing/clean/recovery-required states; all independent pins; failure before durable
+intent with no store mutation; each intent/store/confirmed-pin/retirement boundary;
+both exact histories available after restart; explicit completion and retention;
+selected-candidate no-rollback; competing ownership; overlong/corrupt/unsafe control
+inputs; and the genuine equal-account/different-membership fork. Preserve frozen
+storage/wire profiles rather than adding unrecognized files inside an existing
+store. New control encoding and its reference evidence must be documented before
+claiming acceptance. These are planned gates, not tests already passed by F2.
+
+MB-04A2 then adds a small V2 init/status/sync-once/recover operator surface. Status
+must never initialize, mine, synchronize peers or repair; sync-once must use F2's
+existing bounded attempts and the A1 intent ordering. Do not bundle a long-running
+daemon, transaction pool, signer/wallet or unresolved monetary/admission decision
+into A1 merely to call it a node. No real keys, personal records, device captures or
+hardware purchase are needed for this next software increment.
