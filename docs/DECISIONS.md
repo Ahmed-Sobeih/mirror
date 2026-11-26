@@ -609,11 +609,12 @@ The plan borrows both complete chains and keeps the candidate's exact manifest,
 accounts, membership and counters together. It has no public constructor,
 serialization or mutation path and performs no filesystem I/O.
 
-This increment deliberately does not freeze an on-disk intent, directory layout,
-publication linearization point or cleanup/recovery procedure. **MB-03E2 is next:**
-those rules must be designed and implemented together, retaining stable exclusive
-root ownership and revalidating current selection plus the exact candidate before
-mutation. The E1 plan is not a reusable disk-write permit or evidence of crash safety.
+This increment deliberately did not freeze an on-disk intent, directory layout,
+publication linearization point or cleanup/recovery procedure. **At the E1
+checkpoint, MB-03E2 was next:** those rules must be designed and implemented
+together, retaining stable exclusive root ownership and revalidating current
+selection plus the exact candidate before mutation. The E1 plan is not a reusable
+disk-write permit or evidence of crash safety.
 
 Focused verification passed 31 codec and 21 preparation tests; all nine reference
 checks passed. Two compile-fail examples cover the borrowed input histories. Full
@@ -626,3 +627,73 @@ admission, accessibility, monetary and human-consensus policies remain unchanged
 No founder or marketing privilege, issuance/reward rule, device requirement or
 biometric capture is introduced. MB-03, the persistent V2 node/API and Gate A/B
 remain unfinished.
+
+## MB-03E2a engineering choices — MIRROR-MB03E2A-001
+
+The [replacement store contract](STORAGE_REPLACEMENT_STORE_V2.md) adds actual
+whole-branch publication, independently pinned reopening, write fencing and strict
+clean-state reconciliation to the separate profile-3 lifecycle. The existing MSR2
+bytes, MSS2/MSU2 stores, MNM2/MRB2 encodings, previous recovery API, dependencies and
+independent reference fixtures remain unchanged. No persisted intent format or
+implicit migration is introduced. Current implementation, acceptance and exact
+source/CI evidence is recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+[MASTER_PLAN.md](../MASTER_PLAN.md), section 23.
+
+The chosen layout uses canonical `generation-{generation:020}` directories under
+one stable locked root. A clean store has exactly one selected generation and
+`selection.v2`. During a replacement only the exact current and next generations
+may coexist, with one optional `selection.pending`; there is no retained archive
+of every generation. Generation remains local publication bookkeeping, starts at
+zero at any accepted height and increments once for a strictly preferred complete
+candidate. Directory names, checksums and the numerically largest generation do
+not choose authority, mining weight, latestness or global finality.
+
+The writer first validates independent network/current pins and complete accepted
+branch preference, then replays and compares its exact selected disk history under
+continuous ownership. It stages the candidate's own complete manifest and MRB2
+history, synchronizes files and directories, rechecks prepared bytes and publishes
+the MSR2 selection by same-root rename. Root synchronization follows before any old
+file is retired. Both the selected candidate and the complete old directory are
+checked before cleanup; only named byte-matching old files and now-empty prescribed
+directories may be removed. No recursive deletion or selected-history pruning is
+used. Final clean replay and synchronization precede the single in-memory advance
+of the complete ledger, selector and generation.
+
+Disk discrepancies and mutation failures fence state access and further writes.
+The last-confirmed checkpoint describes memory only after failure; the disk may
+already select the candidate. A failure once publication may have been attempted,
+including cleanup failure, reports uncertain completion. Consuming reconciliation
+holds the same exclusive root descriptor throughout and returns a writer only
+after full replay and synchronization of a clean independently selected history.
+Ordinary open, inspect and reconcile preserve and reject every pending selector,
+second generation, partial cleanup or unknown artifact. They are not repair APIs.
+
+Each accepted history keeps the existing 4096-block, 16-MiB complete MRB2 and
+1,048,576 cumulative state/configuration-item limits. The two-generation layout
+has a conservative distinct encoded payload ceiling of **39,118,264 bytes**.
+Every permitted payload read, including a growth sentinel and repeated comparisons,
+is charged against one conservative **313,011,680-byte per-call allowance**.
+Enumeration and per-file limits remain separate. These bounds are not resident
+memory, elapsed-time or physical power-loss guarantees. Cooperative Linux locking
+and trusted local owners/parent paths remain explicit assumptions.
+
+**Next is MB-03E2b: explicit recovery of interrupted replacement staging and
+cleanup.** The state table is recorded, but no completion/retention recovery entry
+point is implemented by E2a. Recovery must independently retain or reconstruct
+**both exact accepted old and candidate histories**, their full checkpoints and
+local generations, plus the explicit action. An old endpoint and candidate alone
+cannot authenticate partially removed old history. Authorized residue may contain
+an arbitrary subset of expected paths; file synchronization alone does not make
+all directory entries durable. Every surviving byte must be checked against the
+specific retained authority before mutation. A selected new generation cannot be
+rolled back with a retain-old action. Missing/corrupt selection and interrupted
+initialization remain separate unsupported cases.
+
+The new synthetic `replacement_store_v2_demo` performs a real replacement from the
+accepted fork at height 3/generation 0 to main height 4/generation 1, then opens and
+reconstructs the entire selected state. This advances local storage only; it does
+not finish MB-03 or provide fresh-peer reconstruction, a persistent V2 node, final
+human consensus or an end-to-end enrollment flow. Gate A and Gate B remain unmet.
+All accepted monetary and enrollment/accessibility decisions are preserved. No
+founder or marketing privilege, grant/mint/fee/reward formula, biometric capture or
+device requirement is added.

@@ -1,9 +1,9 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-03E1 replacement-selection
-metadata and checked in-memory preparation**, below. Exact acceptance evidence is
-tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and master-plan section 22.
+and V2 design. Current implementation update: **MB-03E2a durable whole-branch
+replacement and strict clean-state reconciliation**, below. Exact acceptance evidence is
+tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and master-plan section 23.
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
 review. This is an engineering review, not an audit certification.
@@ -14,7 +14,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A/B/C/D evidence, plus the current MB-03E1 verification status,
+MB-02A/B/C and MB-03A/B/C/D/E1 evidence, plus the current MB-03E2a verification status,
 are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
@@ -24,8 +24,9 @@ independently authorized append's recognized residual shapes. MB-03D compares fu
 accepted branches under independent network identity and returns the complete
 preferred branch as an immutable reference. MB-03E1 adds independently pinned
 selection metadata and preparation that retains both complete accepted histories.
-Arbitrary corruption repair, durable canonical replacement, peer integration and
-human finality remain unfinished;
+MB-03E2a adds synchronized whole-branch publication, exact old-copy cleanup and
+fencing under stable cooperative ownership. Explicit interrupted replacement
+recovery, arbitrary corruption repair, peer integration and human finality remain unfinished;
 source publication/CI is tracked separately.
 
 ## Historical B3 implementation update
@@ -890,23 +891,24 @@ recorded above; exact publication/CI remains separate
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) evidence.
 MB-03D adds the independently pinned, fixed-target comparison of complete accepted
 branches described above. MB-03E1 adds bounded MSR2 metadata and pure preparation
-under independent current-selection pins; its scope is recorded below.
-**Next: MB-03E2 durable replacement layout, publication and recovery**, followed by
-fresh-peer reconstruction. Durable canonical publication, human
-finality, a live V2 daemon and Gate A/Gate B remain unfinished.
+under independent current-selection pins. MB-03E2a adds the bounded replacement
+store described below, including full-state publication and exact old-copy cleanup.
+**Next: MB-03E2b explicit interrupted-replacement recovery**, followed by
+fresh-peer reconstruction. Repair of partial staging/cleanup, human finality,
+a live V2 daemon and Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
 
-## MB-03E1 replacement-selection and preparation update
+## Historical MB-03E1 replacement-selection and preparation update
 
 The [replacement contract](STORAGE_REPLACEMENT_V2.md) adds the fixed 280-byte MSR2
 profile-3 record and a pure preparation API. The nested MSS2 record, both existing
 stores and their recovery contracts remain unchanged. Focused verification passed
 31 selection-codec cases and 21 preparation cases; all nine independent reference
 checks passed. Two compile-fail examples cover the borrowed current and candidate
-chains. Full-suite, exact-source and CI evidence is recorded separately in
-[CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md),
-section 22; earlier green checkpoints do not verify this source.
+chains. Its historical full-suite, exact-source and CI evidence remains in
+[MASTER_PLAN.md](../MASTER_PLAN.md), section 22; earlier green checkpoints do not
+verify a newer implementation source.
 
 MSR2 decoding requires independent configuration, genesis, height, tip, ledger-root
 and local-generation expectations. A checksum-correct old record or competing
@@ -930,8 +932,141 @@ not a publication permit. It encodes bounded manifests during preparation, so th
 step is not allocation-free. Independent pins and borrows do not establish global
 freshness, hold a storage lock or prevent an unrelated store from changing.
 
-F08 therefore remains open for MB-03E2: stable-root ownership, revalidation under
-that ownership, a bounded layout and intent/recovery contract, synchronized
-publication, cleanup interruptions and write fencing must still be implemented.
-No crash-safety result follows from this in-memory preparation. F09–F11, human
-finality and the existing policy gates remain open; MB-03 and Gate A/B are unfinished.
+At the E1 checkpoint, F08 therefore remained open for MB-03E2: stable-root ownership,
+revalidation under that ownership, a bounded layout, synchronized publication,
+cleanup interruptions and write fencing were still required. No crash-safety result
+followed from in-memory preparation. E2a's narrower durable implementation follows;
+F09–F11, human finality and the existing policy gates remain open.
+
+## MB-03E2a durable replacement and strict reconciliation update
+
+The [replacement-store contract](STORAGE_REPLACEMENT_STORE_V2.md) specifies
+`ReplacementStoreV2` around unchanged MSR2 profile-3 metadata. The implementation
+adds explicit initialization, independently pinned writer reopening/shared
+inspection, complete accepted-branch replacement, failure fencing and consuming
+clean-state reconciliation. It does **not** implement repair of interrupted
+replacement staging or cleanup. Those states remain rejected and preserved until
+an independently authorized E2b recovery operation exists.
+
+Written coverage adds **49 test functions: 32 filesystem integration, 14 private
+fault/read-budget and three process ownership tests**, mapped in
+[test matrix section 15](MEMBERSHIP_TEST_MATRIX.md#15-mb-03e2a-durable-replacement-and-strict-clean-state-reconciliation).
+This description does not infer a passing total or CI result. Exact source/tree,
+observed full-suite results and publication evidence belong to
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md),
+section 23. Existing reference fixtures, legacy store behaviors and policy gates
+remain unchanged. This is an engineering review, not an independent security audit.
+
+### Selected authority and complete state
+
+Independently retained configuration/genesis, complete chain endpoint and local
+generation remain mandatory. The clean generation pathname is computed from the
+independent pin, not chosen by a directory scan or numerically greatest generation.
+The entire canonical MSR2 must match the replayed chain, including exact manifest
+metadata and block-byte totals. Public checksums and matching endpoint fields
+cannot authorize different metadata or substitute for actual replay.
+
+Replacement accepts a borrowed complete `ChainV2` candidate. It checks strict
+existing fixed-target preference, fully replays current selected disk history under
+the held lock, compares the complete current state, and repeats checked preparation
+against that replay before writing. Whole candidate equality is checked before and
+after selection publication and at final reconstruction. Accounts, membership,
+permanent reservations, approvals, sequences, population history and resource
+counters move together. Equal-account but different-membership tests specifically
+guard against retaining losing-branch effects in the selected candidate.
+
+Generation remains local bookkeeping: zero at initialization, one increment per
+strictly preferred branch publication, no more than selected height. It is not
+hash power, human weight, global freshness or finality. A larger directory or
+well-formed pending record cannot select a branch. Sticky equal-score branches and
+the existing finite-chain/timestamp limits remain separate consensus constraints.
+
+### Stable ownership, publication and retirement
+
+The root inode remains owned continuously. A clean root contains one selected
+MSR2 and one exact generation directory. Replacement temporarily permits only
+the checked current and next generations and one pending selector. The candidate's
+own manifest and full block history are synchronized, along with their directories
+and root, before selector publication. A same-root marker rename changes visible
+selection; root synchronization establishes the required durable boundary before
+any old-copy deletion.
+
+After publication, the complete candidate is replayed again. The entire old
+generation is independently replayed and compared with its exact accepted source
+before the first deletion. Each old file is compared again immediately before
+unlinking. Only prescribed exact files and subsequently empty directories are
+removed; no wildcard or recursive removal exists. Required directory synchronization
+follows block removal, blocks-directory removal, manifest removal and generation
+removal. Full clean selection validation/synchronization precedes in-memory advance.
+
+These steps remove only the old unselected branch copy. They do not prune selected
+history, discard selected permanent reservations to obtain capacity, or preserve
+an automatic old-branch archive. Callers requiring an archive retain it separately.
+Source tests corrupt the candidate after publication or corrupt a late old block/
+manifest and check that no earlier old file is deleted before these complete
+preflight checks pass.
+
+### Failure, retained data and the remaining recovery gap
+
+Disk discrepancies and mutation failures fence all ordinary chain/selection access
+and further replacements. Last-confirmed checkpoint is explicitly the old confirmed
+memory state, not an assertion about the now-selected disk state. Errors after a
+publication attempt, including cleanup failures, remain potentially published
+outcomes. A caller must not assume failure means balances or selection stayed old.
+
+Consuming reconciliation retains the same exclusive lock and returns a writer
+only after complete independently pinned clean replay and synchronization. Any
+error returns no usable writer. Ordinary open, inspection and reconciliation never
+promote pending metadata, delete a second generation, finish partial files or roll
+selection back. Unknown files, corrupt selected metadata and unexplained staging/
+cleanup residue are preserved and rejected. This can deliberately leave a store
+unavailable pending explicit recovery; a clean-state API is not a recovery promise.
+
+**E2b must require both exact accepted old and candidate histories**, their
+independently retained full checkpoints/generations and an explicit action. Once
+cleanup removes any old file, its endpoint alone cannot authenticate the remaining
+partial tree. The old exact history must have been retained or independently
+reconstructed; a highest-generation scan or guessed old record cannot replace it.
+An already selected new generation cannot be rolled back through a retain-old
+action. Future recovery must compare every residual byte before mutation and keep
+continuous ownership; it must not relax selected-history validity or old caps.
+
+Individual file synchronization does not certify persistence of every directory
+entry before the directory synchronization completes. Interrupted candidate staging
+and old cleanup can therefore leave arbitrary subsets of prescribed files rather
+than a prefix of block heights. The contract records this constraint for E2b,
+while E2a rejects all such residue. Boundary injection and successful reopen tests
+do not certify every physical power-loss or storage-device failure behavior.
+
+### Bounded reads and scoped filesystem assumptions
+
+At most two generation payloads and two selectors coexist: **39,118,264 encoded
+bytes** at retained per-history caps. Every payload read uses a shared per-call
+meter that charges the checked length plus a growth sentinel. The allowance is
+**313,011,680 bytes** and is never reset within a call. Exhaustion or overflow
+rejects before payload open. Root, generation and block enumeration have finite
+entry bounds; individual lengths and aggregate MRB2 bytes are preflighted before
+block payload allocation. A sparse oversized file is rejected without reading or
+truncating its payload.
+
+A successful replacement performs **five full actual-chain replays**, each under
+the retained block/byte/state-work limits. Four further exact payload comparisons
+and seven selector reads give a conservative **176,068,508-byte** successful-call
+read upper bound. This is below the enforced allowance; it is not a resident-memory,
+metadata-operation, latency or write-volume limit. No unbounded retry/replay loop
+exists. Reconstructed state remains subject to the unchanged complete-chain caps.
+
+Three additional tests use real cooperating processes to exercise writer/shared
+ownership and the lifetime of a replaced/reconciled writer through descriptor drop
+or process termination. Private fault hooks check ownership throughout the operation.
+The existing trusted local owner/parent and cooperative Linux filesystem model
+still applies. Static path/type/link checks and root-inode comparisons do not
+establish hostile same-user race resistance. Untested WSL/DrvFS, native Windows and
+network filesystems are not represented as supported or verified.
+
+F08 is mitigated for this bounded successful replacement and clean-reconciliation
+path, **not closed for arbitrary interruption repair or deployment**. MB-03E2b,
+fresh-peer reconstruction, persistent V2 node integration, human finality, private
+biological matching and other existing policy/security gates remain unfinished.
+No founder/marketing privilege, monetary formula, mint/reward API, real biometric
+capture or anonymity guarantee is introduced. MB-03 and Gate A/B remain incomplete.

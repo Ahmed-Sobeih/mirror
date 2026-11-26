@@ -15,10 +15,12 @@ ownership, checked reopening and bounded one-block append publication with failu
 fencing. MB-03C adds explicit recovery of one independently authorized interrupted
 append. MB-03D adds comparison of complete accepted branches under an independent
 network identity. **MB-03E1 adds bounded replacement-selection metadata and checked
-in-memory preparation** of a preferred complete branch. Current acceptance evidence
-is in [CURRENT_STATUS.md](CURRENT_STATUS.md) and master-plan section 22.
-Next is **MB-03E2: durable replacement layout, publication and recovery**, followed
-by fresh-peer reconstruction.
+in-memory preparation** of a preferred complete branch. **MB-03E2a adds actual
+whole-branch publication to a separate replacement store**, with stable root
+ownership, checked old-copy cleanup, failure fencing and clean reconciliation.
+Current acceptance evidence is in [CURRENT_STATUS.md](CURRENT_STATUS.md) and
+master-plan section 23. Next is **MB-03E2b: explicit recovery of interrupted
+replacement staging and cleanup**, followed by fresh-peer reconstruction.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -98,7 +100,7 @@ actual common ancestor and borrows the entire selected chain, including its comp
 membership and counters. It performs no durable replacement or network operation.
 Equal competing tips can remain different across peers; this is not human finality.
 
-`mirror_storage::v2` supplies two implemented storage profiles. Immutable
+`mirror_storage::v2` supplies three separate storage profiles. Immutable
 `StoreV2` retains its frozen MSS2 generation-zero contract. The separate
 `AppendStoreV2` uses MSU2 profile 2 to publish one completely accepted child at a
 time. It synchronizes the new block and selector before advancing the in-memory
@@ -121,8 +123,9 @@ See the
 Linux/cooperating-process assumptions and bounded-read rules. The separate
 [recovery contract](docs/STORAGE_RECOVERY_V2.md) specifies the supported failure
 states, caller authority, suffix-only completion, parent retention and finite read
-allowance. No automatic migration, implicit repair, branch replacement or live V2
-daemon is provided.
+allowance. These immutable/append APIs provide no automatic migration, implicit
+repair, branch replacement or live V2 daemon. Whole-branch publication belongs to
+the separate replacement store below.
 
 The separate [replacement preparation contract](docs/STORAGE_REPLACEMENT_V2.md)
 adds MSR2 profile-3 metadata without changing either existing store. Its 280-byte
@@ -130,14 +133,33 @@ record wraps the unchanged MSS2 snapshot and a bounded local generation. Decodin
 requires independent network, complete endpoint and generation pins. Preparation
 also derives the entire current record from the accepted current history, rejects
 stale or altered metadata, and borrows the whole preferred candidate with its own
-accounts, membership and counters. It prepares no files and publishes no selection;
-durable ownership, interruption and recovery are MB-03E2 work.
+accounts, membership and counters. This preparation function remains pure: it
+prepares no files and publishes no selection.
+
+The [replacement store contract](docs/STORAGE_REPLACEMENT_STORE_V2.md) adds
+`ReplacementStoreV2`. It revalidates the independently pinned current disk history
+and complete preferred candidate under one stable exclusive root lock. The
+candidate's exact manifest and all blocks are synchronized in a separate generation
+directory before the MSR2 marker is published. After root synchronization, only the
+fully checked old branch copy is removed, one exact file at a time. Memory advances
+after final clean replay and synchronization. The entire accounts/membership state,
+permanent records, approvals, sequences and resource counters move together.
+
+A clean store contains one selected generation; a replacement temporarily uses at
+most two. Every disk discrepancy or failed update fences ordinary access and further
+writes. Reopening and consuming reconciliation require independent full endpoint
+and generation pins and accept only a clean complete selected layout. Pending
+selectors, extra generations and partial cleanup remain preserved and rejected.
+**Explicit interrupted-replacement recovery is MB-03E2b.** Its retained request must
+include both exact accepted old and candidate histories: once old files have been
+removed, the old endpoint alone cannot authorize cleanup of the remaining bytes.
+The selected new generation cannot be rolled back through a retain-old action.
 
 ## Verification checkpoints
 
-Current MB-03E1 verification and publication evidence is tracked in
+Current MB-03E2a verification and publication evidence is tracked in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md), section
-22. The following MB-03D record is retained as a **historical accepted checkpoint**;
+23. The following MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
 MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
@@ -163,7 +185,7 @@ doctests, eight references and nine examples at that earlier source. Release
 reruns are not additional unique tests. Fork comparison adds no encoded score,
 wire format, hash domain or dependency.
 
-All three storage examples create temporary synthetic stores. The append example
+Four storage examples create temporary synthetic stores. The append example
 adds accepted mixed and empty blocks, then reopens and checks the complete state.
 The recovery example constructs known partial-write shapes, completes an append,
 repeats it idempotently, retains another parent, and then performs an ordinary next
@@ -174,6 +196,11 @@ different membership, demonstrates sticky ties, and borrows the complete longer
 selected branch without changing either input or a store.
 The replacement-preparation example checks a genuine divergent candidate and
 round-trips MSR2 metadata without opening or changing a store.
+The new `replacement_store_v2_demo` initializes the accepted fork at height 3,
+publishes the preferred main branch at height 4 as local generation 1, retires the
+old copy, and independently reopens and reconstructs the complete candidate state.
+It also exercises clean reconciliation; it does not repair interrupted replacement
+staging or cleanup.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -223,6 +250,7 @@ cargo run -p mirror-storage --example storage_v2_demo --locked
 cargo run -p mirror-storage --example append_v2_demo --locked
 cargo run -p mirror-storage --example recovery_v2_demo --locked
 cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
+cargo run -p mirror-storage --example replacement_store_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

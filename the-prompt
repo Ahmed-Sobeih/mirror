@@ -1,50 +1,41 @@
 Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
 Work directly in GitHub. The user expects implemented, verified increments and a
-current handoff, not repeated fragile paste/replace scripts. Updated 2026-11-26.
+current handoff, not fragile paste/replace scripts. Updated 2026-11-26.
 This prompt never overrides newer verified repository work.
 
 RECOVER LIVE STATE FIRST
-Verify the default/active branches, PRs, recent commits/comments and exact-source CI.
-Preserve newer/unpushed work and runtime data. Never reset to this snapshot or merge
-only to publish handoff files. PR #1 is OPEN and UNMERGED:
-https://github.com/Ahmed-Sobeih/mirror/pull/1
-Active branch: work/personhood-register-v0.1.
-Main remains ad7ffd120fb451fe44cf59cb909176785b33bf8f.
+Verify default/active branches, PRs, recent commits/comments and exact-source CI.
+Preserve newer/unpushed changes and runtime data. Never reset to this snapshot.
+PR #1 is OPEN and UNMERGED: https://github.com/Ahmed-Sobeih/mirror/pull/1
+Active branch: work/personhood-register-v0.1. Do not merge merely to publish handoff.
 
-Implementation source: **349edf5a6f453f365fa55480f6117c240876b0e1**.
-Tested tree: **b88c9cafc8bf417d5609743bacb1ab278070bd0e**.
-[Source push CI 45721188614](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721188614)
-and [source PR CI 45721198833](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721198833)
-both passed. Full push-job `139579639094` logs confirmed the exact source checkout,
-787 workspace tests, eight compile-fail doctests, every required release suite,
-nine independent references, eleven examples and the allocation/runtime-data audit.
-Later documentation-head CI is a separate check; verify the live branch/PR rather
-than treating this record as evidence for an unknown future head.
-
-The prior MB-03D source b9a2e870996fcafe1128dcb5cfdfb6b01b158ded and its acceptance
-remain in master-plan section 21. Sections 18–20 retain immutable/append/recovery
-source evidence. E1 parent 3da75720319094f1b91b4a337b45cfdeb6869e7b includes the latest
-combined enrollment/accessibility discussion. Do not confuse those documentation
-updates with runtime implementation or measured biometrics.
+Implementation source: **9ad479d7c89a5b68e28e752c28b174f9885f16c5**.
+Tested tree: **bc91bc43e0446be3fbffec1c3da0601cf12619c8**.
+Parent: **b0582a41fa9286ebe7e8f29d8c5ab91b8ee366f4**.
+[Source push CI 45726543378](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45726543378)
+and [source PR CI 45726549735](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45726549735)
+both passed. Full push-job `139597729216` logs confirmed the exact source checkout and
+all required workspace, documentation, release, reference, example and audit gates.
+Later documentation-head CI is checked separately; do not treat these source runs
+as evidence for an unknown future head. PR #1 remains open and unmerged on
+`work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
 
 CURRENT POSITION
-Roadmap MIRROR-PLAN-001. MB-01B/B1–B4, MB-02A/B/C and MB-03A/B/C/D remain verified
-components within their documented scope. Current checkpoint MIRROR-MB03E1-001:
-VERIFIED_COMPONENT — REPLACEMENT METADATA / IN MEMORY.
-MB-03 and MB-03E remain IN PROGRESS.
-NEXT: MB-03E2 durable replacement layout, publication and explicit recovery, then
-fresh-peer reconstruction. Gate A/B remain UNMET. Component verification does not
-establish mainnet readiness, human finality, biological uniqueness or anonymity.
+Roadmap MIRROR-PLAN-001. Current checkpoint MIRROR-MB03E2A-001:
+VERIFIED_COMPONENT — DURABLE REPLACEMENT / CLEAN RECONCILIATION.
+MB-01B/B1–B4, MB-02A/B/C, MB-03A/B/C/D/E1 remain verified within component scope.
+MB-03 and E2 remain IN PROGRESS. NEXT is MB-03E2b explicit interrupted replacement
+recovery, then fresh-peer reconstruction. Gate A/B remain UNMET.
 
 READ FIRST
-AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (current tracker and section 22),
-NEXT_SESSION.md and docs/DECISIONS.md.
-Main contracts: docs/STORAGE_REPLACEMENT_V2.md, docs/FORK_CHOICE_V2.md,
-docs/CHAIN_V2.md, docs/STORAGE_V2.md, docs/STORAGE_APPEND_V2.md,
-docs/STORAGE_RECOVERY_V2.md, docs/LEDGER_STATE_V2.md, docs/CORE_V2_ENCODING.md,
-docs/CONFIG_V2_ENCODING.md, docs/OPERATIONS_V2_ENCODING.md,
+AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (tracker and section 23), NEXT_SESSION.md,
+docs/DECISIONS.md, docs/STORAGE_REPLACEMENT_STORE_V2.md and docs/STORAGE_REPLACEMENT_V2.md.
+Retain docs/FORK_CHOICE_V2.md, docs/CHAIN_V2.md, docs/STORAGE_V2.md,
+docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/LEDGER_STATE_V2.md,
+docs/CORE_V2_ENCODING.md, docs/CONFIG_V2_ENCODING.md, docs/OPERATIONS_V2_ENCODING.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md, docs/LEDGER_MEMBERSHIP_V1.md,
-docs/THREAT_MODEL.md, docs/MEMBERSHIP_TEST_MATRIX.md, docs/PERSONHOOD_V0_1.md.
+docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 
 LATEST USER DESIGN INPUT — COMBINED INITIAL PROFILES AND ACCESSIBILITY
 The user wants the complete combination to establish confidence; they are not
@@ -83,7 +74,54 @@ Read docs/DEVICE_INPUT_CONTRACT.md v0.3 and docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.
 future work is mapped to MB-05/08/09/10/12. These preferences are not runtime devices
 or a biological-uniqueness guarantee.
 
-LATEST IMPLEMENTATION — MB-03E1
+LATEST IMPLEMENTATION — MB-03E2a
+`ReplacementStoreV2` now initializes, inspects, reopens and replaces complete
+accepted V2 branches on disk. The selected generation lives in
+`generation-{generation:020}` with its exact MNM2 manifest and full MRB2 history;
+unchanged MSR2 selects it. A clean store contains exactly that directory and
+`selection.v2`. At most the current and next generation coexist during publication,
+with one optional `selection.pending`. No directory scan chooses authority.
+
+A replacement rechecks independent network/current checkpoint/generation pins,
+strict preference, the entire selected disk history and canonical metadata under
+continuous exclusive ownership of the stable root inode. It stages, synchronizes
+and fully validates the complete candidate, publishes the marker and synchronizes
+the root, then revalidates the selected candidate and **all old bytes before any
+old deletion**. Cleanup removes only exact named unselected files and empty
+directories. It never replaces the locked root or recursively deletes a tree.
+
+Final clean replay, synchronization and exact comparisons precede the single memory
+update. Accounts, memberships, permanent reservations, retained approvals, sequences,
+population high-water and resource counters all come from the selected branch.
+No orphaned state is grafted into it. The candidate input is borrowed and remains
+available if the operation fails.
+
+Disk-phase failures fence ordinary state access and subsequent replacements.
+The last-confirmed checkpoint describes prior memory only. Any error after a
+publication attempt, including cleanup failure, may leave the new branch selected.
+Consuming `reconcile` retains the same lock and returns a writer only after full
+validation/synchronization of a **clean** independently selected layout.
+Interrupted staging/cleanup is rejected and preserved by normal open/inspect/reconcile.
+
+The encoded selected-payload ceiling is **19,559,132 bytes**; two histories and
+two selectors are bounded by **39,118,264 bytes**. Every payload read and growth
+sentinel is charged to one **313,011,680-byte** allowance per call. A replacement
+performs five bounded full replays plus exact byte comparisons, with a conservative
+successful-read bound of **176,068,508 bytes**. These are not RSS or latency bounds.
+The unchanged per-chain caps are 4096 blocks, 16 MiB MRB2 and 1,048,576 cumulative
+state/configuration items. Cooperative Linux locks and trusted local owners/parents
+remain assumptions; WSL/DrvFS/native Windows/network filesystems are not newly verified.
+
+Public APIs: initialize(root,&ChainV2); open_writer/inspect(root,identity,expected);
+replace(&mut self,identity,expected_current,&candidate); consuming reconcile(expected).
+They expose immutable chain/selection/checkpoint only while unfenced, plus root/access,
+is_fenced and explicitly last_confirmed_checkpoint. No raw descriptor or mutable chain.
+
+Callers must retain or independently reconstruct BOTH exact old and candidate
+histories before future interrupted-cleanup recovery. The old copy is deleted only
+after candidate publication/root sync; there is no automatic old-fork archive.
+
+RETAINED E1 METADATA / PURE PREPARATION
 MSR2 is exactly 280 bytes:
 - 0..4 magic MSR2; 4..6 u16 LE encoding version 2; 6..8 u16 LE profile 3.
 - 8..16 u64 LE local publication generation.
@@ -118,46 +156,40 @@ constructor, decoder, serialization or disk mutation API exists for the plan.
 Success encodes two bounded manifests but clones/reexecutes no chain and touches
 no filesystem. It is not allocation-free. GenerationOverflow is defensive and
 unreachable for valid accepted inputs under the present cap. A copied selection
-or plan is not a durable permit or lock. E1 fixes no slot/directory layout and
-implements no selected-state publication or replacement recovery.
+or plan is not a durable permit or lock. E2a adds a separate store that repeats
+checks under ownership; it never accepts the pure plan as a reusable write permit.
 
 VERIFICATION
-Local verification used Rust 1.98.0 with locked dependencies:
+Local verification used Rust **1.98.0** and locked dependencies:
 
-- **787 workspace/all-target runtime tests passed:** 735 retained + 31 new codec
-  tests + 21 new preparation tests. Zero failures.
-- **Eight compile-fail doctests passed:** six retained + two replacement-plan
-  borrow checks. Both accepted chains remain immutable while their plan is used.
-- Required release suites passed: personhood **234** runtime + **3** doctests;
-  core **121**; state **49**; consensus **23**; chain **85** + **3** doctests;
-  storage **246** + **2** doctests. Reruns are not additional unique tests.
-- **Nine independent Python reference checks** and **eleven synthetic examples**
-  passed, including the new MSR2 reference and replacement preparation demo.
-- One subprocess-only storage helper remains intentionally ignored in ordinary
-  enumeration and is explicitly invoked by parent tests; it is not another pass.
-- Scoped formatting, whitespace and allocation/runtime-data audits passed.
-  **108 retained source/dependency/reference/fixture files are byte-identical**
-  against parent `3da75720319094f1b91b4a337b45cfdeb6869e7b`. The only existing Rust
-  file changed is the storage module's additive documentation/exports. Dependencies,
-  old format bytes/vectors and Cargo.lock are unchanged. No runtime data is tracked.
+- **836 workspace/all-target runtime tests passed**, zero failures: 787 retained
+  plus **49 new** (32 public integration, 14 private failure/read-budget and three
+  cross-process ownership tests). Multiple injected boundaries within one function
+  are scenarios, not additional tests.
+- **Eight retained compile-fail doctests passed**. No new doctest count is claimed.
+- Required release gates passed: personhood **234 runtime + 3 doctests**; core
+  **121**; state **49**; consensus **23**; chain **85 runtime + 3 doctests**;
+  storage **295 runtime + 2 doctests**. Release reruns are not new unique tests.
+- All **nine independent Python references** and **twelve synthetic examples**
+  passed. Existing fixtures, formats, dependencies and Cargo.lock are unchanged.
+- One subprocess-only helper remains intentionally ignored during ordinary
+  enumeration and explicitly invoked by parent tests; it is not an extra pass.
+- Scoped formatting/whitespace and monetary/runtime-data audits passed.
+  **114 of 116 retained source/dependency/reference/fixture files are byte-identical**
+  to the parent. The two changed retained Rust files add module exports/docs and
+  replacement-profile cases to the existing process harness. No runtime data is tracked.
 
-The 52 new runtime tests include nine independent MSR2 cases, every framing/checkpoint
-boundary, legacy format/domain rejection, forged metadata with both checksums
-recomputed, and actual accepted forks. One real fork has equal account bytes but
-different membership/approvals/high-water: the plan retains the exact candidate.
-Two read-only implementation/contract reviews found no blocking discrepancy; this
-is not an external security audit. New source scope: 10 files, 2,210 added lines.
+Two read-only implementation/contract reviews found no blocker. These checks are
+not an external security audit or physical power-loss certification.
 
-The new replacement_plan_v2_demo is entirely synthetic and performs no disk switch.
-Current: fork height 3/generation 0. Candidate: main height 4/prepared generation 1.
-Common ancestor height 1. Candidate tip:
-33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d
-Ledger root:
-785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68
-Active / pending / high-water: 1 / 0 / 3. MRB2 bytes: 4,330. State items: 75.
-Prepared MSR2 matches the independent reference and pinned decode. Neither input
-changes. tools/reference_replacement_storage_v2.py consumes pinned OLD chain/MSS2
-fixtures and derives nine cases independently with Python, never from new Rust output.
+The new `replacement_store_v2_demo` performs an actual synthetic disk switch from
+fork height **3 / generation 0** to main height **4 / generation 1**, removes the
+unselected old generation, then reopens and reconstructs the exact candidate.
+Tip: `33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d`.
+Ledger root: `785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68`.
+Active/pending/high-water: **1/0/3**. MRB2 bytes/state items: **4330/75**.
+A separate integration case switches branches with identical account bytes but
+different membership history, checking the whole chain and all counters after reopen.
 
 RETAIN COMPARISON, STORAGE AND RECOVERY BOUNDARIES
 The comparator requires independently selected C/genesis and two complete accepted
@@ -173,7 +205,7 @@ timestamps may prevent tie resolution. This is not final human consensus.
 StoreV2 profile 1 keeps exact 232-byte MSS2/generation 0. AppendStoreV2 profile 2 keeps
 exact 280-byte MSU2 and unchanged nested MSS2. Independent full checkpoint/generation
 pins remain mandatory. Normal opening fully replays selected history and rejects
-staging. Both implemented stores use cooperative Linux root-directory inode locks:
+staging. All three implemented stores use cooperative Linux root-directory inode locks:
 exclusive writers/shared inspectors. Trusted parent/local owner; never replace,
 rename or remove a locked root, infer ownership from PID files, or claim same-user
 hostile-race protection. Inherited fork descriptors can prolong locks; preserve
@@ -197,41 +229,39 @@ strict replay/equality/resync precedes success. No journal/automatic repair exis
 Its distinct encoded input cap 19,559,412 bytes and conservative payload-read allowance
 156,508,096 bytes remain separate from RSS. One-child recovery is not generic reorg.
 
-EXACT NEXT WORK — MB-03E2
-Follow NEXT_SESSION.md and replacement contract section 5. Freeze a bounded separate
-layout and cleanup state machine before disk writes. Choose two reusable slots or
-bounded retained-generation directories explicitly; E1 chooses neither. Preserve
-prior profiles and never rename/replace the root inode. Under one held exclusive
-lock revalidate independent network, full current selection/generation, exact current
-disk history and complete accepted candidate. Reuse the pure plan only after these
-checks; copied prior plans do not authorize mutation.
+EXACT NEXT WORK — MB-03E2b
+**Next: MB-03E2b — explicit recovery of interrupted replacement staging and cleanup.**
 
-Stage candidate manifest and full history separately, sync files/directories before
-selector publication, then sync stable root before in-memory advancement. Freeze
-each allowed selected/staged state, uncertain/fenced errors, recovery request and
-completion/retention policy. A selected candidate must not be rolled back by retaining
-old. Define exactly when old history may be cleaned up and how cleanup interruption
-recovers. Unknown data is preserved/rejected; no highest-generation scan authority.
-Fully replay both authorized histories before recovery mutation and preserve complete
-ledger/membership/resource state without orphaned effects. Return no writer after
-unresolved error, keeping ownership throughout consuming recovery.
+Use [the store contract](docs/STORAGE_REPLACEMENT_STORE_V2.md), especially section 6.
+Retain independent identity, old/new full checkpoints and generations, **both exact
+accepted old and candidate histories**, and an explicit completion/retention action.
+Old checkpoint plus candidate alone cannot authenticate partly deleted old files.
+Reconstruct any missing reference history independently against its retained pins;
+never infer it from corrupt or missing residue.
 
-Bound enumeration, staging, total inputs and repeated read/work charges. Preserve
-4,096 blocks, 16 MiB MRB2 and 1,048,576 cumulative state/config items per accepted branch.
-One manifest/history/MSR2 payload max 19,559,132 bytes; two manifests/two histories/
-two selectors 39,118,264 bytes. These are planning arithmetic, not implemented E2
-read/staging/RSS limits. Account separately for extra markers, repeated reads,
-sentinels and cleanup. New persisted bytes need explicit contracts/independent vectors.
-Test real divergent membership forks, identical-account different-membership cases,
-strict preference, independent pins, every interruption/retry/recovery boundary and
-second-process ownership. Keep increments reviewable and state any unimplemented
-write/recovery work. Then fresh-peer reconstruction; MB-04 persistent node/pool/wallet/
-operator APIs, MB-05 complete Ant Kiss lifecycle, MB-06 human consensus.
+Before mutation, fully validate the request, strict preference/generation transition,
+the actually selected complete history and every allowed residual name/byte. Support
+only the documented bounded shapes. Before directory synchronization, surviving
+staged files or old cleanup files may be arbitrary subsets rather than ordered
+height prefixes. Each candidate residual must match its authorized canonical byte
+prefix; every surviving old file must match its full exact bytes. A pending selector
+requires a complete candidate. A selected candidate must be complete and cannot be
+rolled back by retaining old.
 
-Run all AGENTS.md gates: workspace all-target/doc, release core/personhood/state/
-consensus/chain/storage, nine independent references, eleven synthetic examples and
-allocation/runtime-data audit. Rust 1.98.0 / locked dependencies. Verify exact published
-source and full CI logs, then check documentation head separately. Do not merge.
+Keep the same exclusive root ownership through consuming recovery, final replay,
+synchronization and returned writer. Errors return no writer. Define idempotent
+completion and retention, retry every failure boundary, preserve unknown/corrupt
+artifacts and missing/corrupt selected markers, and retain finite input/read/work
+budgets. Existing one-child recovery is not generic branch recovery. Interrupted
+initialization stays outside this recovery scope unless separately reviewed.
+
+Then proceed to fresh-peer reconstruction; persistent node/pool/wallet/operator APIs
+remain MB-04, complete Ant Kiss MB-05 and human consensus MB-06. No monetary-policy
+choice, device purchase or real biometric collection is needed for E2b.
+
+Run every AGENTS.md gate: workspace all-target/doc, release core/personhood/state/
+consensus/chain/storage, nine references, twelve examples and allocation/runtime audit.
+Use Rust 1.98.0 and locked dependencies. Confirm exact source and CI; docs head separately.
 
 FOUNDATION TO PRESERVE
 Legacy chain: signed transfers, fixed easy PoW, persistence/restart, TCP sync and reorg.
@@ -288,7 +318,7 @@ anonymity is unfinished. No actual capture or hardware purchase is needed for th
 PROGRESS ESTIMATE
 Last rough estimate: 20–25% of Gate A, discussed 2026-11-26. This is an engineering
 scope judgment, not a test-count/task ratio, time forecast or security percentage.
-Do not add a fixed percentage for E1 or 787 tests. Remaining durable replacement,
+Do not add a fixed percentage for E2a or 836 tests. Remaining interrupted recovery,
 peer/node/wallet operations, Ant Kiss lifecycle, human consensus, unresolved money,
 protected off-chain intake/matching and integrated hardening are substantial.
 Gate A requires complete synthetic-input software flow ready for compatible device

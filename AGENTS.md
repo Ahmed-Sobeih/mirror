@@ -27,12 +27,13 @@ Run `cargo test --workspace --all-targets --locked`, documentation tests, releas
 core/personhood/state/consensus/chain/storage tests, all nine independent reference
 checks (including `tools/reference_storage_v2.py --check` and
 `tools/reference_append_storage_v2.py --check` and
-`tools/reference_replacement_storage_v2.py --check`) and all eleven synthetic examples
+`tools/reference_replacement_storage_v2.py --check`) and all twelve synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
 chain chain_v2_demo/fork_choice_v2_demo and storage
-storage_v2_demo/append_v2_demo/recovery_v2_demo/replacement_plan_v2_demo). Include
+storage_v2_demo/append_v2_demo/recovery_v2_demo/replacement_plan_v2_demo/
+replacement_store_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
-all four storage examples in the gates.
+all five storage examples in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -40,7 +41,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03E2.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03E2b.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -55,15 +56,17 @@ bounded recovery of recognized one-child staging under independent parent/candid
 pins, exact child bytes and an explicit completion/retention action. MB-03D adds
 pure comparison of complete accepted branches under independently selected network
 identity, fixed-target normalized height scores and keep-current ties. MB-03E1 adds
-separate MSR2 profile-3 metadata and checked pure replacement preparation. Next is
-MB-03E2: freeze and implement durable replacement layout, publication and recovery,
-followed by fresh-peer reconstruction. E1 supplies no store or filesystem mutation.
+separate MSR2 profile-3 metadata and checked pure replacement preparation. E2a adds
+the actual bounded replacement store, checked cleanup, fencing and clean reconciliation.
+Next is E2b explicit interrupted replacement recovery, then fresh-peer reconstruction.
+E1 remains pure; E2a never treats its saved plan as a durable write permit.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
 docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_V2.md,
+docs/STORAGE_REPLACEMENT_STORE_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
@@ -127,7 +130,7 @@ files and all prior wire bytes. Checksum validity is not selection authority:
 independently retained network, full checkpoint and, for profile 2, generation
 pins remain mandatory on every reopen. A local generation is not global freshness.
 
-Both V2 profiles use Linux nonblocking kernel locks on the root directory inode for the
+All three V2 store profiles use Linux nonblocking kernel locks on the root directory inode for the
 handle lifetime. All processes must cooperate; parent directories and the local
 owner are trusted. Never rename/remove/replace a live root inode, infer ownership
 from a PID/lock-file payload, or claim hostile same-user race protection. WSL,
@@ -183,13 +186,14 @@ assertions. Keep the private borrowed comparison and selected whole-chain refere
 never graft accounts, membership, permanent records, approvals or counters across
 branches. The comparator allocates no collection, replays no state and touches no
 disk. Copied choices/checkpoints are diagnostics, not durable publication tokens.
-MB-03E2 must revalidate identity, current selected endpoint and exact candidate under
-the held store lock, with separately specified publication/interruption/retry rules.
+MB-03E2a revalidates identity, current selected endpoint and exact candidate under
+the held store lock. E2b must preserve those checks during explicit interrupted recovery.
 Never reinterpret MSU2 generation as branch score or replace the locked root inode.
 
 MSR2 is exactly 280 bytes: version 2/profile 3, outer local generation, unchanged
 232-byte MSS2, and the MIRROR_STORAGE_REPLACEMENT_SELECTION_V2 checksum domain.
-It is separate from MSS2/MSU2 and has no implemented disk layout/store/recovery API.
+It is separate from MSS2/MSU2. E2a implements its generation-directory store;
+explicit interrupted staging/cleanup recovery is not yet implemented.
 Decode only against independently retained full endpoint and generation pins.
 Generation starts at zero at any accepted height and advances once per strictly
 preferred whole-branch publication, not per skipped block; generation <= height.
@@ -206,8 +210,36 @@ both accepted histories and keeps the exact candidate manifest and complete ledg
 It encodes two bounded manifests but does not clone/reexecute chains or touch disk.
 A copied selector or plan is not a durable permit; E2 must revalidate under its
 held stable root lock. Current bounds make GenerationOverflow defensive/unreachable
-for valid inputs, not an exercised valid-chain transition. E1 leaves retained-slot
-layout, cleanup, write fencing and explicit replacement recovery to E2.
+for valid inputs, not an exercised valid-chain transition. E1 is pure. E2a now
+supplies bounded generation layout, cleanup and fencing; E2b explicit interrupted
+replacement recovery remains next.
+
+ReplacementStoreV2 uses exact generation-{generation:020} directories with the
+candidate's own manifest and complete history. Clean root is one selected generation
+plus selection.v2; mutation permits only current/next generations and one pending
+selector. Never infer authority from scanning a higher generation. Reopen/inspect/
+consuming reconcile require independent full pins and a clean fully replayed layout.
+Do not weaken these operations to delete or promote residue. Replace revalidates
+current history under the held lock, stages/syncs/replays the exact candidate,
+publishes/syncs the marker, verifies candidate and all old bytes before any old
+unlink, removes only exact named unselected files, syncs cleanup, and replays/syncs
+clean selection before memory advance. No recursive deletion or locked-root swap.
+Disk errors fence APIs; last-confirmed state is memory only. Publication attempt
+onward may already select candidate even if cleanup fails. Never return a writer
+from unresolved failure. Preserve the 39,118,264-byte distinct payload cap and one
+313,011,680-byte per-call read allowance including sentinels. Five full replays on
+successful replace retain per-history state/work caps; this is not a total RSS cap.
+
+E2b must require BOTH exact accepted old and candidate histories, independently
+retained identity/checkpoints/generations, and explicit completion/retention. Old
+checkpoint plus candidate cannot authorize partially deleted old contents. Validate
+all input/residue before any mutation. Directory entries can survive as arbitrary
+subsets before directory sync; candidate residual contents must be authorized byte
+prefixes, old residual files must be exact complete bytes. Pending selector requires
+complete candidate; selected candidate must be complete and never rolled back to
+old. Keep the same lock throughout consuming recovery, explicit bounded retries,
+final replay/sync and return. Unknown/corrupt selectors or artifacts remain rejected
+and preserved. Interrupted initialization remains outside the current recovery scope.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

@@ -1,111 +1,137 @@
 # Current status
 
 Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md), MIRROR-PLAN-001.
-Checkpoint: **MIRROR-MB03E1-001 — replacement metadata and preparation**.
-Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C/D components remain verified.
-**MB-03E1: VERIFIED_COMPONENT — METADATA / IN MEMORY.**
-**MB-03 remains IN PROGRESS. Next: MB-03E2 — durable replacement and recovery.**
+Checkpoint: **MIRROR-MB03E2A-001 — durable whole-branch replacement**.
+Updated **2026-11-26**. Prior MB-01/02 and MB-03A/B/C/D/E1 components remain verified.
+**MB-03E2a: VERIFIED_COMPONENT — REPLACEMENT / CLEAN RECONCILIATION.**
+**MB-03 remains IN PROGRESS. Next: MB-03E2b — explicit interrupted replacement recovery.**
 
 ## Exact source and publication
 
-Active branch: `work/personhood-register-v0.1`.
-[PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) is open and unmerged.
-Main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+Implementation source: **9ad479d7c89a5b68e28e752c28b174f9885f16c5**.
+Tested tree: **bc91bc43e0446be3fbffec1c3da0601cf12619c8**.
+Parent: **b0582a41fa9286ebe7e8f29d8c5ab91b8ee366f4**.
+[Source push CI 45726543378](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45726543378)
+and [source PR CI 45726549735](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45726549735)
+both passed. Full push-job `139597729216` logs confirmed the exact source checkout and
+all required workspace, documentation, release, reference, example and audit gates.
+Later documentation-head CI is checked separately; do not treat these source runs
+as evidence for an unknown future head. PR #1 remains open and unmerged on
+`work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
 
-Implementation source: **349edf5a6f453f365fa55480f6117c240876b0e1**.
-Tested tree: **b88c9cafc8bf417d5609743bacb1ab278070bd0e**.
-[Source push CI 45721188614](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721188614)
-and [source PR CI 45721198833](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45721198833)
-both passed. Full push-job `139579639094` logs confirmed the exact source checkout,
-787 workspace tests, eight compile-fail doctests, every required release suite,
-nine independent references, eleven examples and the allocation/runtime-data audit.
-Later documentation-head CI is a separate check; verify the live branch/PR rather
-than treating this record as evidence for an unknown future head.
-
-The prior implementation MB-03D and its exact-source CI remain recorded in master
-section 21. Sections 18–20 retain immutable storage, append and explicit recovery
-acceptance. The intervening device/accessibility discussion checkpoint was
-`3da75720319094f1b91b4a337b45cfdeb6869e7b`; it changed planning, not runtime evidence.
+Prior implementation and exact-source CI remain in master sections 18–22. The E1
+source was `349edf5a6f453f365fa55480f6117c240876b0e1`; this increment preserves its
+MSR2 bytes and pure preparation contract.
 
 ## Delivered behavior
 
-The new [replacement contract](docs/STORAGE_REPLACEMENT_V2.md) defines exact
-280-byte **MSR2**, encoding version 2/profile 3, with a local generation, unchanged
-MSS2 snapshot and a distinct checksum domain. Its decoder requires independently
-retained configuration/genesis/height/tip/ledger-root and generation pins. A valid
-checksum does not make a record authoritative or establish an accepted history.
+`ReplacementStoreV2` now initializes, inspects, reopens and replaces complete
+accepted V2 branches on disk. The selected generation lives in
+`generation-{generation:020}` with its exact MNM2 manifest and full MRB2 history;
+unchanged MSR2 selects it. A clean store contains exactly that directory and
+`selection.v2`. At most the current and next generation coexist during publication,
+with one optional `selection.pending`. No directory scan chooses authority.
 
-`prepare_replacement_v2` checks both accepted chains' network identity, the exact
-current endpoint/generation and the entire current selector against canonical
-metadata derived from the accepted current chain. This catches altered manifest
-length/checksum or block-byte totals even when both checksums and endpoint pins pass.
-It then requires a strictly preferred candidate under the existing fixed-target
-rule, increments local generation once and derives the candidate's own metadata.
-Identical, equal-height and shorter candidates reject without a new generation.
+A replacement rechecks independent network/current checkpoint/generation pins,
+strict preference, the entire selected disk history and canonical metadata under
+continuous exclusive ownership of the stable root inode. It stages, synchronizes
+and fully validates the complete candidate, publishes the marker and synchronizes
+the root, then revalidates the selected candidate and **all old bytes before any
+old deletion**. Cleanup removes only exact named unselected files and empty
+directories. It never replaces the locked root or recursively deletes a tree.
 
-The private result borrows the exact whole current and candidate chains. Accounts,
-membership, permanent records, approvals, sequences, population history, manifest,
-blocks and resource counters remain together. Nothing is copied from the losing
-branch into the candidate. Safe Rust prevents either chain changing while the plan
-is still used. This is a pure preparation API: no filesystem store, root lock,
-selection publication or replacement recovery exists in this increment.
+Final clean replay, synchronization and exact comparisons precede the single memory
+update. Accounts, memberships, permanent reservations, retained approvals, sequences,
+population high-water and resource counters all come from the selected branch.
+No orphaned state is grafted into it. The candidate input is borrowed and remains
+available if the operation fails.
+
+Disk-phase failures fence ordinary state access and subsequent replacements.
+The last-confirmed checkpoint describes prior memory only. Any error after a
+publication attempt, including cleanup failure, may leave the new branch selected.
+Consuming `reconcile` retains the same lock and returns a writer only after full
+validation/synchronization of a **clean** independently selected layout.
+Interrupted staging/cleanup is rejected and preserved by normal open/inspect/reconcile.
+
+See [the replacement store contract](docs/STORAGE_REPLACEMENT_STORE_V2.md) for the
+exact lifecycle, ordering, residual-state table and limits.
 
 ## Verification
 
-Local verification used Rust 1.98.0 with locked dependencies:
+Local verification used Rust **1.98.0** and locked dependencies:
 
-- **787 workspace/all-target runtime tests passed:** 735 retained + 31 new codec
-  tests + 21 new preparation tests. Zero failures.
-- **Eight compile-fail doctests passed:** six retained + two replacement-plan
-  borrow checks. Both accepted chains remain immutable while their plan is used.
-- Required release suites passed: personhood **234** runtime + **3** doctests;
-  core **121**; state **49**; consensus **23**; chain **85** + **3** doctests;
-  storage **246** + **2** doctests. Reruns are not additional unique tests.
-- **Nine independent Python reference checks** and **eleven synthetic examples**
-  passed, including the new MSR2 reference and replacement preparation demo.
-- One subprocess-only storage helper remains intentionally ignored in ordinary
-  enumeration and is explicitly invoked by parent tests; it is not another pass.
-- Scoped formatting, whitespace and allocation/runtime-data audits passed.
-  **108 retained source/dependency/reference/fixture files are byte-identical**
-  against parent `3da75720319094f1b91b4a337b45cfdeb6869e7b`. The only existing Rust
-  file changed is the storage module's additive documentation/exports. Dependencies,
-  old format bytes/vectors and Cargo.lock are unchanged. No runtime data is tracked.
+- **836 workspace/all-target runtime tests passed**, zero failures: 787 retained
+  plus **49 new** (32 public integration, 14 private failure/read-budget and three
+  cross-process ownership tests). Multiple injected boundaries within one function
+  are scenarios, not additional tests.
+- **Eight retained compile-fail doctests passed**. No new doctest count is claimed.
+- Required release gates passed: personhood **234 runtime + 3 doctests**; core
+  **121**; state **49**; consensus **23**; chain **85 runtime + 3 doctests**;
+  storage **295 runtime + 2 doctests**. Release reruns are not new unique tests.
+- All **nine independent Python references** and **twelve synthetic examples**
+  passed. Existing fixtures, formats, dependencies and Cargo.lock are unchanged.
+- One subprocess-only helper remains intentionally ignored during ordinary
+  enumeration and explicitly invoked by parent tests; it is not an extra pass.
+- Scoped formatting/whitespace and monetary/runtime-data audits passed.
+  **114 of 116 retained source/dependency/reference/fixture files are byte-identical**
+  to the parent. The two changed retained Rust files add module exports/docs and
+  replacement-profile cases to the existing process harness. No runtime data is tracked.
 
-Tests include genuine divergent histories with identical account bytes and different
-membership, independent network/current pins, stale generations, exact error order,
-checksum-correct metadata forgery, generation-zero initialization above genesis,
-multi-block replacement counting once, legacy-profile rejection and unchanged inputs.
-Two read-only reviews found no blocking implementation/contract discrepancy. These
-checks are not an external security audit or a physical power-loss experiment.
+Two read-only implementation/contract reviews found no blocker. These checks are
+not an external security audit or physical power-loss certification.
 
-The new synthetic demo prepares fork height **3**, generation **0**, for replacement
-by accepted main height **4**, generation **1**, with common ancestor height **1**.
-Candidate tip: `33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d`.
-Candidate ledger root: `785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68`.
-Active / pending / historical high-water: **1 / 0 / 3**.
-Encoded MRB2 bytes / cumulative state items: **4,330 / 75**.
-The exact prepared record matches independent vectors. No disk selection changes.
+The new `replacement_store_v2_demo` performs an actual synthetic disk switch from
+fork height **3 / generation 0** to main height **4 / generation 1**, removes the
+unselected old generation, then reopens and reconstructs the exact candidate.
+Tip: `33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d`.
+Ledger root: `785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68`.
+Active/pending/high-water: **1/0/3**. MRB2 bytes/state items: **4330/75**.
+A separate integration case switches branches with identical account bytes but
+different membership history, checking the whole chain and all counters after reopen.
 
 ## Next work and practical limits
 
-MB-03E2 must freeze and implement a bounded storage layout, publication and cleanup
-ordering, write fencing and independently authorized recovery under one stable
-exclusive root lock. E1 does not choose two reusable slots versus retained-generation
-directories. Revalidate exact selected disk history/current pins and the complete
-candidate under ownership; an old plan is not a publication permit. Never replace
-the locked root, silently reinterpret MSS2/MSU2 or turn one-child append recovery
-into generic reorganization. [NEXT_SESSION.md](NEXT_SESSION.md) gives the next actions.
+The encoded selected-payload ceiling is **19,559,132 bytes**; two histories and
+two selectors are bounded by **39,118,264 bytes**. Every payload read and growth
+sentinel is charged to one **313,011,680-byte** allowance per call. A replacement
+performs five bounded full replays plus exact byte comparisons, with a conservative
+successful-read bound of **176,068,508 bytes**. These are not RSS or latency bounds.
+The unchanged per-chain caps are 4096 blocks, 16 MiB MRB2 and 1,048,576 cumulative
+state/configuration items. Cooperative Linux locks and trusted local owners/parents
+remain assumptions; WSL/DrvFS/native Windows/network filesystems are not newly verified.
 
-A local generation is neither chain score nor global freshness. Profile 3 currently
-requires strictly increasing accepted height; equal-height or future human-weighted
-replacement needs a separately reviewed rule. The 4096-block, 16-MiB MRB2 and
-1,048,576 cumulative-item caps remain. Preparation encodes bounded manifests and
-is not allocation-free. Existing filesystem assumptions remain; no new WSL/DrvFS,
-native Windows or network-filesystem support is established.
+**Next: MB-03E2b — explicit recovery of interrupted replacement staging and cleanup.**
 
-Fresh-peer reconstruction follows. Persistent V2 node/wallet interfaces, complete
-Ant Kiss lifecycle, final human consensus, policy-dependent money rules, private
-intake/matching and end-to-end hardening remain unfinished. Gate A and Gate B are UNMET.
+Use [the store contract](docs/STORAGE_REPLACEMENT_STORE_V2.md), especially section 6.
+Retain independent identity, old/new full checkpoints and generations, **both exact
+accepted old and candidate histories**, and an explicit completion/retention action.
+Old checkpoint plus candidate alone cannot authenticate partly deleted old files.
+Reconstruct any missing reference history independently against its retained pins;
+never infer it from corrupt or missing residue.
+
+Before mutation, fully validate the request, strict preference/generation transition,
+the actually selected complete history and every allowed residual name/byte. Support
+only the documented bounded shapes. Before directory synchronization, surviving
+staged files or old cleanup files may be arbitrary subsets rather than ordered
+height prefixes. Each candidate residual must match its authorized canonical byte
+prefix; every surviving old file must match its full exact bytes. A pending selector
+requires a complete candidate. A selected candidate must be complete and cannot be
+rolled back by retaining old.
+
+Keep the same exclusive root ownership through consuming recovery, final replay,
+synchronization and returned writer. Errors return no writer. Define idempotent
+completion and retention, retry every failure boundary, preserve unknown/corrupt
+artifacts and missing/corrupt selected markers, and retain finite input/read/work
+budgets. Existing one-child recovery is not generic branch recovery. Interrupted
+initialization stays outside this recovery scope unless separately reviewed.
+
+Then proceed to fresh-peer reconstruction; persistent node/pool/wallet/operator APIs
+remain MB-04, complete Ant Kiss MB-05 and human consensus MB-06. No monetary-policy
+choice, device purchase or real biometric collection is needed for E2b.
+
+This is durable local storage, not a persistent V2 peer service. Gate A and Gate B
+remain UNMET. No issuance, fees/rewards, biometric capture or human consensus is added.
 
 ## Retained user decisions and design input
 
