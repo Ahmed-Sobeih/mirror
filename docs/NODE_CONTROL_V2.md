@@ -10,7 +10,8 @@ The component retains independently selected network identity and a complete loc
 checkpoint, and persists both accepted histories before one preferred branch can
 replace durable storage. A process restart with unfinished intent requires an
 explicit operator recovery action. The existing V1 executable remains separate.
-There is no V2 command-line surface or persistent server in this increment.
+A1 itself is a library; the separate [finite operator commands](NODE_OPERATOR_V2.md)
+compose it in MB-04A2. Neither component supplies a persistent server.
 
 ## 1. Trust and ownership
 
@@ -328,7 +329,9 @@ other untested filesystems are not declared verified by this contract. Final exe
 counts and exact-source CI belong to the checkpoint; this specification is not an
 external security audit or Gate A/B acceptance.
 
-**Next: MB-04A2 — separate V2 init/status/sync-once/explicit-recover operator
-commands.** The implemented A1 library and finite harness are their foundation.
+**At the A1 checkpoint, next was MB-04A2 — separate V2
+init/status/sync-once/explicit-recover operator commands.** Those commands now have
+their own [contract](NODE_OPERATOR_V2.md); A1's library and finite harness remain
+their foundation.
 Persistent serving, reconnect/rejoin scheduling, multi-peer policy, transaction
 pool, wallet and final human consensus remain later work.
