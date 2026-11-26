@@ -20,7 +20,8 @@ use std::{
 
 use mirror_storage::v2::{
     AppendCheckpointV2, AppendRecoveryActionV2, AppendRecoveryErrorV2, AppendRecoveryRequestV2,
-    AppendStorageErrorV2, AppendStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
+    AppendStorageErrorV2, AppendStoreV2, ReplacementCheckpointV2, ReplacementStorageErrorV2,
+    ReplacementStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
 };
 use support_v2::{fixture_identity, main_chain, main_expectation};
 
@@ -145,6 +146,47 @@ fn recovery_request() -> AppendRecoveryRequestV2 {
         main_chain(3).block_at(3).unwrap().clone(),
     )
     .unwrap()
+}
+
+fn replacement_checkpoint(height: u64, generation: u64) -> ReplacementCheckpointV2 {
+    ReplacementCheckpointV2 {
+        generation,
+        chain: main_expectation(height),
+    }
+}
+
+fn replacement_writer(root: &Path) -> Result<ReplacementStoreV2, ReplacementStorageErrorV2> {
+    ReplacementStoreV2::open_writer(root, fixture_identity(), replacement_checkpoint(3, 0))
+}
+
+fn replacement_reader(root: &Path) -> Result<ReplacementStoreV2, ReplacementStorageErrorV2> {
+    ReplacementStoreV2::inspect(root, fixture_identity(), replacement_checkpoint(3, 0))
+}
+
+fn assert_replacement_busy(result: Result<ReplacementStoreV2, ReplacementStorageErrorV2>) {
+    assert!(
+        matches!(
+            result,
+            Err(ReplacementStorageErrorV2::Storage(StorageErrorV2::Busy))
+        ),
+        "independent replacement-profile handle must report Busy"
+    );
+}
+
+fn replace_and_reopen(root: &Path, mut store: ReplacementStoreV2) {
+    let expected = main_chain(4);
+    assert_eq!(
+        store
+            .replace(fixture_identity(), replacement_checkpoint(3, 0), &expected)
+            .unwrap(),
+        replacement_checkpoint(4, 1)
+    );
+    assert_eq!(store.chain().unwrap(), &expected);
+    drop(store);
+    let reopened =
+        ReplacementStoreV2::open_writer(root, fixture_identity(), replacement_checkpoint(4, 1))
+            .unwrap();
+    assert_eq!(reopened.chain().unwrap(), &expected);
 }
 
 /// A pipe handshake, not a scheduling delay, proves that a child has its lock.
@@ -273,6 +315,8 @@ fn lock_process_probe() {
         Immutable(StoreV2),
         Append(AppendStoreV2),
         Recovered(AppendStoreV2),
+        Replacement(ReplacementStoreV2),
+        Replaced(ReplacementStoreV2),
     }
     let access = std::env::var(CHILD_ACCESS).unwrap();
     let profile = std::env::var(CHILD_PROFILE).unwrap_or_else(|_| "immutable".into());
@@ -281,6 +325,19 @@ fn lock_process_probe() {
         ("immutable", "reader") => ProbeStore::Immutable(reader(&root).unwrap()),
         ("append", "writer") => ProbeStore::Append(append_writer(&root).unwrap()),
         ("append", "reader") => ProbeStore::Append(append_reader(&root).unwrap()),
+        ("replacement", "writer") => ProbeStore::Replacement(replacement_writer(&root).unwrap()),
+        ("replacement", "reader") => ProbeStore::Replacement(replacement_reader(&root).unwrap()),
+        ("replaced", "writer") => {
+            let mut store = replacement_writer(&root).unwrap();
+            store
+                .replace(
+                    fixture_identity(),
+                    replacement_checkpoint(3, 0),
+                    &main_chain(4),
+                )
+                .unwrap();
+            ProbeStore::Replaced(store.reconcile(replacement_checkpoint(4, 1)).unwrap())
+        }
         ("recovery", "writer") => ProbeStore::Recovered(
             AppendStoreV2::recover_interrupted(
                 &root,
@@ -303,6 +360,16 @@ fn lock_process_probe() {
         ProbeStore::Recovered(store) => {
             assert_eq!(store.chain().unwrap(), &main_chain(3));
             assert_eq!(store.checkpoint().unwrap(), append_checkpoint(3, 1));
+            assert_eq!(store.access(), StoreAccessV2::Writer);
+            assert!(!store.is_fenced());
+        }
+        ProbeStore::Replacement(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(3));
+            assert_eq!(store.checkpoint().unwrap(), replacement_checkpoint(3, 0));
+        }
+        ProbeStore::Replaced(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(4));
+            assert_eq!(store.checkpoint().unwrap(), replacement_checkpoint(4, 1));
             assert_eq!(store.access(), StoreAccessV2::Writer);
             assert!(!store.is_fenced());
         }
@@ -547,6 +614,102 @@ fn recovered_child_process_keeps_exclusive_ownership_until_drop_or_termination()
         .unwrap();
         assert_eq!(final_store.chain().unwrap(), &next);
         if let Some(child) = living_child {
+            child.finish();
+        }
+    }
+}
+
+#[test]
+fn replacement_writer_child_excludes_handles_until_drop_then_parent_can_replace() {
+    let _isolation = isolate_parent_test();
+    let directory = TestDirectory::new();
+    drop(ReplacementStoreV2::initialize(&directory.store, &main_chain(3)).unwrap());
+    let mut child =
+        ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, "replacement");
+    assert_replacement_busy(replacement_writer(&directory.store));
+    assert_replacement_busy(replacement_reader(&directory.store));
+    child.drop_store();
+    replace_and_reopen(
+        &directory.store,
+        replacement_writer(&directory.store).unwrap(),
+    );
+    child.finish();
+}
+
+#[test]
+fn replacement_shared_child_and_local_reader_exclude_writer_until_both_drop() {
+    let _isolation = isolate_parent_test();
+    let directory = TestDirectory::new();
+    drop(ReplacementStoreV2::initialize(&directory.store, &main_chain(3)).unwrap());
+    let mut child =
+        ChildHolder::spawn_profile(&directory.store, StoreAccessV2::ReadOnly, "replacement");
+    let local = replacement_reader(&directory.store).unwrap();
+    assert_replacement_busy(replacement_writer(&directory.store));
+    drop(local);
+    assert_replacement_busy(replacement_writer(&directory.store));
+    child.drop_store();
+    replace_and_reopen(
+        &directory.store,
+        replacement_writer(&directory.store).unwrap(),
+    );
+    child.finish();
+}
+
+#[test]
+fn replaced_and_reconciled_child_retains_same_root_lock_until_drop_or_termination() {
+    let _isolation = isolate_parent_test();
+    for terminate in [false, true] {
+        let directory = TestDirectory::new();
+        drop(ReplacementStoreV2::initialize(&directory.store, &main_chain(3)).unwrap());
+        let inode = fs::metadata(&directory.store).unwrap();
+        // READY follows real replacement and consuming clean reconciliation.
+        let mut child =
+            ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, "replaced");
+        for access in [StoreAccessV2::Writer, StoreAccessV2::ReadOnly] {
+            let attempt = match access {
+                StoreAccessV2::Writer => ReplacementStoreV2::open_writer(
+                    &directory.store,
+                    fixture_identity(),
+                    replacement_checkpoint(4, 1),
+                ),
+                StoreAccessV2::ReadOnly => ReplacementStoreV2::inspect(
+                    &directory.store,
+                    fixture_identity(),
+                    replacement_checkpoint(4, 1),
+                ),
+            };
+            assert_replacement_busy(attempt);
+        }
+        let after = fs::metadata(&directory.store).unwrap();
+        assert_eq!((inode.dev(), inode.ino()), (after.dev(), after.ino()));
+        assert!(
+            !directory
+                .store
+                .join("generation-00000000000000000000")
+                .exists()
+        );
+        assert!(
+            directory
+                .store
+                .join("generation-00000000000000000001")
+                .is_dir()
+        );
+        let live_child = if terminate {
+            child.kill_and_wait();
+            None
+        } else {
+            child.drop_store();
+            Some(child)
+        };
+        let reopened = ReplacementStoreV2::open_writer(
+            &directory.store,
+            fixture_identity(),
+            replacement_checkpoint(4, 1),
+        )
+        .unwrap();
+        assert_eq!(reopened.chain().unwrap(), &main_chain(4));
+        assert!(!reopened.is_fenced());
+        if let Some(child) = live_child {
             child.finish();
         }
     }

@@ -1,9 +1,12 @@
 # V2 branch replacement: selection metadata and preparation
 
-**MB-03E1. Updated 2026-11-26.** This contract freezes the MSR2 metadata format and
-the pure, checked preparation API. It does **not** implement a replacement store,
-filesystem layout, durable publication, on-disk intent or recovery procedure.
-Those are the next increment, MB-03E2. Current acceptance evidence belongs to
+**MB-03E1, retained by MB-03E2a. Updated 2026-11-26.** This contract freezes the
+MSR2 metadata format and the pure, checked preparation API. The separate
+[replacement store contract](STORAGE_REPLACEMENT_STORE_V2.md) now specifies E2a
+durable publication, cleanup, fencing and strict clean-state reconciliation.
+Explicit interrupted-staging/cleanup recovery remains MB-03E2b. The metadata and
+pure preparation API themselves still perform no filesystem mutation.
+Current acceptance evidence belongs to
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md).
 
 The existing [immutable store](STORAGE_V2.md), [append store](STORAGE_APPEND_V2.md)
@@ -166,10 +169,13 @@ cargo test -p mirror-storage --doc --locked
 cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
 ```
 
-## 5. Next: MB-03E2 durable replacement and recovery
+## 5. Retained E1 requirements and current implementation
 
-The following are requirements for the next design and implementation, **not APIs
-or filesystem behavior implemented by E1**:
+The following requirements were recorded at E1, before filesystem implementation.
+The [E2a store contract](STORAGE_REPLACEMENT_STORE_V2.md) now fixes bounded
+generation directories, publication/cleanup ordering, fencing, read budgets and
+clean reconciliation. Explicit interrupted-state recovery remains E2b. These
+requirements do not change the pure E1 API into a mutation permit:
 
 - Keep one stable root directory inode and cooperative exclusive ownership through
   revalidation, staging, selection publication, recovery and memory advancement.

@@ -7,14 +7,17 @@
 //! `AppendStoreV2` supplies separately versioned profile 2 accepted-child updates
 //! and checked clean-state reconciliation. See `docs/STORAGE_V2.md` and
 //! `docs/STORAGE_APPEND_V2.md` for exact boundaries and filesystem assumptions.
-//! Profile 3 adds only replacement metadata and pure accepted-chain preparation;
-//! it has no store, publication or recovery API yet. See `docs/STORAGE_REPLACEMENT_V2.md`.
+//! Profile 3 adds checked whole-branch replacement under the same stable root
+//! lock. Interrupted staging/cleanup remains fenced and requires later explicit
+//! recovery; ordinary opening accepts only clean selected layouts. See
+//! `docs/STORAGE_REPLACEMENT_V2.md` and `docs/STORAGE_REPLACEMENT_STORE_V2.md`.
 
 pub mod append;
 pub mod append_selection;
 mod lock;
 pub mod replacement_plan;
 pub mod replacement_selection;
+pub mod replacement_store;
 pub mod selection;
 
 use std::{
@@ -44,6 +47,10 @@ pub use replacement_plan::{ReplacementPlanErrorV2, ReplacementPlanV2, prepare_re
 pub use replacement_selection::{
     REPLACEMENT_SELECTION_LEN_V2, ReplacementCheckpointV2, ReplacementSelectionErrorV2,
     ReplacementSelectionV2,
+};
+pub use replacement_store::{
+    MAX_REPLACEMENT_INPUT_BYTES_V2, MAX_REPLACEMENT_READ_BYTES_V2,
+    MAX_REPLACEMENT_SELECTED_BYTES_V2, ReplacementStorageErrorV2, ReplacementStoreV2,
 };
 pub use selection::{STORAGE_SELECTION_LEN_V2, SelectionErrorV2, SelectionRecordV2};
 
