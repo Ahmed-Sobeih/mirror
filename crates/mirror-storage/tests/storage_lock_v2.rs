@@ -20,8 +20,9 @@ use std::{
 
 use mirror_storage::v2::{
     AppendCheckpointV2, AppendRecoveryActionV2, AppendRecoveryErrorV2, AppendRecoveryRequestV2,
-    AppendStorageErrorV2, AppendStoreV2, ReplacementCheckpointV2, ReplacementStorageErrorV2,
-    ReplacementStoreV2, StorageErrorV2, StoreAccessV2, StoreV2,
+    AppendStorageErrorV2, AppendStoreV2, ReplacementCheckpointV2, ReplacementRecoveryActionV2,
+    ReplacementRecoveryRequestV2, ReplacementStorageErrorV2, ReplacementStoreV2, StorageErrorV2,
+    StoreAccessV2, StoreV2,
 };
 use support_v2::{fixture_identity, main_chain, main_expectation};
 
@@ -317,6 +318,8 @@ fn lock_process_probe() {
         Recovered(AppendStoreV2),
         Replacement(ReplacementStoreV2),
         Replaced(ReplacementStoreV2),
+        ReplacementRecovered(ReplacementStoreV2),
+        ReplacementRetained(ReplacementStoreV2),
     }
     let access = std::env::var(CHILD_ACCESS).unwrap();
     let profile = std::env::var(CHILD_PROFILE).unwrap_or_else(|_| "immutable".into());
@@ -327,6 +330,37 @@ fn lock_process_probe() {
         ("append", "reader") => ProbeStore::Append(append_reader(&root).unwrap()),
         ("replacement", "writer") => ProbeStore::Replacement(replacement_writer(&root).unwrap()),
         ("replacement", "reader") => ProbeStore::Replacement(replacement_reader(&root).unwrap()),
+        ("replacement_recovery_complete" | "replacement_recovery_retain", "writer") => {
+            let old = main_chain(3);
+            let candidate = main_chain(4);
+            let request = ReplacementRecoveryRequestV2::new(
+                replacement_checkpoint(3, 0),
+                replacement_checkpoint(4, 1),
+                &old,
+                &candidate,
+            )
+            .unwrap();
+            let complete = profile == "replacement_recovery_complete";
+            let action = if complete {
+                ReplacementRecoveryActionV2::Complete
+            } else {
+                ReplacementRecoveryActionV2::RetainOld
+            };
+            let store = ReplacementStoreV2::recover_interrupted(
+                &root,
+                fixture_identity(),
+                &request,
+                action,
+            )
+            .unwrap()
+            .recover(&request, action)
+            .unwrap();
+            if complete {
+                ProbeStore::ReplacementRecovered(store)
+            } else {
+                ProbeStore::ReplacementRetained(store)
+            }
+        }
         ("replaced", "writer") => {
             let mut store = replacement_writer(&root).unwrap();
             store
@@ -370,6 +404,18 @@ fn lock_process_probe() {
         ProbeStore::Replaced(store) => {
             assert_eq!(store.chain().unwrap(), &main_chain(4));
             assert_eq!(store.checkpoint().unwrap(), replacement_checkpoint(4, 1));
+            assert_eq!(store.access(), StoreAccessV2::Writer);
+            assert!(!store.is_fenced());
+        }
+        ProbeStore::ReplacementRecovered(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(4));
+            assert_eq!(store.checkpoint().unwrap(), replacement_checkpoint(4, 1));
+            assert_eq!(store.access(), StoreAccessV2::Writer);
+            assert!(!store.is_fenced());
+        }
+        ProbeStore::ReplacementRetained(store) => {
+            assert_eq!(store.chain().unwrap(), &main_chain(3));
+            assert_eq!(store.checkpoint().unwrap(), replacement_checkpoint(3, 0));
             assert_eq!(store.access(), StoreAccessV2::Writer);
             assert!(!store.is_fenced());
         }
@@ -711,6 +757,154 @@ fn replaced_and_reconciled_child_retains_same_root_lock_until_drop_or_terminatio
         assert!(!reopened.is_fenced());
         if let Some(child) = live_child {
             child.finish();
+        }
+    }
+}
+
+fn contains_storage_busy(error: &(dyn std::error::Error + 'static)) -> bool {
+    if matches!(
+        error.downcast_ref::<StorageErrorV2>(),
+        Some(StorageErrorV2::Busy)
+    ) {
+        return true;
+    }
+    error.source().is_some_and(contains_storage_busy)
+}
+
+#[test]
+fn replacement_recovery_obeys_independent_writer_and_reader_ownership() {
+    let _isolation = isolate_parent_test();
+    let old = main_chain(3);
+    let candidate = main_chain(4);
+    let request = ReplacementRecoveryRequestV2::new(
+        replacement_checkpoint(3, 0),
+        replacement_checkpoint(4, 1),
+        &old,
+        &candidate,
+    )
+    .unwrap();
+    for access in [StoreAccessV2::Writer, StoreAccessV2::ReadOnly] {
+        let directory = TestDirectory::new();
+        drop(ReplacementStoreV2::initialize(&directory.store, &old).unwrap());
+        let mut child = ChildHolder::spawn_profile(&directory.store, access, "replacement");
+        let before = fs::read(directory.store.join("selection.v2")).unwrap();
+        let error = ReplacementStoreV2::recover_interrupted(
+            &directory.store,
+            fixture_identity(),
+            &request,
+            ReplacementRecoveryActionV2::Complete,
+        )
+        .unwrap_err();
+        assert!(contains_storage_busy(&error), "{error:?}");
+        assert_eq!(
+            fs::read(directory.store.join("selection.v2")).unwrap(),
+            before
+        );
+        assert!(
+            !directory
+                .store
+                .join("generation-00000000000000000001")
+                .exists()
+        );
+        child.drop_store();
+        let recovered = ReplacementStoreV2::recover_interrupted(
+            &directory.store,
+            fixture_identity(),
+            &request,
+            ReplacementRecoveryActionV2::Complete,
+        )
+        .unwrap();
+        assert_eq!(recovered.chain().unwrap(), &candidate);
+        child.finish();
+    }
+}
+
+#[test]
+fn replacement_recovery_child_retains_root_ownership_until_drop_or_termination() {
+    let _isolation = isolate_parent_test();
+    let old = main_chain(3);
+    let candidate = main_chain(4);
+    let request = ReplacementRecoveryRequestV2::new(
+        replacement_checkpoint(3, 0),
+        replacement_checkpoint(4, 1),
+        &old,
+        &candidate,
+    )
+    .unwrap();
+    for complete in [false, true] {
+        for terminate in [false, true] {
+            let directory = TestDirectory::new();
+            drop(ReplacementStoreV2::initialize(&directory.store, &old).unwrap());
+            let inode = fs::metadata(&directory.store).unwrap();
+            // An authorized sparse prefix represents interrupted staging. It
+            // contains no guessed marker or partial selected history.
+            let blocks = directory
+                .store
+                .join("generation-00000000000000000001/blocks");
+            fs::create_dir_all(&blocks).unwrap();
+            let bytes = candidate
+                .block_at(4)
+                .unwrap()
+                .encode(candidate.config())
+                .unwrap();
+            fs::write(blocks.join("00000000000000000004.mrb2"), &bytes[..80]).unwrap();
+            let profile = if complete {
+                "replacement_recovery_complete"
+            } else {
+                "replacement_recovery_retain"
+            };
+            // The child's pipe handshake follows recovery AND consuming
+            // idempotent recovery, while its resulting writer is still alive.
+            let mut child =
+                ChildHolder::spawn_profile(&directory.store, StoreAccessV2::Writer, profile);
+            let expected = if complete {
+                replacement_checkpoint(4, 1)
+            } else {
+                replacement_checkpoint(3, 0)
+            };
+            assert_replacement_busy(ReplacementStoreV2::open_writer(
+                &directory.store,
+                fixture_identity(),
+                expected,
+            ));
+            assert_replacement_busy(ReplacementStoreV2::inspect(
+                &directory.store,
+                fixture_identity(),
+                expected,
+            ));
+            let action = if complete {
+                ReplacementRecoveryActionV2::Complete
+            } else {
+                ReplacementRecoveryActionV2::RetainOld
+            };
+            let error = ReplacementStoreV2::recover_interrupted(
+                &directory.store,
+                fixture_identity(),
+                &request,
+                action,
+            )
+            .unwrap_err();
+            assert!(contains_storage_busy(&error), "{error:?}");
+            let after = fs::metadata(&directory.store).unwrap();
+            assert_eq!((inode.dev(), inode.ino()), (after.dev(), after.ino()));
+            let living_child = if terminate {
+                child.kill_and_wait();
+                None
+            } else {
+                child.drop_store();
+                Some(child)
+            };
+            let reopened =
+                ReplacementStoreV2::open_writer(&directory.store, fixture_identity(), expected)
+                    .unwrap();
+            assert_eq!(
+                reopened.chain().unwrap(),
+                if complete { &candidate } else { &old }
+            );
+            assert!(!reopened.is_fenced());
+            if let Some(child) = living_child {
+                child.finish();
+            }
         }
     }
 }

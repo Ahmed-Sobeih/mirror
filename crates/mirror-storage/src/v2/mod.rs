@@ -8,9 +8,10 @@
 //! and checked clean-state reconciliation. See `docs/STORAGE_V2.md` and
 //! `docs/STORAGE_APPEND_V2.md` for exact boundaries and filesystem assumptions.
 //! Profile 3 adds checked whole-branch replacement under the same stable root
-//! lock. Interrupted staging/cleanup remains fenced and requires later explicit
-//! recovery; ordinary opening accepts only clean selected layouts. See
-//! `docs/STORAGE_REPLACEMENT_V2.md` and `docs/STORAGE_REPLACEMENT_STORE_V2.md`.
+//! lock. Interrupted staging/cleanup requires an explicit recovery request with
+//! both independently accepted histories; ordinary opening stays clean-only. See
+//! `docs/STORAGE_REPLACEMENT_V2.md`, `docs/STORAGE_REPLACEMENT_STORE_V2.md`, and
+//! `docs/STORAGE_REPLACEMENT_RECOVERY_V2.md`.
 
 pub mod append;
 pub mod append_selection;
@@ -50,7 +51,8 @@ pub use replacement_selection::{
 };
 pub use replacement_store::{
     MAX_REPLACEMENT_INPUT_BYTES_V2, MAX_REPLACEMENT_READ_BYTES_V2,
-    MAX_REPLACEMENT_SELECTED_BYTES_V2, ReplacementStorageErrorV2, ReplacementStoreV2,
+    MAX_REPLACEMENT_SELECTED_BYTES_V2, ReplacementRecoveryActionV2, ReplacementRecoveryErrorV2,
+    ReplacementRecoveryRequestV2, ReplacementStorageErrorV2, ReplacementStoreV2,
 };
 pub use selection::{STORAGE_SELECTION_LEN_V2, SelectionErrorV2, SelectionRecordV2};
 

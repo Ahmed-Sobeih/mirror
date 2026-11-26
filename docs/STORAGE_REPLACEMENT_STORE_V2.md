@@ -1,10 +1,12 @@
 # V2 replacement store: durable publication and strict reconciliation
 
-**MB-03E2a. Updated 2026-11-26.** This contract extends the separate profile-3
+**MB-03E2a, with MB-03E2b recovery links. Updated 2026-11-26.** This contract extends the separate profile-3
 [MSR2 metadata and preparation contract](STORAGE_REPLACEMENT_V2.md) with a bounded
 filesystem store. It defines initialization, independently pinned reopening,
 whole-branch replacement, failure fencing and clean-state reconciliation. Explicit
-repair of interrupted staging or cleanup is **MB-03E2b, not implemented by E2a**.
+recovery of interrupted staging or cleanup is defined separately in the
+[MB-03E2b recovery contract](STORAGE_REPLACEMENT_RECOVERY_V2.md). Ordinary
+open/inspect/reconcile retain this contract's clean-only behavior.
 Current implementation and verification evidence belongs to
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md).
 
@@ -181,14 +183,16 @@ cannot repair staged or partially cleaned layouts. Any error returns no handle.
 Ordinary reopening follows the same clean-only restriction. Unknown, corrupt or
 unsupported artifacts are preserved, not cleaned up to obtain a successful result.
 
-## 6. Interrupted states and the next explicit recovery increment
+## 6. Interrupted states and separate explicit recovery
 
-The following table freezes the boundary between E2a and **planned E2b**. E2a
-rejects every non-clean row during ordinary opening/reconciliation. It implements
-no `Complete` or `RetainOld` recovery entry point. A future recovery operation must
-validate all independently authorized input and residual bytes before mutation.
+The following table freezes the boundary between ordinary storage operations and
+the separate **MB-03E2b** recovery entry points. Ordinary opening/reconciliation
+rejects every non-clean row. Explicit `Complete` or `RetainOld` recovery validates
+all independently authorized input and residual bytes before mutation; the complete
+API, action ordering and retry rules are in
+[the recovery contract](STORAGE_REPLACEMENT_RECOVERY_V2.md).
 
-| Selected marker | Candidate generation | Old generation | Required future treatment |
+| Selected marker | Candidate generation | Old generation | Explicit recovery treatment |
 |---|---|---|---|
 | Exact old MSR2 | Absent | Exact complete old history | Clean old state; an explicit retained request may begin/resume replacement |
 | Exact old MSR2 | Partial authorized staging; no pending selector | Exact complete old history | Explicit completion or removal of only authorized candidate staging |
@@ -216,7 +220,7 @@ authorized by a cleanup request. Both cases remain bounded by the two exact
 generation names and independent histories. No observed filename or prefix proves
 who created an artifact.
 
-**E2b requires both complete accepted old and candidate histories**, as well as
+**Explicit recovery requires both complete accepted old and candidate histories**, as well as
 independently retained network, full checkpoints and generations, and an explicit
 completion/retention action. An old checkpoint plus candidate alone cannot
 authenticate the contents of an old branch after some old files have been deleted.
@@ -227,11 +231,14 @@ After the new marker is selected, only exact complete selected-candidate replay 
 strict comparison against the independently retained old reference can authorize
 cleanup. A selected new generation must never be rolled back by `RetainOld`.
 
-These retained references are caller authority, not a new persisted journal. Safe
-recovery must keep the same exclusive root lock, recheck artifacts before mutation,
-return no writer on unresolved failure and make allowed repeated actions explicit.
-No recovery promise or operator interface exists merely because this state table
-has been written. Interrupted initialization remains a separate unsupported case.
+These retained references are caller authority, not a new persisted journal.
+Recovery keeps the same exclusive root lock, rechecks artifacts before mutation,
+returns no writer on unresolved failure and makes repeated actions explicit.
+The E2b contract additionally fixes directory-removal ordering and requires a
+complete old manifest whenever the old blocks directory survives. It also requires
+durable removal of pending metadata before retention makes candidate staging
+incomplete. Interrupted initialization remains a separate unsupported case, and
+neither storage component supplies the later operator interface.
 
 ## 7. Separate resource bounds
 

@@ -1,8 +1,8 @@
 //! Profile 3: complete accepted-branch publication under stable root ownership.
 //!
 //! Only a clean independently selected generation can be opened or reconciled.
-//! Failed staging or retirement remains fenced and preserved; explicit recovery
-//! of such residual layouts is a separate increment. See
+//! Failed staging or retirement remains fenced and preserved; only the separate
+//! explicit recovery API completes or retains authorized residual layouts. See
 //! `docs/STORAGE_REPLACEMENT_STORE_V2.md` for the ordering and filesystem contract.
 
 use std::{
@@ -29,6 +29,12 @@ use super::{
         ReplacementSelectionV2,
     },
     require_platform, uninitialized_error,
+};
+
+#[path = "replacement_recovery.rs"]
+mod recovery;
+pub use recovery::{
+    ReplacementRecoveryActionV2, ReplacementRecoveryErrorV2, ReplacementRecoveryRequestV2,
 };
 
 /// Maximum encoded payload for one complete selected generation and its MSR2.
@@ -112,8 +118,8 @@ impl ReplacementStoreV2 {
     /// checkpoint for independent retention. No automatic branch archive exists.
     /// Retain, or be able to independently reconstruct, BOTH exact accepted
     /// histories before calling: checkpoints alone cannot authorize later cleanup
-    /// of a partially removed old copy. Explicit interrupted recovery is not yet
-    /// implemented; clean reconciliation cannot repair that residual layout.
+    /// of a partially removed old copy. Use explicit recovery for authorized
+    /// interrupted layouts; clean reconciliation does not repair that residue.
     pub fn replace(
         &mut self,
         identity: ManifestIdentityV2,

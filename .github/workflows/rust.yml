@@ -64,6 +64,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example replacement_plan_v2_demo --locked
       - name: V2 durable whole-branch replacement demonstration
         run: cargo +1.98.0 run -p mirror-storage --example replacement_store_v2_demo --locked
+      - name: V2 explicit interrupted-replacement recovery demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example replacement_recovery_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
       - name: V2 accepted branch comparison demonstration
