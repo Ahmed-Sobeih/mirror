@@ -42,6 +42,8 @@ jobs:
         run: python3 tools/reference_replacement_storage_v2.py --check
       - name: Independent V2 peer history framing vectors
         run: python3 tools/reference_peer_history_v2.py --check
+      - name: Independent V2 finite peer session vectors
+        run: python3 tools/reference_peer_session_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
@@ -72,6 +74,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example replacement_recovery_v2_demo --locked
       - name: V2 complete candidate-history reception demonstration
         run: cargo +1.98.0 run -p mirror-network --example history_receiver_v2_demo --locked
+      - name: V2 real-process peer session and durable adoption demonstration
+        run: cargo +1.98.0 run -p mirror-network --example peer_session_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
       - name: V2 accepted branch comparison demonstration

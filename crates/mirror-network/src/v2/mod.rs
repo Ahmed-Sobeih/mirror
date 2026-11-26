@@ -1,10 +1,14 @@
-//! Bounded V2 history framing and complete in-memory candidate reconstruction.
+//! Bounded V2 history reconstruction, peer sessions and explicit candidate adoption.
 //!
 //! The caller independently chooses configuration/genesis. A peer's endpoint is
 //! a transfer-consistency claim, never canonical selection or freshness authority.
 //! Every block is actually accepted from genesis before a completed candidate is
 //! returned. Partial candidates are private, and every receiving error consumes
-//! continuation authority. This component opens no sockets and changes no store.
+//! continuation authority. The receiver itself opens no sockets and changes no
+//! store; the separate session and adoption modules compose these boundaries.
+
+pub mod adoption;
+pub mod session;
 
 use std::{fmt, iter::FusedIterator};
 

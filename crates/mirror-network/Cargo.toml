@@ -9,6 +9,7 @@ repository.workspace = true
 mirror-protocol = { path = "../mirror-protocol" }
 mirror-chain = { path = "../mirror-chain" }
 mirror-core = { path = "../mirror-core" }
+mirror-storage = { path = "../mirror-storage" }
 
 [dev-dependencies]
 mirror-crypto = { path = "../mirror-crypto" }
