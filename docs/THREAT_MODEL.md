@@ -1,8 +1,8 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation update: **MB-03E2b explicit interrupted
-whole-branch replacement recovery**, below. Exact acceptance evidence is
+and V2 design. Current implementation update: **MB-03F1 bounded peer-history
+framing and in-memory candidate reconstruction**, below. Exact acceptance evidence is
 tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md).
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
 were reviewed and contained checkpoint/roadmap notes, not an independent security
@@ -14,7 +14,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C and MB-03A/B/C/D/E1/E2a evidence, plus the current MB-03E2b verification status,
+MB-02A/B/C and MB-03A/B/C/D/E1/E2a/E2b evidence, plus the current MB-03F1 verification status,
 are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
@@ -27,8 +27,12 @@ selection metadata and preparation that retains both complete accepted histories
 MB-03E2a adds synchronized whole-branch publication, exact old-copy cleanup and
 fencing under stable cooperative ownership. MB-03E2b adds explicit completion or
 retention of the narrowly recognized replacement residue under independent pins
-and both complete accepted histories. Arbitrary corruption repair, peer integration
-and human finality remain unfinished; source publication/CI is tracked separately.
+and both complete accepted histories. MB-03F1 adds a separate bounded frame codec
+and consuming receiver that executes complete candidate histories under independent
+network selection. It opens no sockets and publishes no store. **MB-03F remains
+IN PROGRESS; next is MB-03F2 TCP-session integration and durable adoption.** Arbitrary
+corruption repair, persistent node integration and human finality remain unfinished;
+source publication/CI is tracked separately.
 
 ## Historical B3 implementation update
 
@@ -844,6 +848,10 @@ this register; the ledger cannot verify how an opaque commitment was produced.
 - Disk metadata, peers and caches cannot choose their own trusted C/genesis or
   final height/tip/ledger root. Reopen must reconstruct the complete selected
   history within existing byte, count and state-work budgets.
+- A peer may advertise an untrusted candidate endpoint, but that claim is only a
+  transfer-consistency expectation. MB-03F1 derives its returned checkpoint from
+  actual complete execution under independently selected C/genesis. It does not
+  turn the peer claim into trusted replay selection or canonical adoption.
 - An uncertain storage-publication error yields no usable writer. Initialization
   and reconciliation failures return no handle; append failure retains ownership
   but fences chain/selection access and further writes. Complete visible selection
@@ -896,8 +904,10 @@ under independent current-selection pins. MB-03E2a adds the bounded replacement
 store described below, including full-state publication and exact old-copy cleanup.
 MB-03E2b adds explicit recovery of recognized partial staging/cleanup, with both
 exact accepted histories retained as authority.
-**Next: MB-03F bounded fresh-peer candidate import and reconstruction.** Arbitrary
-corruption repair, human finality, a live V2 daemon and Gate A/Gate B remain unfinished.
+MB-03F1 adds bounded peer-history framing and complete in-memory candidate
+reconstruction. **Next: MB-03F2 TCP-session integration and durable adoption.**
+MB-03F and MB-03 remain IN PROGRESS. Arbitrary corruption repair, human finality,
+a live V2 daemon and Gate A/Gate B remain unfinished.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
 
@@ -1182,6 +1192,124 @@ F08 gains explicit recovery of this one independently authorized replacement's
 recognized staging and cleanup. Interrupted initialization, missing/corrupt
 selected markers, unknown residue, arbitrary corruption repair, reference-history
 custody, fresh-peer reconstruction and persistent node integration remain outside
-the component. **Next is MB-03F**, then the separate MB-04 node/operator work.
+the component. **At the E2b checkpoint, next was MB-03F**; its first bounded
+framing/receiver slice is recorded below. Separate MB-04 node/operator work remains.
 F09–F11, human finality, biological matching/privacy and Gate A/B remain open.
 No founder/marketing privilege, issuance/reward API or real biometric data is added.
+
+## MB-03F1 bounded peer-history framing and candidate reconstruction update
+
+The [peer-history contract](PEER_HISTORY_V2.md), separate
+[`mirror_protocol::v2` codec](../crates/mirror-protocol/src/v2.rs) and
+[`mirror_network::v2` receiver](../crates/mirror-network/src/v2/mod.rs) define one
+finite candidate-history transfer. The new `MPN2`/version-2 framing never falls
+back to the existing `MIRR`/version-1 protocol. No V1 frame, previous V2 block,
+manifest, signature domain or storage profile is reinterpreted.
+
+This section records reviewed source behavior. Focused execution passed **24 codec
+tests and 36 receiver tests**, and the new synthetic receiver example passed.
+Full-suite/source-publication acceptance is recorded separately in
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and
+[test-matrix section 17](MEMBERSHIP_TEST_MATRIX.md#17-mb-03f1-bounded-peer-history-framing-and-candidate-reconstruction).
+Independent source review found no blocker in this component's stated boundary;
+that review is not an external security audit or a completed network-deployment test.
+
+### Peer claims cannot select the network or the canonical branch
+
+`HistoryReceiverV2::new` takes independently selected configuration and exact
+genesis hashes. A Begin frame carries an explicitly untrusted `HistorySummaryV2`:
+network hashes, terminal height/tip/ledger root, block count, total complete MRB2
+bytes and manifest length. The network fields must equal the caller's identity,
+and `NetworkManifestV2::decode_for` independently verifies the received manifest
+against that identity and checks every configured seed proof.
+
+The remaining summary fields describe what the peer promises to send. They do
+not establish latestness, canonical selection, finality or the biological truth
+of a membership. In particular, the implementation does not manufacture a trusted
+`ChainReplayExpectationV2` from those claims. It constructs actual private state
+through `ChainV2::from_genesis` and `ChainV2::append`, then compares the computed
+complete endpoint and byte/count accounting with the captured summary.
+
+Original mixed-operation blocks are decoded and executed in their original order.
+Every parent and operation anchor comes from the privately accepted candidate
+branch; a peer root, membership-only log or separate account snapshot supplies no
+replacement ancestry. Signatures, work, timestamps, roots, account/member rules
+and cumulative state work remain checked by the existing acceptance path. Both
+balances and membership history, including permanent records, approvals, sequences
+and population counters, come from that one branch.
+
+Completion returns a `ReceivedCandidateV2` containing the whole accepted `ChainV2`
+and transfer statistics. It makes no selection against a local current branch and
+performs no file access. Later integration must apply the existing independently
+bound branch comparator and store publication/recovery rules. No storage generation
+is present on this wire or accepted as a fork score or freshness indicator.
+
+### Header admission precedes future transport allocation
+
+Each fixed header has exactly 12 bytes: magic, version, kind and payload length.
+Begin and End carry the same 152-byte summary. The single manifest frame carries
+complete MNM2 bytes; each Block frame contains its height followed by complete
+MRB2 bytes. Structural framing bounds are separate from manifest/block validity.
+
+The receiver's consuming `begin_frame` checks exact header shape, version, kind,
+current phase, per-kind length, configured block cap, remaining declared block
+bytes, feasible minimum/maximum future blocks, frame count and total framed-input
+accounting. Only then does it return a `PendingHistoryFrameV2` with a checked
+payload length. A future socket adapter must obtain this value **before allocating
+or reading the advertised payload**. The convenience `accept_frame` instead
+receives an already supplied slice and cannot establish how its caller allocated it.
+
+`accept_payload` requires the exact admitted length and uses borrowed framing
+decode before semantic acceptance. A second Begin/manifest, wrong kind, duplicate
+or reordered block, inconsistent height, invalid bytes, false terminal or changed
+End summary returns an error and consumes the whole attempt. No partially executed
+`ChainV2` can be recovered from a failed receiver through its public API. Dropping
+a pending frame on an I/O failure similarly exposes no candidate.
+
+Even after every claimed block has been accepted, `finish` still rejects until
+the explicit matching End frame has been received. End defines the finite transfer
+boundary; no socket EOF is used. Further input through a completed receiver rejects.
+It is still a future adapter's responsibility to close failed/unfinished sessions
+and define any later session or connection framing. F1 does not inspect bytes that
+the caller never supplies, open sockets or enforce wall-clock deadlines.
+
+### Finite input and execution budgets
+
+The summary bounds its block count to `1..=4096` and requires height plus one to
+equal that count. It permits at most **2,781,636 manifest bytes** and
+**16,777,216 complete MRB2 bytes**. A block is at most the configured limit, whose
+current hard ceiling is **1,048,576 bytes**. Once the manifest is checked, the
+receiver tightens the claimed total to the configured child cap plus the exact
+168-byte empty genesis. Its genesis payload is exactly 176 bytes including height.
+
+For `N` blocks, `M` manifest bytes and `B` complete MRB2 bytes, the total is:
+
+```text
+frames = N + 3
+wire bytes = 340 + M + B + 20*N
+```
+
+The inclusive bounds are **4,099 frames** and **19,641,112 wire bytes**. Products
+used to establish feasible future block sizes are checked in `u64`, including
+cases where an intermediate product exceeds 32-bit `usize`. Every accepted
+history still obeys the existing **1,048,576 cumulative state/configuration-item**
+limit. No history pruning, state cache or cap increase is used to finish a transfer.
+These are finite encoded-input and abstract execution bounds, not resident-memory,
+session-duration, bandwidth, peer-count or availability guarantees.
+
+`HistoryFramesV2` borrows one immutable accepted chain and emits one bounded frame
+at a time. Its captured summary cannot become stale through mutation of that
+borrowed chain; the iterator stops permanently at error or completion. It does
+not assemble an unbounded whole-transcript output or select a recipient's chain.
+
+F09 gains a separate checked framing/admission boundary and bounded in-memory
+candidate reconstruction. The historical V1 TCP implementation is unchanged;
+socket allocation/read ordering, fragmented delivery, slow-peer deadlines,
+connection/request quotas and actual peer-process integration still require
+**MB-03F2**. Durable adoption of a received candidate and preservation of recovery
+references also remain part of that next slice. A passing codec or receiver alone
+does not close T31/T32, MB-03F, MB-03 or either launch gate.
+
+No founder/marketing privilege, monetary decision, biometric payload schema,
+real device adapter, private duplicate matching, anonymity mechanism or final
+human consensus is added by this component.

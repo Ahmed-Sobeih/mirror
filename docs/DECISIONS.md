@@ -763,3 +763,54 @@ integration under MB-04. E2b completes a bounded local recovery component, not
 MB-03 as a whole or Gate A/B. It changes no monetary, grant, reward, fee, founder,
 marketing, biometric, accessibility or human-consensus policy. No device support,
 biological uniqueness, anonymity, public launch or real-money readiness is claimed.
+
+## MB-03F1 engineering choices — MIRROR-MB03F1-001
+
+MB-03F is split into a checked transfer/reconstruction component (F1), followed by
+actual bounded peer-session and durable-adoption integration (F2). F1 implements
+the separate [MPN2 framing and candidate receiver](PEER_HISTORY_V2.md). This split
+does not mark network reconstruction or MB-03 as a whole complete. Verification
+and exact source/publication evidence belong to CURRENT_STATUS and master section 25.
+
+The new protocol uses its own magic, version and Begin/Manifest/Block/End kinds.
+It does not reinterpret or negotiate fallback to the existing MIRR/version-1
+messages. Begin and End carry the same bounded endpoint/count/byte claims. Those
+claims describe the promised finite transfer; they do not independently choose a
+network, canonical branch, current tip or finality. No local storage generation is
+transmitted as a score or freshness signal. A valid shorter or losing branch can
+still be a valid received candidate.
+
+The caller supplies configuration/genesis identity independently. The receiver
+uses NetworkManifestV2::decode_for, then actual ChainV2::from_genesis and append
+for every complete original MRB2 block. It does not put peer claims into the
+trusted ChainReplayExpectationV2 interface. Final tip/root/count/bytes must match
+execution, and End must repeat the originally captured claim. Only finish exposes
+the complete accepted candidate; later comparison and owned storage publication
+remain separate operations. Mixed transaction and membership ordering is preserved.
+
+Receiving ownership is consuming. Every rejected header, payload or complete
+frame drops the attempt and its private partial chain. A pending-frame owner exposes
+only a payload length already checked against kind, phase, configured limits and
+remaining transfer budget, so a future transport can check before allocating.
+There is no public partial-chain getter or clone of the continuation. End is the
+explicit transfer boundary; further input to that receiver rejects. No EOF-based
+termination, socket, deadline, retry scanning or persistent session is added in F1.
+The sender borrows an immutable accepted ChainV2 and emits one bounded frame at a
+time; after an encoding error it cannot emit a later terminal frame.
+
+F1 preserves the existing 4,096-block, 16-MiB MRB2 and 1,048,576-state-item chain
+limits. Its complete encoded transfer ceiling is 19,641,112 bytes in at most
+4,099 frames, including both summaries, every header and height prefix. Genesis
+has its exact empty-block size. The decoded configuration further restricts child
+sizes, and every block header admission reserves the minimum/maximum space for
+all remaining blocks. Bounds are per transfer, not resident-memory, wall-clock or
+global connection limits. F2 must supply session ownership, deadlines, I/O failure
+handling and explicit accepted-branch adoption without weakening these checks.
+
+Two existing workspace crates, mirror-chain and mirror-core, become mirror-network
+runtime dependencies. Existing mirror-consensus and mirror-personhood are test-only
+dependencies for meaningful invalid-work/signature/ancestry and configured-limit
+cases. No third-party dependency version changes. The old V1 code, earlier V2
+formats/hash domains, monetary policy and stored history remain unchanged.
+No enrollment rule, device adapter, biometric storage, founder privilege or reward
+formula is selected by this networking component.

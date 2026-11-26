@@ -20,10 +20,12 @@ whole-branch publication to a separate replacement store**, with stable root
 ownership, checked old-copy cleanup, failure fencing and clean reconciliation.
 **MB-03E2b adds explicit recovery of recognized interrupted replacement staging
 and cleanup**, using independently retained old/candidate histories and an explicit
-completion or retention action. Current acceptance evidence is in
+completion or retention action. **MB-03F1 adds separate V2 history frames and an
+in-memory receiver that executes a complete candidate from genesis**, under an
+independently selected network. Current acceptance evidence is in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
-Next is **MB-03F: fresh-peer reconstruction**, followed by persistent V2 node
-integration in MB-04.
+Next is **MB-03F2: bounded peer sessions and durable candidate adoption**, followed
+by persistent V2 node integration in MB-04.
 MB-03 as a whole and the V2 node/API remain unfinished.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -166,11 +168,22 @@ different bytes remain preserved and rejected. The same exclusive root ownership
 continues through final clean replay/synchronization. Errors return no writer.
 Missing/corrupt selection and interrupted initialization remain unsupported.
 
+The separate [V2 peer-history contract](docs/PEER_HISTORY_V2.md) defines MPN2
+Begin, manifest, full-block and End frames. Its consuming receiver checks the
+network independently, validates every actual block through `ChainV2`, and exposes
+a candidate only after terminal consistency and full accounting pass. A peer's
+claimed endpoint identifies its promised transfer; it cannot select the local
+canonical chain. Header admission checks phase, length and remaining budgets
+before a future transport allocates its payload. Any receiving error consumes
+the attempt and its private partial chain. The immutable sender produces one frame
+at a time from an accepted branch. This F1 component opens no socket and publishes
+no stored selection; actual session/adoption integration is F2.
+
 ## Verification checkpoints
 
-Current MB-03E2b verification and publication evidence is tracked in
+Current MB-03F1 verification and publication evidence is tracked in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
-MB-03E2a's prior acceptance remains in master-plan section 23. The following
+MB-03E2a/E2b acceptance remains in master-plan sections 23–24. The following
 MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
@@ -247,6 +260,7 @@ cargo test -p mirror-core --release --locked
 cargo test -p mirror-state --release --locked
 cargo test -p mirror-consensus -p mirror-chain --release --locked
 cargo test -p mirror-storage --release --locked
+cargo test -p mirror-protocol -p mirror-network --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
 python3 tools/reference_state_v2.py --check
@@ -256,6 +270,7 @@ python3 tools/reference_chain_v2.py --check
 python3 tools/reference_storage_v2.py --check
 python3 tools/reference_append_storage_v2.py --check
 python3 tools/reference_replacement_storage_v2.py --check
+python3 tools/reference_peer_history_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
@@ -269,6 +284,7 @@ cargo run -p mirror-storage --example recovery_v2_demo --locked
 cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
 cargo run -p mirror-storage --example replacement_store_v2_demo --locked
 cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked
+cargo run -p mirror-network --example history_receiver_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

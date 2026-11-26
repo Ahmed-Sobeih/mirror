@@ -24,16 +24,20 @@ unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
 Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state/consensus/chain/storage tests, all nine independent reference
+core/personhood/state/consensus/chain/storage/protocol/network tests, all ten independent reference
 checks (including `tools/reference_storage_v2.py --check` and
 `tools/reference_append_storage_v2.py --check` and
-`tools/reference_replacement_storage_v2.py --check`) and all thirteen synthetic examples
+`tools/reference_replacement_storage_v2.py --check` and
+`tools/reference_peer_history_v2.py --check`) and all fourteen synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
 chain chain_v2_demo/fork_choice_v2_demo and storage
 storage_v2_demo/append_v2_demo/recovery_v2_demo/replacement_plan_v2_demo/
-replacement_store_v2_demo/replacement_recovery_v2_demo). Include
+replacement_store_v2_demo/replacement_recovery_v2_demo, and network
+history_receiver_v2_demo). Include
 `cargo test -p mirror-storage --release --locked` and
-all six storage examples in the gates.
+`cargo test -p mirror-protocol -p mirror-network --release --locked`,
+all six storage examples and
+`cargo run -p mirror-network --example history_receiver_v2_demo --locked` in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -41,7 +45,7 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-03F.
+NEXT_SESSION.md points to the next unfinished task: currently MB-03F2.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -58,8 +62,12 @@ pure comparison of complete accepted branches under independently selected netwo
 identity, fixed-target normalized height scores and keep-current ties. MB-03E1 adds
 separate MSR2 profile-3 metadata and checked pure replacement preparation. E2a adds
 the actual bounded replacement store, checked cleanup, fencing and clean reconciliation.
-E2b now supplies explicit interrupted replacement recovery. Next is MB-03F bounded
-fresh-peer reconstruction; MB-03E/E2 are complete within local store component scope.
+E2b supplies explicit interrupted replacement recovery; MB-03E/E2 are complete
+within local store component scope. MB-03F1 now supplies separate MPN2 framing,
+checked header admission and a consuming complete-history receiver under independent
+network selection. Its local component gates passed; source publication and exact
+CI evidence remain separately recorded in CURRENT_STATUS.md. Next is MB-03F2
+TCP-session integration and durable adoption. MB-03F remains IN PROGRESS.
 E1 remains pure; E2a never treats its saved plan as a durable write permit.
 MB-03 as a whole and the persistent V2 node/API remain unfinished; current
 source/test/publication evidence belongs to the checkpoint files.
@@ -68,6 +76,7 @@ docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
 docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_V2.md,
 docs/STORAGE_REPLACEMENT_STORE_V2.md, docs/STORAGE_REPLACEMENT_RECOVERY_V2.md,
+docs/PEER_HISTORY_V2.md,
 docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
@@ -199,8 +208,8 @@ Decode only against independently retained full endpoint and generation pins.
 Generation starts at zero at any accepted height and advances once per strictly
 preferred whole-branch publication, not per skipped block; generation <= height.
 An equal-height/human-weighted replacement rule needs an explicitly reviewed profile.
-Generation does not establish publication history or freshness. Preserve nine
-independent reference cases and all previous fixture bytes.
+Generation does not establish publication history or freshness. Preserve all ten
+independent reference checks and all previous fixture bytes.
 
 prepare_replacement_v2 first checks both network identities via the comparator,
 then independent current endpoint, selector endpoint/generation, exact canonical
@@ -253,11 +262,48 @@ same-action/action-switch failure retries and the single read allowance, includi
 length-plus-one charges before existing-prefix payload opens. Full recovery read
 bounds: old Complete 293,447,607 bytes / 4 replays; new Complete 176,068,227 bytes / 2;
 RetainOld 215,195,249 bytes / 2.
-These are encoded-read bounds, not memory/latency/power-loss guarantees. Next MB-03F
-must treat peer endpoints as candidate claims, fully reconstruct actual history under
-independent network selection, preserve all caps and old V1 bytes, and only publish
-accepted candidates using retained storage/recovery ownership. Do not import a peer's
-local generation as fork score, freshness or independent selection authority.
+These are encoded-read bounds, not memory/latency/power-loss guarantees. MB-03F1
+treats peer endpoints as candidate claims and fully reconstructs actual history under
+independent network selection. Preserve all caps and old V1 bytes. MB-03F2 must
+publish only appropriately selected accepted candidates using retained storage/
+recovery ownership. Do not import a peer's local generation as fork score, freshness
+or independent selection authority.
+
+MPN2 is a separate version-2 protocol, with an exact 12-byte header and Begin,
+Manifest, Block and End phases. V1 MIRR bytes/APIs remain unchanged with no fallback.
+Select C/genesis independently before HistoryReceiverV2::new; never derive network
+authority or a trusted ChainReplayExpectationV2 from peer summary/manifest fields.
+The 152-byte Begin/End summary is an untrusted finite-transfer claim. Actual
+NetworkManifestV2::decode_for and ChainV2::from_genesis/append must validate every
+original mixed-operation block and complete candidate ancestry/state.
+
+Use consuming begin_frame before allocating/reading a socket payload. Its checked
+PendingHistoryFrameV2::payload_len includes phase, exact/configured lengths and
+remaining feasible byte/frame accounting. accept_payload requires that exact length.
+All errors consume continuation; do not expose partial state, skip bad frames,
+rescan for magic or resume a failed owner. accept_frame is only convenience for an
+already supplied complete frame and proves nothing about the caller's allocation.
+Every actual block and matching explicit End must pass before finish releases a
+ReceivedCandidateV2. End defines this transfer; EOF alone never proves completion.
+Further input through the completed receiver rejects; a future adapter must define
+connection/session behavior and close/discard unfinished attempts.
+
+Preserve 4096 blocks, 16 MiB complete MRB2, 2781636 manifest bytes, 4099 frames and
+19641112 total framed-input bytes, plus configured block limits and the unchanged
+1048576 cumulative state/configuration-item budget. Wire accounting is
+340 + manifest_bytes + block_bytes + 20*block_count; feasible future-byte arithmetic
+uses checked u64, including intermediate products too large for 32-bit usize.
+The exact 168-byte genesis tightens the configured total. These are encoded-input
+and abstract-work caps, not RSS, bandwidth or wall-clock guarantees. The sender
+borrows one immutable accepted history and is fused after error/completion.
+
+F1 opens no socket and writes no store. F2 must enforce actual bounded requests/
+connections and deadlines, test fragmented/early-closed transfers across real peers,
+then independently compare and durably adopt only fully accepted whole histories.
+Retain both old/candidate histories and independent checkpoints/generations for
+publication recovery; keep existing ownership, fencing and strict reopening rules.
+Codec/receiver tests do not establish transport behavior, global latestness, final
+human consensus, anonymity, biological uniqueness or Gate A/B completion.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.

@@ -1,65 +1,106 @@
-# Next session — MB-03F
+# Next session — MB-03F2
 
 Roadmap: [MASTER_PLAN.md](MASTER_PLAN.md). Updated **2026-11-26**.
 
 ## Recover current state first
 
-Read AGENTS.md, CURRENT_STATUS.md, the-prompt, MASTER_PLAN.md's tracker and section 24,
-and docs/DECISIONS.md. Verify live refs, PR #1, commits/comments and exact-source CI.
-Preserve newer/unpushed work and runtime data. Never reset to this checkpoint.
+Read AGENTS.md, CURRENT_STATUS.md, the-prompt, MASTER_PLAN.md's tracker and section 25,
+docs/DECISIONS.md and docs/PEER_HISTORY_V2.md. Verify live refs, PR #1, recent commits/
+comments and exact-source CI. Preserve newer/unpushed work and runtime data. Never
+reset to this checkpoint.
 
-Implementation source: **99bf0da86469f5832fe9e5c855e9729676618887**.
-Tested tree: **d20a433805287d16765e2c9d01957056e8cfef2a**.
-Parent: **5706ed4b4d5035aba8dc5be274bb7a35f048bee7**.
-[Source push CI 45731894201](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45731894201)
-and [source PR CI 45731901717](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45731901717)
-both passed. Full push-job `139615676064` logs confirmed the exact
-source checkout and all required workspace, documentation, release, reference,
-example and audit gates. Later documentation-head CI is checked separately and
-recorded on PR #1; these source results do not assert a future head is tested.
+Implementation source: **43ef08ca6d3e7878b7dab2d2355a7265d41a0351**.
+Tested tree: **7521e7906f2a64cee3a777a9aa158ddcba4e2078**.
+Parent: **ce5203aa78717134a753f014cca0753a4519eb08**.
+[Source push CI 45739035829](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45739035829)
+and [source PR CI 45739040653](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45739040653)
+both passed. Full push-job `139639209001` logs confirmed the exact source checkout
+and all required workspace, documentation, release, reference, example and audit
+gates. Later documentation-head CI is checked separately and recorded on PR #1;
+these source results do not assert a future head is tested.
 PR #1 remains open and unmerged on `work/personhood-register-v0.1`.
 Main remains `ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
 
-MB-03E2b/E2/E are verified within local replacement/recovery component scope.
-MB-03 remains IN PROGRESS; Gate A/B remain UNMET.
+
+MB-03F1 is verified within framing/in-memory reconstruction scope. Earlier local
+comparison/storage/recovery components remain verified. MB-03F and MB-03 remain
+IN PROGRESS; Gate A/B remain UNMET.
 
 ## Exact next work
 
-**Next: MB-03F — bounded fresh-peer V2 reconstruction. READY.**
+**Next: MB-03F2 — bounded V2 peer sessions and durable candidate adoption. READY.**
 
-Read the existing V1 protocol/network/node interfaces and accepted V2 chain/storage
-contracts before designing the new wire boundary. Add an explicitly versioned V2
-path; do not reinterpret legacy bytes, initialize an existing store implicitly,
-or treat a peer's advertised checkpoint as accepted state.
+1. Read [the F1 wire/receiver contract](docs/PEER_HISTORY_V2.md), the existing V1
+   TCP/node path and accepted V2 chain/comparison/storage contracts. Specify an
+   explicit V2 session/request boundary; preserve frozen V1 and F1 bytes.
+2. Select C/genesis from independent local configuration, and keep the provider's
+   accepted history immutable for one transfer. Read the fixed header first,
+   call consuming `begin_frame`, then allocate/read only its admitted payload.
+   Drop a pending owner and close/discard the attempt on I/O failure.
+3. Enforce bounded requests/connections, cumulative bytes and an absolute session
+   deadline. Repeated short reads or resets of individual socket timeouts must
+   not extend an incomplete transfer forever. Specify End and subsequent session
+   behavior explicitly; do not infer candidate completion from EOF.
+4. Exercise actual TCP peer processes, fragmented input, early close, stalled or
+   oversized input, changed claims and invalid blocks. Failed reception returns
+   no candidate and cannot mutate the selected store.
+5. Only after complete `finish`, compare the actual accepted candidate with the
+   locally selected current history under independent C/genesis. Keep current
+   on ties/shorter histories. Use existing owned storage publication for a preferred
+   branch; explicit fresh initialization stays separate from existing-store open.
+   Retain both exact histories and local pins needed for explicit recovery. Peer
+   generations, height/root claims and transport completion are not write permits.
+6. Demonstrate a fresh peer rebuilding complete state, plus a real transfer across
+   equal-account/different-membership histories. Verify branch comparison, durable
+   publication and strict reopen against independently retained local pins.
 
-Start with a concrete bounded protocol/receiver slice: independently selected
-network configuration/genesis, strict message versions/kinds/lengths, a bounded
-manifest and exact complete block bytes, bounded request counts and byte totals,
-and an explicit terminal candidate checkpoint. Treat peer-provided height, tip and
-root as claims to verify by complete actual ChainV2 replay. The caller's independent
-network selection remains authority; local storage generations are never peer
-fork scores or freshness evidence. Select only fully accepted branches through
-the existing comparator before durable publication under existing root ownership.
+F1 protocol/receiver acceptance is complete; MB-03F and MB-03 remain in progress.
+Do not mark network integration complete from an in-memory fixture. Persistent
+daemon, transaction pool, wallet and operator APIs remain MB-04; complete Ant Kiss
+is MB-05 and final human consensus MB-06. Production fee/reward formulas, private
+matching and devices retain later decision/acceptance gates. No monetary decision,
+hardware purchase or real biometric collection blocks MB-03F2.
 
-Preserve all history/state/work caps and membership-aware replay. Reject wrong
-networks, malformed/truncated/oversized frames, missing/duplicate/out-of-order
-blocks, changed manifests/tips, invalid signatures/work/roots and interrupted
-transfers without accepting a partial candidate or mutating the selected store.
-Keep existing valid stored data and both old/candidate histories available for
-publication recovery. No cache/root, peer counter or filtered membership log can
-stand in for the complete original mixed-operation blocks.
 
-Demonstrate independent fresh-peer reconstruction across genuine membership forks,
-including equal account bytes with different membership, reservations and high-water;
-verify complete rebuilt state and persist/reopen it under independent local pins.
-Separate protocol-codec, receiver/replay and actual peer-process evidence; do not
-mark the whole network complete from a standalone decoder or in-memory fixture.
-Persistent daemon, transaction pool, wallet and operator APIs remain MB-04;
-complete Ant Kiss is MB-05, final human consensus MB-06. Production fees/rewards,
-private matching and actual devices retain their own later decision/acceptance gates.
-No monetary choice, hardware purchase or real biometric collection blocks MB-03F.
+## Preserve the completed receiver boundary
+
+The separate V2 protocol now carries one finite candidate history: Begin, its
+complete canonical manifest, genesis and every child block in order, then an
+explicit matching End. The caller selects the expected configuration hash and
+genesis independently before accepting any peer data. Every advertised height,
+tip, root and byte count is a claim to check, not trusted replay authority.
+
+The receiver validates the manifest and seed proofs, then reconstructs the branch
+through actual `ChainV2::from_genesis` and `append`. All original mixed operations
+execute against that branch's own ancestry. Accounts, memberships, permanent
+reservations, approvals, sequences, population history and resource counters stay
+together. Computed terminal state and exact counts must match the captured claim.
+A valid shorter or losing branch is still a candidate; receiving does not select
+it as canonical, establish global freshness or change a store.
+
+Each receive operation consumes ownership. A checked 12-byte header must pass
+phase, per-kind, configured and remaining-transfer limits before a pending owner
+exposes its permitted payload length. Consuming that owner requires exactly those
+payload bytes. Errors destroy continuation; partial accepted state has no public
+getter or clone. All blocks alone are insufficient: only a matching End and a
+successful consuming `finish` release the complete `ReceivedCandidateV2`.
+
+The sender borrows one immutable accepted history, derives its summary from that
+history, and yields one frame at a time. It retains no all-history output buffer
+and stops permanently after completion or an encoding error. The convenience
+receiver for an already allocated complete frame cannot establish allocation
+safety for its caller; a future stream adapter must use checked header admission
+before allocating or reading the declared payload.
+
+
+Read [PEER_HISTORY_V2.md](docs/PEER_HISTORY_V2.md) for exact frame layouts, offsets,
+byte arithmetic and caps. `ReceivedCandidateV2::chain` exposes a completed accepted
+history; `into_chain` consumes that result. No receiver/pending clone or partial-
+chain getter exists. Peer claims cannot seed trusted `ChainReplayExpectationV2`.
 
 ## Preserve the recovered storage boundary
+
+The following E2b behavior remains unchanged by F1.
 
 The separate explicit recovery API now accepts independently retained old and
 candidate checkpoints/generations, BOTH exact accepted histories, and an explicit
@@ -103,7 +144,8 @@ history and replay/resource counters always come from one fully accepted history
 Copied roots, cache state, filenames and local generations never substitute for
 independent selection or complete execution.
 
-No encoding, hash domain, dependency, monetary rule or prior store behavior changes.
+The E2b recovery increment changed no encoding, hash domain, dependency, monetary
+rule or prior store behavior; F1 preserves that recovery behavior.
 MSR2 remains 280 bytes, version 2/profile 3, with the unchanged nested MSS2.
 The distinct two-history/two-selector payload ceiling is **39,118,264 bytes**;
 all payload reads and growth sentinels share one **313,011,680-byte** allowance.
@@ -131,40 +173,59 @@ Read [recovery](docs/STORAGE_REPLACEMENT_RECOVERY_V2.md),
 [test matrix](docs/MEMBERSHIP_TEST_MATRIX.md). Keep both reference histories outside
 the store lifecycle; no implicit archive, inferred intent or cache authority exists.
 
+
 ## Actual verification and required gates
 
 Local verification used Rust **1.98.0** and locked dependencies:
 
-- **891 workspace/all-target runtime tests passed**, zero failures: 836 retained
-  plus **55 new** (38 public recovery integration, 15 private failure/retry/read-
-  budget, and two independent-process ownership tests). Boundary scenarios within
-  one function are not additional tests.
-- **Eight retained compile-fail doctests passed**; no new documentation-test count.
+- **951 workspace/all-target runtime tests passed**, zero failures: 891 retained
+  plus **60 new** (24 protocol-codec and 36 receiver/sender integration tests).
+  Boundary scenarios inside one test function are not additional unique tests.
+- **Nine compile-fail doctests passed**, eight retained plus one proving that a
+  receiver cannot be reused after a consuming failure.
 - Required release gates passed: personhood **234 runtime + 3 doctests**, core
   **121**, state **49**, consensus **23**, chain **85 runtime + 3 doctests**,
-  storage **350 runtime + 2 doctests**. Reruns are not new unique tests.
-- All **nine independent Python reference checks** and **thirteen synthetic
+  storage **350 runtime + 2 doctests**, protocol **38**, and network
+  **40 runtime + 1 doctest**. Release reruns are not new unique tests.
+- All **ten independent Python reference checks** and **fourteen synthetic
   examples** passed. One subprocess helper remains intentionally ignored during
-  ordinary enumeration and is invoked by the parent process tests.
-- Scoped formatting, whitespace and monetary/runtime-data audits passed.
-  **117 of 120 retained source/dependency/reference/fixture files are byte-identical**
-  to the parent. Changed retained Rust files add module exports/docs and recovery
-  cases to the existing process harness. Cargo.lock, dependency manifests, previous
-  encoding fixtures, monetary code and legacy runtime source are unchanged.
+  ordinary enumeration and is invoked by the parent ownership tests.
+- Scoped Rust formatting, whitespace and allocation/runtime-data audits passed.
+  **120 of 124 retained Rust/dependency/reference/fixture files are byte-identical**
+  to the parent. Existing protocol/network libraries only add the V2 module
+  exports/documentation. Their legacy implementation is otherwise byte-identical.
+  Network dependencies and Cargo.lock add four local workspace edges; no external
+  dependency version changes. Prior encoding fixtures and monetary code are unchanged.
 
-Root and independent implementation review identified and corrected the absent-old-
-blocks synchronization edge before final verification. Read-budget charging was
-also moved before opening existing-prefix payloads. Final independent review found
-no remaining blocker in the scoped component. This is not an external security
-audit, physical power-cut test or proof of hostile-owner race resistance.
+The independent Python reference rebuilds the existing synthetic chain and packs
+the new headers, summaries, height prefixes and transcript accounting itself.
+It neither runs Rust nor uses Rust output as its oracle. The complete-transcript
+test hash is a reference assertion, not a new cryptographic domain on the wire.
 
-Run all AGENTS.md gates, including the thirteenth example:
-`cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked`.
-Verify exact published source/full CI logs and documentation-head CI separately.
-Before each Mirror final refresh/publish the-prompt and checkpoint records using
-an expected-head guard. Keep PR #1 unmerged; do not change main.
+The fourteenth example, `history_receiver_v2_demo`, reconstructs the accepted main
+history and a genuine competing membership history from separate in-memory frames:
 
-No extra founder or marketing funds; no silent choice of D-01 combined bootstrap
-formula or D-04 fees/rewards. Raw/encrypted biometric archives, medical records and
-real keys stay outside GitHub/on-chain history. Pinky/ECG/human and accessibility
-preferences remain design inputs, not measured uniqueness or existing device support.
+| Reconstructed history | Height | Active / pending / historical peak | Frames / wire bytes | MRB2 bytes / state items |
+|---|---:|---|---|---|
+| Main | 4 | 1 / 0 / 3 | 8 / 5,406 | 4,330 / 75 |
+| Competing branch | 3 | 1 / 1 / 2 | 7 / 4,493 | 3,437 / 58 |
+
+It also checks equal-account branches whose membership histories differ at height
+3, with the existing comparator keeping current on a tie. Main tip remains
+`33d3201d81345860dd5c38629a763b543ad412788962e9fdeafeecfb96c4ce3d` and ledger root
+`785580b604b65294af265374021fa10cecf08a95bdc51bc044992d3ffbfcfe68`.
+
+Receiver tests cover missing/repeated/reordered frames and blocks, unfinished
+phases, wrong network/seed proofs, premature or changed End, false endpoints,
+invalid actual work/roots/signatures/branch anchors and pre-payload bounds.
+The example itself opens no TCP connection and publishes no store. Review and
+tests establish this component's stated behavior, not an external security audit
+or production network readiness.
+
+
+Run every AGENTS.md gate using Rust 1.98.0 and locked dependencies: workspace
+all-target tests and doctests; release personhood/core/state/consensus/chain/storage/
+protocol/network; ten Python references; fourteen examples; allocation/runtime
+audit; scoped formatting and whitespace. Confirm exact implementation source and
+CI, then check any later documentation head separately. Do not count reruns as
+new tests or turn test counts into a readiness percentage.

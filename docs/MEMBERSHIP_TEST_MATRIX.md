@@ -1,9 +1,9 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation checkpoint: **MB-03E2b — explicit interrupted whole-branch
-replacement recovery**, with source/test mapping in section 16.
-**MB-03 remains IN PROGRESS.**
+Current implementation checkpoint: **MB-03F1 — bounded peer-history framing and
+in-memory candidate reconstruction**, with source/test mapping in section 17.
+**MB-03F and MB-03 remain IN PROGRESS.**
 These 35 rows are acceptance requirements, **not 35 passing tests**. B1–B4 and
 MB-02A/B/C are verified components; MB-02 supplies actual bounded in-memory branch
 acceptance. MB-03A adds explicit immutable-store initialization, cooperative
@@ -16,8 +16,10 @@ replacement metadata and prepares a preferred whole branch without filesystem I/
 MB-03E2a adds a separate replacement store, synchronized complete-branch publication,
 exact old-copy cleanup and failure fencing under stable ownership. MB-03E2b adds
 explicit completion/retention of recognized interrupted replacement staging and
-cleanup, under independent pins and both accepted histories. Arbitrary corruption
-repair, fresh-peer integration and the persistent V2 node remain unfinished.
+cleanup, under independent pins and both accepted histories. MB-03F1 adds separate
+V2 framing, header admission and a consuming complete-history receiver; it opens
+no socket and publishes no store. Arbitrary corruption repair, TCP-session and
+durable-adoption integration, and the persistent V2 node remain unfinished.
 
 Historical counts and exact-source CI remain in sections 3–9: B1 added 31 cases,
 B2 39, B3 51, B4 69, and MB-02C added 61 to reach its **523-test baseline**. Those
@@ -76,10 +78,18 @@ doctest count is added. Exact-source publication and CI evidence are recorded in
 [CURRENT_STATUS.md](../CURRENT_STATUS.md) and master-plan section 24; local results
 alone do not establish a published branch's CI conclusion.
 
-**Next is MB-03F:** bounded fresh-peer candidate import/reconstruction under
-independently selected network identity. Persistent daemon/operator APIs remain
-MB-04. No global freshness, human finality, biological deduplication, live economy
-or launch gate is inferred from these component checks.
+MB-03F1 focused execution passed **24 codec tests and 36 receiver tests**, and its
+synthetic `history_receiver_v2_demo` passed. Section 17 maps those **60 runtime
+test functions** and the separately gated consuming-API documentation example.
+Full-suite, release, reference and exact-source CI results remain separately
+recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md); the earlier 891-test total
+belongs to E2b and does not establish this increment's complete acceptance.
+
+**Next is MB-03F2:** TCP-session integration and durable adoption of reconstructed
+candidates under independent network selection. MB-03F remains IN PROGRESS;
+persistent daemon/operator APIs remain MB-04. No global freshness, human finality,
+biological deduplication, live economy or launch gate is inferred from these
+component checks.
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
 Historical source findings: [THREAT_MODEL.md](THREAT_MODEL.md).
@@ -100,20 +110,22 @@ and preparation: [STORAGE_REPLACEMENT_V2.md](STORAGE_REPLACEMENT_V2.md). Durable
 replacement and clean-state reconciliation:
 [STORAGE_REPLACEMENT_STORE_V2.md](STORAGE_REPLACEMENT_STORE_V2.md). Explicit whole-branch
 residual recovery: [STORAGE_REPLACEMENT_RECOVERY_V2.md](STORAGE_REPLACEMENT_RECOVERY_V2.md).
+Bounded peer-history framing and candidate reconstruction:
+[PEER_HISTORY_V2.md](PEER_HISTORY_V2.md).
 
 ## 1. Rule-to-assertion map
 
 | Case | Required assertion / proposed acceptance name | Owner and current coverage |
 |---|---|---|
-| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; MB-03E2a rejects implicit replacement/immutable/append profile migration in either direction without changing files; live V2 node integration remains MB-04 |
-| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; MB-03A/B/C require independently selected C and exact genesis, and recovery requires both complete parent/candidate checkpoints; MB-03D checks both accepted inputs against independently selected C/genesis before comparison |
+| T01/R01 | `legacy_data_is_not_reinterpreted`: old MRB1/MPH1 only on old paths; V2 rejects; init refuses legacy directories; old bytes unchanged. | Prior format separation retained; E2a rejects implicit storage-profile migration; MB-03F1 separately rejects MIRR/version-1 and MPN2/version-2 cross-decoding with no downgrade; live transport integration remains F2 and persistent node integration MB-04 |
+| T02/R02 | `seed_configuration_changes_signing_context`: vary seed key/order/nonce/evidence, allocation and every setting separately; old signatures fail on otherwise-valid changed configs. | Prior context/bootstrap/manifest checks retained; storage and comparison require independent network/endpoint authority; MB-03F1 checks both Begin and actual MNM2 against independently supplied C/genesis and never promotes peer terminal claims to trusted selection |
 | T03/R03 | `bootstrap_has_no_circular_context_or_bypass`: compute C before proofs/roots, all ordered proofs mandatory; reject zero/duplicate descriptors and invalid counts/thresholds; no first-seed runtime bypass or forced revocation. | B1 construction, B3 ordinary seed runtime rights and MB-02C all-proof manifest construction/decoding VERIFIED; production bootstrap/admission policy remains gated |
 | T04/R04 | `v2_operations_have_exact_lengths`: prefix131; signed Transfer243/Enroll291/Approve227/Withdraw227; reject all truncations, versions/kinds, oversized/trailing bytes before mutation. | B2 membership plus MB-02A Transfer/unified codecs VERIFIED COMPONENTS; all four lengths and preserved membership bytes covered |
 | T05/R05 | `every_signed_field_is_bound`: altered kind/context/anchor/window/key/sequence/evidence/profile/target invalidates signature; malformed keys/signatures do not panic. | B2 membership plus MB-02A Transfer authentication, domain separation and strict signatures VERIFIED COMPONENTS |
 | T06/R06 | `approval_targets_complete_request`: changed request/window changes enrollment ID; approval cannot authorize it; exact request/key/evidence reuse rejected after active/revoked/expired outcomes. | B2 complete-request ID/signatures and B3 retained ID/key/evidence reuse rejection VERIFIED; fresh biometric duplicates remain external |
 | T07/R07 | `membership_sequences_are_exact_and_atomic`: seeds start0, Enroll establishes next1; accept/increment exact sequence once; reuse/skip/overflow fail unchanged; transfer/membership spaces separate; repeated approval no extra weight. | B3 membership, MB-02B account/member sequence separation and overflow checks, and MB-02C actual-block execution/replay of those rules VERIFIED IN MEMORY |
 | T08/R08 | `v2_transfer_conserves_test_balances`: positive amounts, checked balance/self-transfer/nonce; reject nonzero fees/mints/rewards; preserve initial synthetic supply. | MB-02B arithmetic/self-transfer/retained-zero rules and MB-02C actual-block conservation of explicit synthetic supply VERIFIED IN MEMORY; no mint/reward API or final economy |
-| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | Accepted ChainV2 ancestry and complete replay retain wrong-fork anchor rejection; MB-03B/C validate the exact complete child through ordinary acceptance before publication/recovery; MB-03D compares only accepted candidate histories and uses actual hashes for common ancestry; peer reconstruction remains open |
+| T09/R09 | `anchor_must_be_recent_canonical_ancestor`: reject unknown/orphan/future/current anchors; exact max age pass/max+1 fail; validate against candidate branch ancestry. | Accepted ChainV2 ancestry and complete replay retain wrong-fork anchor rejection; MB-03F1 reconstructs through actual from_genesis/append and rejects a correctly signed operation anchored in another branch; actual TCP transfer remains F2 |
 | T10/R10 | `height_window_boundaries`: from/until inclusive; from-1/until+1, inverted/overflow span reject; max/max+1; local clock irrelevant. | B2/MB-02A height-window boundaries and B3/MB-02B execution checks retained through MB-02C acceptance; T11 covers record expiry; strict parent header timestamps are separate from operation lifetimes and use no local clock |
 | T11/R11 | `pending_expiry_preserves_tombstones`: empty block expires pending at until+1, frees pending capacity not history; active membership unaffected by old request expiry; approval cannot extend lifetime. | Prior expiry/tombstone rules retained; MB-03B appends/reopens an actual empty expiry block, and MB-03C explicitly recovers that child with complete state equality; unknown residual shapes still reject |
 | T12/R12 | `only_self_can_withdraw`: pending/active own signed withdrawal succeeds; unknown/expired/revoked or other signer including founder fails; context/anchor/window failure consumes no sequence. | B3 self-only ownership/status and authorization rules retained by actual MB-02C mixed execution and membership-fork replay; no founder override, recovery or death policy is added |
@@ -125,18 +137,18 @@ residual recovery: [STORAGE_REPLACEMENT_RECOVERY_V2.md](STORAGE_REPLACEMENT_RECO
 | T18/R18 | `high_water_uses_committed_branch_end_state`: decline preserves record; transient cancelled activation cannot fabricate peak; reorg discards orphan counts/peaks. | Prior final-state high-water and genuine membership forks retained; MB-03E2a/b replacement and explicit recovery retain the selected branch's own membership, approvals and population peaks even when account bytes agree; no losing-branch counters are grafted into the winner |
 | T19/R19 | `membership_batch_failure_is_atomic`: invalid final event after otherwise valid mutations/expiry leaves all records/indexes/sequences/roots unchanged for every error class. | Prior staged/accepted rollback and MB-03B invalid-child rejection retained; MB-03C validates both parent and candidate before mutation and returns complete selected state or no usable handle after failure |
 | T20/R20 | `limits_apply_to_direct_execution`: exact vs +1 bytes/events/enrollments/pending/records/accounts over repeated batches; no apply bypass; bounds before large clones/allocations. | Prior execution/replay count, byte and state-work bounds retained; MB-03C counts the full intended child before payload reads even when only a prefix exists, and never prunes accepted history to restore capacity; MB-03D compares at most 4,096 accepted pairs without new accumulation/allocation |
-| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior codecs remain frozen; MSR2 retains exact 280-byte framing and generation bounds; MB-03E2b scans only prescribed bounded residual paths and charges prefix-descriptor reads, comparisons and replay plus sentinels to one unchanged read allowance; network session budgets remain later work |
+| T21/R21 | `codec_and_storage_limits_agree`: malformed huge declared lengths/counts/files/frames reject before claimed allocation; encoding also bounded. | Prior codec/storage bounds retained; MB-03F1 checks exact header/kind/phase, configured/remaining payload budgets and one finite framed-input allowance before admitting a payload; callers must use the split API before socket allocation; transport deadlines and session quotas remain F2 |
 | T22/R22 | `capacity_does_not_erase_replay_protection`: expiry frees pending not total tombstones; total cap still allows withdrawal but no Enroll; restart preserves used keys/evidence. | Permanent history and identity reservations survive full selected replay; MB-03E2a removes only the exact unselected old branch copy after new selection, retaining the candidate's complete history and original limits; no pruning or counter/cache bypass |
 | T23/R23 | `mrb2_header_and_hash_vectors`: header160/empty168, independent vectors/round-trip/exact genesis; changed header fields/context/height/parent/target/roots reject. | MB-02A bytes/hashes and MB-02B roots now joined by MB-02C exact genesis, configuration/height/parent/time/target/work/body/ledger-root acceptance VERIFIED IN MEMORY |
 | T24/R24 | `operation_count_and_order_are_committed`: [A,B,C] vs [A,B,C,C] distinct despite odd-leaf duplication; permutations/signatures change root; fixed empty vector. | MB-02A count/order/full-signed-byte commitment retained; actual acceptance/replay recomputes it; MB-03E2a stages exact complete MRB2 files and replays the entire candidate before and after publication; no operation filtering or reordering |
-| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | Canonical roots and accepted-header checks retained; MB-03E2b explicitly recovers a genuine equal-account/different-membership branch and reopens exact whole state, including records, approvals, population and resource counters; accepted histories are never grafted together |
-| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 replay under independent pins reconstructs all derived state; MB-03E2b replays selected history before mutation and the clean result before returning any writer; both exact accepted references authorize residue; global freshness and implicit automatic repair remain absent |
+| T25/R25 | `ledger_root_binds_all_components`: isolated changes in accounts/membership/height/C/test-supply change root; correct accounts cannot hide bad membership. | Canonical combined roots and accepted-header checks retained; E2b recovers exact whole selected state; MB-03F1 reconstructs complete equal-account/different-membership candidate histories and their resource/population counters; no selected-store adoption is performed |
+| T26/R26 | `canonical_replay_rebuilds_derived_indexes`: independent replay matches roots/IDs/indexes/sequences; old/tampered snapshots not trusted authoritative latest state. | Full MRB2 execution under independent network selection reconstructs derived state; E2b retains independently pinned selected replay; MB-03F1 verifies captured peer terminal claims only after actual candidate execution and matching End; canonical adoption, global freshness and automatic repair are not supplied |
 | T27/R27 | `mixed_block_is_failure_atomic`: valid money then bad membership and reverse leave BOTH unchanged; wrong final root after valid operations changes nothing. | Prior mixed execution and false-root rollback retained; MB-03C accepts the exact child before either action, preserves rejected unrelated bytes and does not expose a partial ledger through an error |
 | T28/R28 | `restart_pins_config_genesis_and_tip`: different valid genesis nonce/wrong bootstrap/old valid log rejected against trusted manifest/tip; replay requires no matcher/device. | MB-03E2b requires independent C/genesis, both full checkpoints/generations and both accepted histories; canonical old/new MSR2 must match exact derived metadata; unknown or stale pins reject and preserve files; no automatic network discovery, latestness or greatest-generation selection |
 | T29/R29 | `crash_boundary_never_mixes_states`: inject every process/I/O publication boundary; reopen complete identifiable old/new state or fail; ambiguous I/O never blindly resumes. | PARTIAL: MB-03E2b adds explicit Complete/RetainOld recovery, same-action and action-switch fault retries, selected-candidate no-rollback, whole-state return or no writer, and resynchronization of already-absent old blocks-directory removal; unknown/corrupt artifacts remain preserved; arbitrary corruption and physical power-loss guarantees remain unproven |
 | T30/R30 | `second_writer_and_oversize_file_rejected`: lock concurrent writers; reject corrupt/unexpected metadata/oversized input; status read-only does not initialize/mine. | MB-03E2b adds two real-process recovery ownership cases, same-lock consuming recovery, unsafe-alias rejection and bounded prefix reads before descriptor open; one subprocess helper remains intentionally ignored outside parent invocation; hostile same-user races and active-writer status APIs remain outside scope |
-| T31/R31 | `network_versions_do_not_fallback`: MIR2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | MB-03/04 PLANNED |
-| T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | MB-04 PLANNED |
+| T31/R31 | `network_versions_do_not_fallback`: MPN2/version2/C/genesis checked before exchange; reject legacy/wrong context, no downgrade; reject unknown kind/length before body allocation. | PARTIAL: MB-03F1 MPN2/version-2 codec and consuming header admission reject old magic, wrong version/kind/phase/length with no fallback; Begin and manifest require independent C/genesis; actual socket allocation/read-order and session integration remain F2 |
+| T32/R32 | `peer_claims_and_partial_messages_are_bounded`: absurd advertised height/count, wrong response, slow/truncated frames and endless branches hit total byte/time bounds; claims never replace execution. | PARTIAL: MB-03F1 bounds one claimed history to 4096 blocks, 16MiB MRB2, 4099 frames and 19641112 wire bytes, rejects incomplete/changed histories and requires actual execution plus End; it opens no sockets and proves no slow-peer deadline or multi-session quota |
 | T33/R33 | `public_records_exclude_biometric_archives`: canary payloads/keys absent from blocks/logs/artifacts; no archive/URL schema; do not claim fresh-key/fresh-evidence biological deduplication. | B4 and MB-02A use fixed signed fields, no archive/URL schema; real custody/canary/privacy acceptance remains MB-08/09, fixed fields not a privacy proof |
 | T34/R34 | `integration_cannot_mint_privileged_funds`: unknown mint/claim rejects, no founder/marketing bypass, old Alice fixture intact, activation cannot change money/reserve. | B3/MB-02A closed kinds and MB-02B explicit allocations/no privileges retained through MB-02C actual-block supply conservation; no mint/reward mechanism or founder/marketing bonus; live economy remains MB-07 |
 | T35/R35 | `future_policy_is_not_silently_enabled`: minting/rewards blocked on D-01/D-04; synthetic claims cannot satisfy real-admission gates; old reorg cannot bypass finality. | MB-02C actual acceptance retains the disabled mint/reward/fee profile; D-01/D-04 remain unresolved; real admission, human consensus and finality protection remain later gates including MB-06/07 |
@@ -1132,9 +1144,10 @@ exercise explicit recovery and complete reopened state. The example is an execut
 gate, not another unique test function. All nine frozen independent references
 remain required; no new serialized format or vector is added.
 
-**T29 remains partial beyond the recognized local recovery states. Next is MB-03F:**
-bounded fresh-peer candidate import/reconstruction under independent network
-selection. Persistent daemon, wallet and operator APIs remain MB-04. Reference
+**T29 remains partial beyond the recognized local recovery states. At the E2b
+checkpoint, next was MB-03F:** bounded fresh-peer candidate import/reconstruction
+under independent network selection. Section 17 records its first framing/receiver
+slice. Persistent daemon, wallet and operator APIs remain MB-04. Reference
 custody, arbitrary corruption repair, missing/corrupt selected markers, unknown
 residue and interrupted initialization are not supplied by this component.
 Automatic network discovery, global latestness and final human consensus remain
@@ -1143,3 +1156,139 @@ documented synchronization model remain assumptions; WSL/DrvFS/native Windows an
 network filesystems are not newly verified. Gate A/B remain unmet, and no founder
 privilege, monetary-policy choice, real biometric intake or anonymity mechanism
 is introduced.
+
+## 17. MB-03F1 bounded peer-history framing and candidate reconstruction
+
+The [peer-history contract](PEER_HISTORY_V2.md) specifies separate MPN2/version-2
+framing and one finite, consuming in-memory reconstruction attempt. Source is
+[`mirror_protocol::v2`](../crates/mirror-protocol/src/v2.rs) and
+[`mirror_network::v2`](../crates/mirror-network/src/v2/mod.rs). The receiver checks
+the manifest against independently selected C/genesis and executes every complete
+original MRB2 through actual `ChainV2::from_genesis`/`append`. Advertised terminal
+fields remain transfer-consistency claims; they never become a trusted replay
+selection, canonical adoption decision or global freshness claim.
+
+Focused local execution passed **24 protocol tests** in
+[`history_v2.rs`](../crates/mirror-protocol/tests/history_v2.rs) and **36 receiver
+tests** in [`history_receiver_v2.rs`](../crates/mirror-network/tests/history_receiver_v2.rs).
+The new synthetic
+[`history_receiver_v2_demo`](../crates/mirror-network/examples/history_receiver_v2_demo.rs)
+also passed. These are **60 distinct runtime test functions**, not an inferred
+workspace total. Scenario loops and repeated fixtures inside a function, release
+reruns and example assertions are not extra unique tests.
+
+Full workspace/documentation/release execution, independent-reference checks,
+source/tree publication and CI results are separate acceptance evidence in
+[CURRENT_STATUS.md](../CURRENT_STATUS.md) and [MASTER_PLAN.md](../MASTER_PLAN.md).
+The new consuming-receiver compile-fail documentation example is a separate gate;
+it is not one of these 60 runtime functions. Historical section-16 totals belong
+to the accepted E2b source and must not be presented as a new F1 full-suite result.
+
+### Codec and independent framing vectors
+
+| Boundary | Implemented test functions | Scope of assertion |
+|---|---|---|
+| T21/T31 fixed summaries and exact original payloads | `summaries_and_control_frames_match_independent_vectors`, `manifest_and_complete_block_frames_match_independent_chain_bytes`, `full_transcript_lengths_and_hashes_match_independent_reference` | Begin/End bytes, complete manifest/block bytes, framing order and transcript accounting match independent frozen vectors |
+| T21 inclusive finite ceilings | `maximum_structural_shape_has_exact_inclusive_wire_bound`, `header_vectors_cover_every_kind_and_inclusive_size_boundary` | The structural maximum is 4099 frames / 19641112 wire bytes; each kind admits only its documented payload bounds |
+| T31 fixed-header rejection | `short_or_extended_header_is_rejected`, `invalid_magic_is_rejected_before_payload`, `unsupported_versions_are_rejected_before_payload`, `unknown_kinds_are_rejected_before_payload` | A header must be exactly 12 bytes and use MPN2/version2 with a known kind before a body is admitted |
+| T21 kind-specific payload bounds | `exact_control_payload_sizes_are_enforced_from_header_only`, `variable_payload_bounds_are_enforced_from_header_only` | Begin/End are exactly 152 bytes; manifest and height-prefixed complete block lengths obey inclusive per-kind limits |
+| T21/T32 peer-summary arithmetic | `summary_count_and_height_are_bounded_and_agree`, `summary_manifest_length_is_bounded`, `declared_block_bytes_respect_count_and_global_total`, `summary_decoder_requires_exact_length_and_checks_untrusted_fields` | Count, height, manifest length and cumulative block-byte claims are checked with bounded/overflow-safe arithmetic; structural acceptance is not branch validity |
+| T31/T32 exact complete-frame boundaries | `all_truncations_of_each_frame_shape_are_rejected`, `trailing_bytes_and_concatenated_frames_are_rejected`, `split_header_payload_decoding_enforces_actual_payload_length` | A complete-frame slice contains exactly one frame; a checked header cannot admit a shorter or longer payload |
+| T21 borrowed decoding | `decoded_payloads_borrow_original_bytes_without_copying` | Manifest and MRB2 payload views borrow the supplied input; codec decode performs no input-sized payload copy |
+| T21 height and bounded encoding | `block_ordinal_has_inclusive_maximum_and_rejects_overflow_values`, `encoder_rejects_out_of_range_payloads_before_returning_frames`, `maximum_payload_bytes_round_trip_without_weakening_header_limits` | Height prefixes remain in 0..4095; send-side framing also respects the same absolute bounds |
+| T31 authority and compatibility separation | `framing_success_is_not_manifest_block_or_network_acceptance`, `v1_and_v2_remain_distinct_protocols` | Well-framed opaque bytes may still be semantically invalid; MIRR/V1 and MPN2/V2 reject cross-decoding without fallback |
+
+The new independent generator
+[`reference_peer_history_v2.py`](../tools/reference_peer_history_v2.py) wraps
+existing frozen chain/manifest bytes and checks the new
+[`peer_history_v2.txt`](../crates/mirror-protocol/tests/vectors/peer_history_v2.txt)
+fixture. It introduces no alternate block format or cryptographic hash domain.
+Its complete execution result belongs to the reference gate, separately from
+Rust tests that compare against its frozen output. Existing reference vectors
+remain unchanged and required.
+
+### Complete candidate reconstruction and consuming failure
+
+| Boundary | Implemented test functions | Scope of assertion |
+|---|---|---|
+| T17/T25/T26 full state and accounting | `complete_history_reproduces_full_state_and_exact_wire_accounting`, `split_header_payload_path_rebuilds_the_same_complete_candidate` | Both full-frame and checked-header/payload paths reproduce the exact accepted ChainV2, resource counters, frame count and wire-byte sum |
+| T17/T18/T25 genuine membership forks | `identical_accounts_do_not_collapse_different_membership_histories` | Equal account bytes do not collapse distinct membership state or population peaks; both exact branches reconstruct, and the existing comparator keeps current on the tested tie |
+| T26/T32 no latestness inference | `a_complete_genesis_only_candidate_is_not_a_latestness_claim` | A valid complete genesis-only transfer is accepted as a candidate, while the existing comparator keeps a longer current chain |
+| T02/T03/T28 independent network and seed proof checks | `independent_network_pins_reject_before_manifest_processing`, `manifest_must_match_independent_genesis_even_when_begin_matches`, `all_manifest_seed_proofs_are_checked` | Matching Begin claims cannot authorize a foreign manifest or missing/invalid configured bootstrap proof |
+| T31 header and exact payload admission | `unknown_magic_version_and_kind_reject_in_header_phase`, `truncated_or_trailing_complete_frame_never_yields_a_candidate`, `pending_payload_requires_exact_declared_length` | Header/payload mistakes consume the attempt and expose no partial candidate |
+| T31/T32 phase completion | `every_unfinished_phase_refuses_finish`, `phase_order_rejects_missing_repeated_or_restarted_metadata`, `genesis_payload_size_is_rejected_before_payload_is_requested` | Metadata cannot restart or skip a phase; the empty-genesis payload is exactly 176 bytes; every incomplete phase refuses to finish |
+| T09/T23/T32 ordered actual blocks | `duplicate_and_reordered_blocks_are_rejected`, `wire_height_and_actual_block_height_must_agree`, `actual_parent_hash_is_checked_for_each_received_block` | Transport ordinal, actual block height, sequence and accepted parent all agree before advancement |
+| T32 explicit terminal boundary | `terminal_frame_is_required_only_after_all_promised_blocks`, `terminal_summary_cannot_change_the_captured_offer`, `extra_blocks_and_frames_after_end_are_rejected` | All blocks alone are insufficient; exact matching End is required and completed receivers reject further supplied input |
+| T26/T32 prefix and false endpoint rejection | `valid_shorter_prefix_does_not_satisfy_a_longer_promised_history`, `false_advertised_tip_or_root_is_rejected_after_actual_execution` | A valid accepted prefix is not a completed promised history; actual terminal tip/root must match the captured peer claim |
+| T21 checked allocation admission | `manifest_frame_length_must_match_offer_before_payload_allocation`, `configured_block_ceiling_is_checked_before_payload_allocation`, `manifest_rejects_claimed_total_impossible_under_its_configuration` | The split API refuses incompatible lengths before exposing a payload length to a future adapter; actual configuration and fixed-size genesis tighten the declared budget |
+| T21 future and terminal byte budgets | `remaining_total_reserves_minimum_space_for_every_future_block`, `final_block_length_must_exactly_exhaust_the_claimed_total` | Each admitted payload leaves a feasible finite remainder; the last block must exhaust the claimed MRB2 total exactly |
+| T23 invalid actual body/work/roots | `malformed_block_bytes_never_become_an_accepted_candidate`, `invalid_seeded_genesis_work_is_rejected_by_actual_chain_acceptance`, `peer_cannot_choose_another_difficulty_for_a_child`, `valid_work_cannot_override_a_wrong_operation_root`, `independently_frozen_wrong_ledger_root_is_rejected` | Framing, trusted network identity or valid work never replace actual block/body/root acceptance |
+| T05/T09 execution authorization and ancestry | `a_remined_block_with_a_bad_signature_is_rejected_during_execution`, `signatures_from_another_valid_branch_do_not_override_actual_ancestry` | Re-mined roots/work reach the signature rejection boundary; otherwise valid signatures cannot supply another candidate's ancestry |
+| T01/T21 sender and frozen profile | `sender_emits_exact_original_blocks_and_is_fused_after_end`, `legacy_v1_hello_is_not_a_v2_transfer`, `transport_caps_match_the_frozen_chain_and_block_profile` | Sender preserves complete original blocks and finite termination; V1 stays separate; cross-crate profile bounds agree |
+
+### Public method and failure boundary
+
+`HistoryReceiverV2::begin_frame(self, header)` consumes the receiver and returns
+only a pending frame whose payload length has passed phase, per-kind, configured
+and remaining aggregate checks. `PendingHistoryFrameV2::accept_payload(self, bytes)`
+consumes that pending owner and requires exactly the admitted payload. All errors
+destroy continuation; there is no public partial-chain accessor or clone. The
+compile-fail example records that a rejected receiver cannot be reused to finish.
+
+`accept_frame(self, bytes)` is convenience for an already supplied complete frame;
+it cannot prove that its caller allocated input safely. A future socket adapter
+must call `begin_frame` before allocating or reading the declared body, drop a
+pending owner on read failure, and close/discard the failed attempt. F1 itself
+performs no reads and has no wall-clock or socket-timeout mechanism.
+
+After the final actual block, the peer's terminal claim is checked but the candidate
+remains private. A matching End frame and exact total frame/byte accounting precede
+successful `finish`. A receiver returning a candidate has executed every original
+mixed operation and retains the whole accepted branch; no balances, approvals,
+permanent reservations, population values or resource counters are grafted across
+histories. The caller may subsequently compare accepted branches under independent
+identity, but receiving alone neither selects nor writes a canonical store.
+
+### Budgets, demonstration and remaining acceptance
+
+For N blocks, M manifest bytes and B complete MRB2 bytes, framed-input accounting is
+`N + 3` frames and `340 + M + B + 20*N` bytes. Bounds are **4096 blocks**,
+**2781636 manifest bytes**, **16777216 MRB2 bytes**, **4099 frames** and
+**19641112 total wire bytes**, with each actual block at most its configured cap
+and the current hard ceiling of **1048576 bytes**. Actual ChainV2 execution retains
+the unchanged **1048576 cumulative state/configuration-item** budget. These are
+encoded-input and abstract-work bounds, not a total resident-memory, bandwidth,
+multi-session, latency or availability guarantee.
+
+The synthetic receiver example streams separate in-memory frames and reconstructs
+the independently known complete main and membership-fork histories. It checks
+whole state and existing branch comparison and reports the resource counters.
+Malformed/truncated input rejection is covered by the focused receiver tests.
+The example opens no socket, waits for no EOF and writes no store. Neither it nor
+the focused tests establish network-process behavior.
+
+**T31/T32 remain partial. Next is MB-03F2: actual TCP-session integration and durable
+adoption.** That slice must use checked header admission before socket payload
+allocation, enforce bounded requests/connections and session deadlines, handle
+fragmentation and early closure, reconstruct complete candidates across real peers,
+and publish only appropriately selected accepted state through existing storage.
+It must retain the old and candidate references needed for publication recovery.
+An explicit End defines this F1 transfer; a later adapter must specify later-session
+or connection behavior without inferring completion from EOF.
+
+MB-03F and MB-03 remain IN PROGRESS. Persistent node/operator APIs remain MB-04;
+Ant Kiss, private matching, device adapters, human consensus, final monetary policy
+and both launch gates are not completed by codec/receiver tests. Existing old
+encodings, development fixtures and user policy remain preserved.
+
+### F1 full-gate checkpoint evidence
+
+At source `43ef08ca6d3e7878b7dab2d2355a7265d41a0351`, the local required gates passed **951 runtime tests**,
+**9 compile-fail doctests**, release totals **237 / 121 / 49 / 111 / 352 / 79**
+for personhood / core / state / consensus+chain / storage / protocol+network
+(including their doctests), **10 independent references** and **14 examples**.
+The latest delta is 24 codec and 36 receiver tests plus one compile-fail ownership
+example. Source push/PR CI also passed; exact IDs and verified logs are recorded
+in [CURRENT_STATUS.md](../CURRENT_STATUS.md). The one ignored subprocess helper
+continues to run through its parent tests. These counts do not complete F2 or
+change the T31/T32 partial assessment above.
