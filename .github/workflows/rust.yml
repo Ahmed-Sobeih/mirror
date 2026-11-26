@@ -40,6 +40,8 @@ jobs:
         run: python3 tools/reference_append_storage_v2.py --check
       - name: Independent V2 replacement selection vectors
         run: python3 tools/reference_replacement_storage_v2.py --check
+      - name: Independent V2 peer history framing vectors
+        run: python3 tools/reference_peer_history_v2.py --check
       - name: Workspace tests
         run: cargo +1.98.0 test --workspace --all-targets --locked
       - name: Documentation tests
@@ -54,6 +56,8 @@ jobs:
         run: cargo +1.98.0 test -p mirror-consensus -p mirror-chain --release --locked
       - name: V2 storage release-mode tests
         run: cargo +1.98.0 test -p mirror-storage --release --locked
+      - name: V2 peer framing and reconstruction release-mode tests
+        run: cargo +1.98.0 test -p mirror-protocol -p mirror-network --release --locked
       - name: V2 explicit storage and reopening demonstration
         run: cargo +1.98.0 run -p mirror-storage --example storage_v2_demo --locked
       - name: V2 durable append and reconciliation demonstration
@@ -66,6 +70,8 @@ jobs:
         run: cargo +1.98.0 run -p mirror-storage --example replacement_store_v2_demo --locked
       - name: V2 explicit interrupted-replacement recovery demonstration
         run: cargo +1.98.0 run -p mirror-storage --example replacement_recovery_v2_demo --locked
+      - name: V2 complete candidate-history reception demonstration
+        run: cargo +1.98.0 run -p mirror-network --example history_receiver_v2_demo --locked
       - name: V2 accepted chain and replay demonstration
         run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
       - name: V2 accepted branch comparison demonstration

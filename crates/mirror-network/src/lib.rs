@@ -3,6 +3,9 @@
 //! `mirror-protocol` defines what bytes mean.
 //! This crate is responsible for safely moving those bytes between peers.
 
+/// Separate bounded V2 candidate-history transfer; no V1 format reinterpretation.
+pub mod v2;
+
 use std::{
     fmt,
     io::{Read, Write},
