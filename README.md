@@ -25,14 +25,17 @@ in-memory receiver that executes a complete candidate from genesis**, under an
 independently selected network. **MB-03F2 adds finite TCP sessions and explicit
 durable adoption of a completely validated candidate**, including retained inputs
 for explicit recovery. **MB-03F2, MB-03F and MB-03 are VERIFIED_COMPONENT within
-their finite storage and peer-session scope.** Current acceptance evidence is in
-[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+their finite storage and peer-session scope.** **MB-04A1 now adds durable node
+control state and restart authority** in a separate operator-owned directory:
+confirmed local pins and both exact accepted histories survive process restart,
+and unfinished intent requires an explicit recovery decision. MB-04A1 is a
+VERIFIED_COMPONENT within this finite control/restart scope. Current acceptance
+is recorded in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04A1: durable node control state and restart authority**. It must
-preserve independent network/current-selection pins and exact replacement intent,
-including both histories, outside the strict store root before mutation. Restart
-recovery must remain explicit. MB-04A2 then adds operator commands. The persistent
-V2 daemon, global connection admission, wallet and operator APIs remain unfinished.
+Next is **MB-04A2: finite V2 init/status/sync-once/explicit-recover operator
+commands**, using the A1 library. Persistent serving, reconnect/rejoin scheduling,
+global connection admission, multi-peer policy, transaction pool and wallet remain
+unfinished. The existing V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
 checklist; no physical device is supported merely because the document exists.
@@ -201,13 +204,54 @@ retained current checkpoint. Tied or shorter histories keep current without writ
 A preferred branch is published through the existing owned replacement store.
 Both exact histories and local checkpoints are retained before publication; failure
 preserves ownership for explicit recovery and exposes no ordinary writer. These
-recovery inputs are in memory, so persisting restart authority is the next node task.
-Fresh initialization remains a separate explicit operation, never a fallback after
-an existing-store open fails.
+recovery inputs remain in memory in the F2 API. The A1 node layer below persists
+restart authority before calling storage. Fresh initialization remains a separate
+explicit operation, never a fallback after an existing-store open fails.
+
+The [node-control contract](docs/NODE_CONTROL_V2.md) adds `mirror_node::v2`.
+`NodeControlV2` owns a separate control directory before acquiring the existing
+store lock. Its exact 464-byte MNC2 record retains the trusted full checkpoint and
+local generation; its bounded MNI2 intent contains both complete accepted histories.
+Both histories are replayed and compared against canonical metadata before the
+intent is published and synchronized. Existing store publication follows; the new
+confirmed record is synchronized before intent retirement. All prior storage,
+network, ledger and consensus formats remain unchanged.
+
+Clean restart fully replays the selected store against the retained record and
+independently selected C/genesis. Read-only status reports Missing, Clean or
+RecoveryRequired without creating, synchronizing or repairing files. Published
+intent requires explicit `Complete` or `RetainOld`; a selected candidate cannot
+roll back. Exact candidate-confirmation prefixes are completed only with the full
+intent and a clean candidate store. Incomplete intent, partial initialization,
+unknown/corrupt input and unsafe paths remain preserved and rejected. Errors
+consume the ready node owner and return no ordinary storage writer. The operator
+and parent directories are trusted; checksums and cooperative Linux locks do not
+establish protection against a hostile owner or physical power-loss guarantees.
 
 ## Verification checkpoints
 
-Current MB-03F2 source is
+Current MB-04A1 source is
+[`32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0`](https://github.com/Ahmed-Sobeih/mirror/commit/32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0),
+with tested tree `d79080968d822a2267ce5f1b1196efcf16d2e546` and parent
+`37010bc5c5827f5a8dd886af0e79d079ebfe1d4e`.
+All required local gates passed **1,083 runtime tests, eleven compile-fail doctests,
+all required release suites, twelve independent references and sixteen synthetic
+examples**. The 73 new cases comprise 24 control-record/intent codec cases, 31 public
+control integration cases, twelve actual-process restart cases and six private
+failure cases. The new node release gate passed **73 runtime tests and one doctest**.
+Three ignored subprocess helpers run through parent tests and are not extra passes.
+
+[Exact-source PR CI 45861912935](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45861912935)
+passed all configured gates. Full job `140054826270` was inspected; its synthetic
+merge checkout `62437dc1c338156fb984349b791efc7a4ad34ebb` has no file differences from the implementation
+source. Later documentation-head CI is recorded separately on PR #1. Preservation
+checks found **140 of 142 retained runtime/dependency/reference/fixture files
+byte-identical**; only the node manifest and lockfile add a local personhood
+**development** dependency. No external package versions change. Exact acceptance
+and the test map are in [CURRENT_STATUS.md](CURRENT_STATUS.md) and
+[test-matrix section 19](docs/MEMBERSHIP_TEST_MATRIX.md#19-mb-04a1-durable-node-control-and-restart-authority).
+
+The following MB-03F2 source is a **historical accepted checkpoint**:
 [`851193ea6428198441e6cdf29361b1885fae157b`](https://github.com/Ahmed-Sobeih/mirror/commit/851193ea6428198441e6cdf29361b1885fae157b).
 All required local gates passed **1,010 runtime tests, ten compile-fail doctests,
 all required release suites, eleven independent references and fifteen synthetic
@@ -216,7 +260,8 @@ traffic, whole-membership-fork adoption and explicit recovery ownership. Two ign
 subprocess entry points are exercised by their parent tests; they are not additional
 passing cases. Exact-source CI and later documentation-head evidence are tracked in
 [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
-Earlier MB-03E2a/E2b and F1 acceptance remains in master-plan sections 23–25. The following
+Earlier MB-03E2a/E2b and F1 acceptance remains in master-plan sections 23–25;
+F2 is preserved in section 26 and A1 is recorded in section 27. The following
 MB-03D record is retained as a **historical accepted checkpoint**;
 its results do not establish a newer source's full-suite or CI status.
 
@@ -269,6 +314,13 @@ TCP. It explicitly initializes and strictly reopens a fresh peer, keeps current
 on an equal-height membership fork, then adopts and reopens a preferred fork whose
 accounts match but memberships and population history differ. Each provider and
 receiver use their own synthetic store; the example is finite and is not a daemon.
+The `node_control_v2_demo` uses four separate processes to initialize trusted control,
+restart and keep a tied membership fork, restart and adopt the preferred history,
+then strictly reopen its persisted confirmation. The old height-3/generation-0
+state has active/pending/peak 3/0/3; the preferred height-4/generation-1 state has
+1/1/2, with all four accounts and both recorded approvals checked. Actual process
+termination and explicit recovery at each new control-publication boundary are
+covered by the separate test harness. The example exposes no interruption hook.
 [PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
 
 The register prevents exact request/key/evidence reuse. It cannot identify the
@@ -299,6 +351,7 @@ cargo test -p mirror-state --release --locked
 cargo test -p mirror-consensus -p mirror-chain --release --locked
 cargo test -p mirror-storage --release --locked
 cargo test -p mirror-protocol -p mirror-network --release --locked
+cargo test -p mirror-node --release --locked
 python3 tools/reference_config_v2.py --check
 python3 tools/reference_operations_v2.py --check
 python3 tools/reference_state_v2.py --check
@@ -310,6 +363,7 @@ python3 tools/reference_append_storage_v2.py --check
 python3 tools/reference_replacement_storage_v2.py --check
 python3 tools/reference_peer_history_v2.py --check
 python3 tools/reference_peer_session_v2.py --check
+python3 tools/reference_node_control_v2.py --check
 cargo run -p mirror-personhood --example registry_demo --locked
 cargo run -p mirror-personhood --example operation_v2_demo --locked
 cargo run -p mirror-personhood --example state_v2_demo --locked
@@ -325,6 +379,7 @@ cargo run -p mirror-storage --example replacement_store_v2_demo --locked
 cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked
 cargo run -p mirror-network --example history_receiver_v2_demo --locked
 cargo run -p mirror-network --example peer_session_v2_demo --locked
+cargo run -p mirror-node --example node_control_v2_demo --locked
 ```
 
 The examples use synthetic attestations, issue no currency and never open the

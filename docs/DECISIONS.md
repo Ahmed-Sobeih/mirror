@@ -920,7 +920,9 @@ runs after transport acceptance and is outside the socket session deadline.
 **F2 recovery intent remains in memory only.** It is neither a persisted journal nor
 an automatic history archive. A process restart cannot recover missing authority
 from a higher generation, peer claim or damaged residue. Preserving independent
-node selection and both exact histories across restart is the next increment.
+node selection and both exact histories across restart was assigned to the next
+increment; A1's separate persistent wrapper is recorded below. The F2 API itself
+retains its original memory-only recovery boundary.
 
 ### Verification and unchanged policy
 
@@ -944,12 +946,13 @@ fixtures are preserved. No founder or marketing privilege, grant, reward, fee,
 biometric/accessibility requirement, admission rule or human-consensus policy is
 selected by this work.
 
-## Next engineering increment — MB-04A1, not yet implemented
+## Historical F2 continuation plan — MB-04A1
 
-**Next: MB-04A1 — bounded persistent node control state and restart recovery
-authority.** This is a technical continuation plan, not a new user monetary or
-enrollment-policy decision. MB-04A2 will subsequently expose the separate V2
-operator commands; daemon/reconnect/multi-peer scheduling, pool and wallet follow.
+**At the F2 checkpoint, next was MB-04A1 — bounded persistent node control state
+and restart recovery authority.** The plan below records that earlier boundary;
+the completed A1 engineering record follows it. This was a technical continuation
+plan, not a new user monetary or enrollment-policy decision. MB-04A2 operator
+commands, daemon/reconnect/multi-peer scheduling, pool and wallet remained later work.
 
 Specify and implement a separate bounded, versioned operator-owned control layer
 outside the strict selected-store root. It must retain independently chosen
@@ -991,3 +994,153 @@ existing bounded attempts and the A1 intent ordering. Do not bundle a long-runni
 daemon, transaction pool, signer/wallet or unresolved monetary/admission decision
 into A1 merely to call it a node. No real keys, personal records, device captures or
 hardware purchase are needed for this next software increment.
+
+
+## MB-04A1 engineering choices — MIRROR-MB04A1-001
+
+Implementation source:
+[`32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0`](https://github.com/Ahmed-Sobeih/mirror/commit/32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0).
+Tested source tree: `d79080968d822a2267ce5f1b1196efcf16d2e546`.
+Parent checkpoint: `37010bc5c5827f5a8dd886af0e79d079ebfe1d4e`.
+[Source PR CI 45861912935](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45861912935)
+passed the configured gates; full job `140054826270` logs were inspected.
+Its synthetic PR checkout `62437dc1c338156fb984349b791efc7a4ad34ebb` has no file differences from the
+implementation source. Source acceptance and any later documentation-head CI
+remain separate records in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and PR #1.
+
+A1 implements [durable V2 node control and restart authority](NODE_CONTROL_V2.md):
+**VERIFIED_COMPONENT — DURABLE V2 CONTROL / EXPLICIT RESTART RECOVERY**.
+This is a finite library component and process harness. MB-04 remains in progress;
+operator commands, persistent serving/reconnect/multi-peer scheduling, transaction
+pool and wallet are not completed by this increment. MB-03/F2 remain verified in
+their earlier scope. Gate A and Gate B remain unmet.
+
+### Separate local authority and canonical records
+
+`NodeControlV2` owns a trusted operator control directory outside the strict
+profile-3 store root. The operator supplies both intended paths and independent
+C/genesis. The control record retains the full selected chain checkpoint and local
+generation for restart; a peer, checksum or higher directory never chooses them.
+Control payloads contain public synthetic chain history, not private keys or raw or
+encrypted biometric archives. Replacing every local file is outside the trusted
+owner/parent-directory model; checksums do not authenticate a hostile owner.
+
+MNC2 is a new exact 464-byte version-2/kind-1 local record: full checkpoint and
+unchanged canonical MSR2, with a separate integrity checksum. MNI2 has a 952-byte
+header containing both records and two explicit lengths, followed by both complete
+unchanged MPN2 histories and a checksum. Maximum encoded intent is 39,283,208 bytes.
+Its decoder binds the externally selected network identity, executes both whole histories,
+checks exact canonical metadata and repeats existing strict preference and next-
+generation preparation. No cached state or advertised root replaces replay.
+The new checksum domains and offsets are frozen in the linked contract; existing
+consensus, wire and storage domains are preserved.
+
+The confirmed record's complete MSR2 metadata is compared with the actual replayed
+store, including manifest/block-byte metadata, not only endpoint/generation fields.
+A valid intent admits only its exact old or exact candidate confirmed record.
+Identical, shorter and tied histories keep current; only a preferred complete
+history creates intent. Balances, memberships, approvals, sequences, population
+history and resource counters stay with one accepted branch.
+
+### Ownership, durable ordering and explicit restart
+
+Acquire cooperative Linux control ownership before storage ownership and release
+storage first. The stable control/store root inodes are not replaced. Managed
+payloads must be bounded regular single-link files under checked non-symlink paths.
+The ready node's storage writer remains private; callers cannot extract it to bypass
+intent persistence. New control initialization is explicit and requires an already
+initialized store under independently retained full pins. Failed opening never
+becomes implicit initialization or repair.
+
+Preferred adoption consumes its ready owner and received candidate. It clones the
+exact old accepted history once, moves the candidate, writes/synchronizes bounded
+`intent.pending`, reads it back and replays both histories, then publishes `intent.v2`
+and synchronizes the control directory. Exact layout, confirmed record and intent
+are checked again before existing owned storage replacement. The candidate is then
+confirmed through synchronized `confirmed.pending` publication and confirmed-file/
+directory synchronization. Only afterward is `intent.v2` removed and that removal
+synchronized. No new ordinary storage staging layout or recovery permission is added.
+
+Startup is clean-only. Read-only status returns Missing, Clean, RecoveryRequired or
+an error without creation, synchronization, peer contact or repair. RecoveryRequired
+reports validated local intent and does not claim the store currently selects a
+particular history. Missing, invalid or unknown state is never resolved by a scan
+for the highest generation.
+
+Explicit recovery reloads/replays both histories and resynchronizes exact intent,
+control root and parent before any mutating storage recovery. Confirmed-old plus
+complete intent permits the existing Complete/RetainOld rules against the actual
+recognized store layout. RetainOld never rolls back a selected candidate.
+
+Every `intent.pending`, incomplete control initialization, and unknown/corrupt/
+overlong/unsafe artifact is preserved and rejected. A `confirmed.pending` prefix
+of zero through 464 exact candidate bytes is recognized only with confirmed-old
+and complete published intent. It marks the later confirmation phase: only Complete
+is allowed and the store must already open as the exact clean candidate. Recovery
+appends only the authorized suffix without truncation. Confirmed-candidate plus
+intent likewise requires Complete and a strict candidate-store open. An old-selected
+or residual store in these later states is inconsistent and rejects.
+
+Visible bytes after a failed directory sync do not alone authorize retiring intent.
+Recovery resynchronizes the selected confirmed record and directory before unlink;
+clean writer opening resynchronizes confirmed control/root/parent, including after
+a visible intent unlink whose final sync failed. Errors consume the node owner and
+return no ordinary writer. **An error after intent retirement can leave an already
+confirmed clean state**, so errors do not invariably mean a pending intent remains.
+Use the defined read-only status and explicit open/recovery paths; do not guess
+success, manufacture intent or automatically repair unknown control data.
+
+The per-call control payload-read allowance is 314,269,392 bytes, shared by reads,
+length-plus-one sentinels, synchronization reads and repeated exact comparisons.
+Storage retains its separate existing budgets. Extra accepted chains, replay and
+checksum buffers are not covered by an RSS guarantee. The component has no socket
+or hard CPU deadline and supplies no global admission policy. Process termination
+tests are not physical power-loss certification, an external audit or a statement
+that WSL/DrvFS or untested filesystems are supported.
+
+### Acceptance and preserved policy
+
+The implementation checkpoint passed **1,083 workspace/all-target runtime tests**:
+1,010 retained plus **73 new** (24 codec, 31 public integration, 12 separate-process
+and six deterministic failure/revalidation tests). **Eleven compile-fail doctests**
+passed, including the new consuming node-adoption ownership case. Required release
+suites passed; the added `mirror-node` release gate has 73 runtime tests and one
+doctest. Release reruns and multiple scenarios within a test are not additional
+unique tests. All **twelve independent reference checks** and **sixteen examples**
+passed, including the new control reference and `node_control_v2_demo`.
+
+Coverage includes strict clean restart and read-only status, both exact histories
+recovered from disk, complete network/checkpoint/metadata validation, malformed and
+unsafe control, genuinely different membership forks with identical account bytes,
+intent-before-store failures, explicit completion/retention, selected-candidate
+rollback rejection, competing owners, and separate-process termination at each
+control publication phase and during repeated recovery. Unknown partial intent
+remains deliberately unsupported. Final command logs and exact-source CI evidence
+belong to the checkpoint; published documentation revisions are verified separately.
+
+Formatting, whitespace, preservation and allocation/runtime-data audits passed.
+**140 of 142 retained runtime/dependency/reference/fixture files are byte-identical**.
+The only changed retained files are the node Cargo manifest and lockfile, adding
+one local test-only `mirror-personhood` dependency edge. No external version changes
+or changes to retained runtime implementations, monetary rules, encodings, hash
+domains or prior frozen fixtures are introduced. Earlier complete-chain, store,
+recovery and transport tests remain applicable.
+
+No founder or marketing reserve, reward/fee formula, admission/quorum choice,
+biometric/accessibility requirement or final human-consensus policy is selected by
+this component. The user's equal first-1,000 bootstrap policy and combined ECG/
+pinky/Ant Kiss plus accessible-route proposals remain unchanged and retain their
+later decision/evaluation gates. No actual personal records, device capture or
+hardware purchase is needed for this software acceptance.
+
+### Exact next increment — MB-04A2
+
+**Next: finite V2 init/status/sync-once/explicit-recover operator commands.** Build
+these through the accepted A1 library and existing F2 bounded peer-session APIs.
+Keep network/path selection and initialization explicit; failed opening cannot
+silently initialize or repair. Status remains read-only. Sync-once preserves F2
+attempt/deadline limits and A1's complete durable-intent ordering, and unresolved
+intent requires a separately requested recovery action. Verify command output,
+failure exits, independent process restart and whole-branch state. Persistent
+serving/reconnect/multi-peer scheduling, transaction pool and wallet remain later
+MB-04 work; do not bundle them into this operator increment.

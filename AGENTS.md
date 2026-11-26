@@ -23,23 +23,26 @@ human-weighted design. Library personhood tests are not deployed PoH. Record
 unimplemented parts and trust assumptions explicitly. Never claim mainnet-ready,
 crash-proof, audited, or unconditionally immutable from passing unit tests.
 
-Run `cargo test --workspace --all-targets --locked`, documentation tests, release
-core/personhood/state/consensus/chain/storage/protocol/network tests, all eleven independent reference
-checks (including `tools/reference_storage_v2.py --check` and
-`tools/reference_append_storage_v2.py --check` and
-`tools/reference_replacement_storage_v2.py --check` and
-`tools/reference_peer_history_v2.py --check` and
-`tools/reference_peer_session_v2.py --check`) and all fifteen synthetic examples
+Use Rust 1.98.0 and locked dependencies. Run
+`cargo test --workspace --all-targets --locked`, documentation tests, release
+core/personhood/state/consensus/chain/storage/protocol/network/node tests, all twelve
+independent reference checks (including `tools/reference_storage_v2.py --check`,
+`tools/reference_append_storage_v2.py --check`,
+`tools/reference_replacement_storage_v2.py --check`,
+`tools/reference_peer_history_v2.py --check`,
+`tools/reference_peer_session_v2.py --check` and
+`tools/reference_node_control_v2.py --check`) and all sixteen synthetic examples
 (three personhood examples, core block_v2_demo, state ledger_v2_demo,
 chain chain_v2_demo/fork_choice_v2_demo and storage
 storage_v2_demo/append_v2_demo/recovery_v2_demo/replacement_plan_v2_demo/
-replacement_store_v2_demo/replacement_recovery_v2_demo, and network
-history_receiver_v2_demo/peer_session_v2_demo). Include
-`cargo test -p mirror-storage --release --locked` and
+replacement_store_v2_demo/replacement_recovery_v2_demo, network
+history_receiver_v2_demo/peer_session_v2_demo, and node node_control_v2_demo).
+Include `cargo test -p mirror-storage --release --locked`,
 `cargo test -p mirror-protocol -p mirror-network --release --locked`,
-all six storage examples,
-`cargo run -p mirror-network --example history_receiver_v2_demo --locked` and
-`cargo run -p mirror-network --example peer_session_v2_demo --locked` in the gates.
+`cargo test -p mirror-node --release --locked`, all six storage examples,
+`cargo run -p mirror-network --example history_receiver_v2_demo --locked`,
+`cargo run -p mirror-network --example peer_session_v2_demo --locked` and
+`cargo run -p mirror-node --example node_control_v2_demo --locked` in the gates.
 Pin CI toolchain/dependencies; do not print secrets. Distinguish written code,
 actual passing tests, published branch, PR and merge status. Release reruns are
 not new tests. Verify exact source commits, not just an older green check.
@@ -47,8 +50,10 @@ not new tests. Verify exact source commits, not just an older green check.
 ## Roadmap execution — MIRROR-PLAN-001
 
 MASTER_PLAN.md is the staged roadmap and progress tracker to device integration.
-NEXT_SESSION.md points to the next unfinished task: currently MB-04A1, durable
-node control state and restart recovery authority. MB-04A2 operator commands follow.
+NEXT_SESSION.md points to the next unfinished task: currently MB-04A2, finite
+V2 init/status/sync-once/explicit-recover operator commands. MB-04A1 is a verified
+durable control/restart component; persistent serving, scheduling, pool and wallet
+remain later MB-04 work.
 MB-01A design, MB-01B/B1–B4 and MB-02A/B/C are verified components. B4 supplies
 MPS2/untrusted caches and trusted grouped MPH2 replay. MB-02A supplies transfers,
 unified operations and bounded MRB2 codecs/roots. MB-02B supplies atomic full-order
@@ -76,17 +81,22 @@ BOUNDED FRESH-PEER RECONSTRUCTION; MB-03 is VERIFIED_COMPONENT — V2 STORAGE,
 EXPLICIT RECOVERY AND FINITE PEER SYNCHRONIZATION. Local acceptance, exact source
 publication and exact-source CI evidence remain separate in CURRENT_STATUS.md.
 E1 remains pure; E2a never treats its saved plan as a durable write permit.
-Persistent restart authorization, daemon/reconnect/multi-peer scheduling, pool,
-wallet and operator APIs remain MB-04. F2 recovery inputs are memory-only; no
-persisted intent journal exists. Gate A/B remain unmet. Current source/test/
-publication evidence belongs to the checkpoint files, not a task-count percentage.
+MB-04A1 adds NodeControlV2's separate durable confirmed record and exact
+old/candidate intent, clean restart, read-only status and explicit recovery.
+It is VERIFIED_COMPONENT — DURABLE V2 CONTROL / EXPLICIT RESTART RECOVERY.
+F2's own recovery inputs remain memory-only; A1 supplies a separate persistent
+wrapper. Finite operator commands are next in MB-04A2; daemon/reconnect/multi-peer
+scheduling, pool and wallet remain later MB-04. Gate A/B remain unmet. Current
+source/test/publication evidence belongs to the checkpoint files, not a task-count
+percentage. A1 acceptance records 1,083 runtime tests, eleven doctests, twelve
+references and sixteen examples; release reruns are not additional unique tests.
 Read docs/LEDGER_MEMBERSHIP_V1.md, docs/CONFIG_V2_ENCODING.md,
 docs/OPERATIONS_V2_ENCODING.md, docs/CORE_V2_ENCODING.md,
 docs/LEDGER_STATE_V2.md, docs/CHAIN_V2.md, docs/FORK_CHOICE_V2.md, docs/STORAGE_V2.md,
 docs/STORAGE_APPEND_V2.md, docs/STORAGE_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_V2.md,
 docs/STORAGE_REPLACEMENT_STORE_V2.md, docs/STORAGE_REPLACEMENT_RECOVERY_V2.md,
 docs/PEER_HISTORY_V2.md, docs/PEER_SESSION_V2.md, docs/CANDIDATE_ADOPTION_V2.md,
-docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
+docs/NODE_CONTROL_V2.md, docs/MEMBERSHIP_STATE_V2.md, docs/REPLAY_V2.md,
 docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
 Coverage is scoped: B2 context/signature success does not establish reviewer rights,
 target ownership/status or current sequences. Never use it alone to activate a
@@ -217,7 +227,7 @@ Decode only against independently retained full endpoint and generation pins.
 Generation starts at zero at any accepted height and advances once per strictly
 preferred whole-branch publication, not per skipped block; generation <= height.
 An equal-height/human-weighted replacement rule needs an explicitly reviewed profile.
-Generation does not establish publication history or freshness. Preserve all eleven
+Generation does not establish publication history or freshness. Preserve all twelve
 independent reference checks and all previous fixture bytes.
 
 prepare_replacement_v2 first checks both network identities via the comparator,
@@ -348,32 +358,63 @@ archive. Real-process transfer/reopen and failure tests verify the finite compon
 they do not establish daemon lifecycle, global latestness, human finality, anonymity,
 biological uniqueness or Gate A/B completion.
 
-## Exact next increment — MB-04A1
+## MB-04A1 control and restart invariants
 
-Implement bounded persistent node control state and restart recovery authority,
-separate from the strict store root. Preserve independently selected C/genesis and
-the confirmed complete local checkpoint/generation. Retain at most one durable
-replacement intent containing BOTH exact accepted histories and both local pins.
-Validate the new versioned control format, bounded inputs, complete replay and
-strict replacement relationship; checksums are not authority against a hostile
-owner able to replace all local state. Define deterministic control/store lock order.
+Read docs/NODE_CONTROL_V2.md before modifying this layer. Control remains separate
+from the strict profile-3 store root, under independent C/genesis and trusted local
+operator/parent paths. Acquire nonblocking cooperative Linux control ownership
+before store ownership; release the store first. The ready owner's store is private.
+No returned error exposes an ordinary writer or automatically chooses a retry.
 
-Required order: persist/validate/synchronize intent before any store mutation;
-invoke existing owned publication; persist/synchronize confirmed current pins after
-success; retire intent only after those pins are durable. Startup/status must never
-infer authorization from the highest directory, initialize after failed opening or
-silently repair unresolved intent. Require explicit Complete/RetainOld; a selected
-candidate cannot roll back. Initially preserve/reject partial control initialization
-or unknown/corrupt intent unless a separately specified recovery rule authorizes it.
+MNC2 is exactly 464 bytes: version 2/kind 1, full checkpoint/generation and unchanged
+canonical MSR2 plus a separate checksum. MNI2 has a 952-byte fixed header, both
+MNC2 records, two complete unchanged MPN2 histories and a checksum; maximum encoded
+intent is 39,283,208 bytes. Use external identity, full replay of BOTH histories,
+exact canonical metadata and existing strict preference/generation validation.
+Neither checksum nor directory scanning supplies authorization. Preserve the
+314,269,392-byte per-call control read allowance, including length-plus-one
+sentinels and all comparisons, separate from storage budgets. These are not RSS,
+wall-clock or physical power-loss guarantees.
 
-Acceptance must cover separate-process clean restart, read-only missing/clean/
-recovery-required status, independent pins, intent-before-mutation failures, each
-control/store publication boundary, both exact histories after restart, explicit
-completion/retention, no selected-candidate rollback, competing owners, corrupt/
-overlong/unsafe control input and the genuine membership fork. This is new planned
-work, not F2 acceptance. MB-04A2 then supplies the V2 init/status/sync-once/recover
-operator surface; persistent serving/reconnect/multi-peer scheduling, pool and
-wallet follow. No unresolved money/admission policy or real devices block A1.
+Initialize control explicitly for an already initialized profile-3 store under
+independent full pins. Failed open never becomes store initialization or repair.
+Status is read-only and reports Missing/Clean/RecoveryRequired or validation errors;
+RecoveryRequired describes validated control intent, not actual selected-store
+contents. Clean open/inspect must match the complete canonical MSR2 record as well
+as the full endpoint/generation after storage replay.
+
+Persist, validate and synchronize complete intent before storage replacement.
+Persist/synchronize confirmed selection before removing intent, then synchronize
+its removal. Resynchronize exact intent, control root and parent before explicit
+restart recovery mutates storage. Clean writer open resynchronizes confirmed
+control/root/parent, including after a visible intent unlink whose sync failed.
+Errors after intent retirement may leave an already confirmed clean state: do not
+claim every error necessarily leaves pending intent. Reinspect through the defined
+read-only status and explicit open/recovery paths without guessing success.
+
+Unknown/corrupt/overlong/unsafe control and every intent.pending reject and remain
+preserved. Partial control initialization is unsupported. A confirmed.pending
+prefix of 0..=464 exact candidate bytes is recognized only with confirmed-old plus
+complete intent. That state requires explicit Complete and a strict clean candidate
+store; do not use it to repair an old-selected or residual store. Append only its
+exact missing suffix without truncation. Confirmed-candidate plus intent also
+requires strict candidate opening and Complete. Old-confirmed plus intent without
+confirmation staging delegates explicit Complete/RetainOld to existing recovery.
+A selected or confirmed candidate cannot roll back. Never weaken storage's accepted
+layouts, delete unknown data or add control artifacts inside the store root.
+
+## Exact next increment — MB-04A2
+
+Implement finite, separate V2 init/status/sync-once/explicit-recover operator
+commands through the accepted A1 control and F2 transport APIs. Keep independent
+network/path selection explicit. Initialization is separately requested and never
+an automatic fallback after failed opening. Status must not initialize, synchronize,
+mine, contact peers or repair. Sync-once uses F2's bounded owner/deadlines and A1's
+persisted-intent ordering; unresolved intent requires an explicit recovery command.
+Verify useful operator output, failure exits, restart behavior and full whole-branch
+state through independent process tests. Do not bundle a daemon, reconnect/multi-peer
+scheduler, transaction pool or wallet into this increment. No unresolved monetary,
+enrollment or device policy blocks these dependency-ready operator commands.
 
 Preserve V1 APIs/encodings and frozen MCF2/B2 vectors. New signed/root byte semantics
 require explicit versioning/documentation and independent reference calculations.
