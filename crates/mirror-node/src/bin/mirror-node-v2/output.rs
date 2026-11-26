@@ -107,7 +107,7 @@ pub fn diagnostic(
 pub fn help() -> Result<Output, fmt::Error> {
     let mut output = Output::base("help")?;
     for (key, value) in [
-        ("commands", "init,status,sync-once,recover,help"),
+        ("commands", "init,status,sync-once,recover,serve,help"),
         (
             "common_options",
             "--control-dir DIR --store-dir DIR --config-hash HEX --genesis-hash HEX",
@@ -136,6 +136,22 @@ pub fn help() -> Result<Output, fmt::Error> {
         (
             "recover_scope",
             "explicit A1 recovery; no automatic retry or action switch",
+        ),
+        (
+            "serve_options",
+            "--listen ADDRESS --max-attempts UINT --max-io-bytes UINT --timeout-ms UINT --admission-ms UINT",
+        ),
+        (
+            "serve_scope",
+            "one fixed accepted history; at most one active stream; cumulative 1..8 attempts",
+        ),
+        (
+            "serve_shutdown",
+            "Linux SIGINT/SIGTERM stops admission; active session drains its original timeout",
+        ),
+        (
+            "admission_ms_range",
+            "1..60000; admission window plus at most one original session timeout; opening/output excluded",
         ),
         ("help_scope", "help or --help alone"),
         (

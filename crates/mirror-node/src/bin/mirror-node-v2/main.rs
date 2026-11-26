@@ -1,9 +1,11 @@
-//! Finite V2 operator commands composed only from accepted A1 control and F2
-//! receiving APIs. This executable has no daemon, provider, retry or fallback.
+//! Finite V2 operator commands composed from accepted A1 control and F2 sessions.
+//! Serving has one fixed history and explicit admission/shutdown limits.
 
 mod args;
 mod errors;
 mod output;
+mod provider;
+mod signals;
 
 use std::{
     env, fmt,
@@ -36,11 +38,12 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let (operation, may_mutate) = match &command {
+    let (operation, may_have_effects) = match &command {
         Command::Help => ("help", false),
         Command::Init { .. } => ("init", true),
         Command::Status(_) => ("status", false),
         Command::Sync { .. } => ("sync-once", true),
+        Command::Serve { .. } => ("serve", true),
         Command::Recover { .. } => ("recover", true),
     };
     match execute(command) {
@@ -52,7 +55,7 @@ fn main() -> ExitCode {
                     "output_io",
                     "inspect-status",
                     None,
-                    Some(may_mutate),
+                    Some(may_have_effects),
                 ));
                 ExitCode::from(1)
             } else {
@@ -60,7 +63,7 @@ fn main() -> ExitCode {
             }
         }
         Err(failure) => {
-            let uncertain = (failure.class == "output_limit").then_some(may_mutate);
+            let uncertain = (failure.class == "output_limit").then_some(may_have_effects);
             emit_diagnostic(output::diagnostic(
                 operation,
                 failure.class,
@@ -147,6 +150,26 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
             output.checkpoint("selected", report.selected)?;
             output.field("attempts", stats.attempts)?;
             output.field("wire_bytes", stats.wire_bytes)?;
+            Ok((output, 0))
+        }
+        Command::Serve {
+            common,
+            listen,
+            limits,
+            admission,
+        } => {
+            // The provider releases every socket and both directory owners
+            // before this result is formatted or written to a possibly blocked
+            // output consumer. Serving is never repeated after output loss.
+            let report = provider::run(&common, listen, limits, admission)?;
+            let mut output = Output::state("serve", "stopped", common.identity, "verified")?;
+            output.checkpoint("selected", report.checkpoint)?;
+            output.field("reason", report.reason)?;
+            output.field("attempts", report.stats.attempts)?;
+            output.field("completed_sessions", report.completed)?;
+            output.field("rejected_sessions", report.rejected)?;
+            output.field("wire_bytes", report.stats.wire_bytes)?;
+            output.field("last_session_error", report.last_session_error)?;
             Ok((output, 0))
         }
         Command::Recover { common, action } => {

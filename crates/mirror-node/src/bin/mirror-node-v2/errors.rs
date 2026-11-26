@@ -16,7 +16,7 @@ pub struct Failure {
 }
 
 impl Failure {
-    fn new(class: &'static str) -> Self {
+    pub(super) fn new(class: &'static str) -> Self {
         let next = match class {
             "recovery_required" => "explicit-recover",
             "invalid_path"
@@ -31,6 +31,8 @@ impl Failure {
             | "invalid_recovery"
             | "peer_wrong_network"
             | "invalid_peer_request"
+            | "listen_bind"
+            | "lifecycle_limit"
             | "unsupported_platform" => "verify-inputs",
             _ => "inspect-status",
         };

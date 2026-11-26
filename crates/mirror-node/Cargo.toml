@@ -16,5 +16,8 @@ mirror-storage = { path = "../mirror-storage" }
 mirror-network = { path = "../mirror-network" }
 mirror-protocol = { path = "../mirror-protocol" }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "=0.2.189"
+
 [dev-dependencies]
 mirror-personhood = { path = "../mirror-personhood" }

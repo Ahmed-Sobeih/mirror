@@ -1,11 +1,14 @@
 # V2 finite node operator commands
 
-Implemented surface: **MB-04A2**, the separate `mirror-node-v2` executable.
-This contract specifies the commands and their boundaries. Executed tests and
+Initial surface: **MB-04A2**, the separate `mirror-node-v2` executable.
+This contract specifies the original commands and their boundaries. The
+**MB-04B1 `serve` extension** has its separate
+[provider lifecycle and shutdown contract](NODE_PROVIDER_V2.md), summarized in
+section 9 below. Executed tests and
 exact source/CI acceptance belong to [CURRENT_STATUS.md](../CURRENT_STATUS.md)
 and the [master plan](../MASTER_PLAN.md).
 
-The commands compose the accepted [node controller](NODE_CONTROL_V2.md) and
+The original commands compose the accepted [node controller](NODE_CONTROL_V2.md) and
 [finite peer sessions](PEER_SESSION_V2.md). They add no consensus, storage or wire
 encoding, new admission rule, monetary operation, wallet, signer or daemon.
 The existing V1 executable source is unchanged. The package's explicit
@@ -225,7 +228,7 @@ biological uniqueness or a verified current store when only intent was inspected
 
 | Exit | Meaning |
 |---:|---|
-| 0 | Help, clean status, or completed init/sync/recover |
+| 0 | Help, clean status, completed init/sync/recover, or normal bounded provider stop |
 | 1 | Operational failure, including invalid state, ownership, transport or output I/O |
 | 2 | Invalid command syntax/value/limit; no filesystem or network operation started |
 | 3 | `status` observed missing control |
@@ -246,6 +249,9 @@ reports `operation_may_have_completed=true` for init/sync/recover and directs th
 operator to inspect status. A caller must not automatically retry a mutation merely
 because standard output was lost. Output-channel writes themselves have no deadline;
 the peer timeout does not bound a blocked consumer of standard output.
+For `serve`, lost final output can follow completed network service and also reports
+`operation_may_have_completed=true`. The provider releases every socket and both
+directory owners before final output; output failure never restarts serving.
 
 ## 8. Verification and remaining work
 
@@ -258,8 +264,42 @@ fixtures in these command tests are deliberate constructions, not claims of newl
 observed physical interruption. A1's existing actual process-termination evidence
 remains separately recorded in [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md).
 
-These commands remain a finite development component. Fresh-store distribution,
-persistent serving, reconnect/rejoin scheduling, global admission/multi-peer
+These commands remain a finite development component. MB-04B1 adds the bounded
+fixed-history provider described below. Fresh-store distribution, indefinitely
+persistent serving, reconnect/rejoin scheduling, broader admission/multi-peer
 policy, transaction pool, wallet/signer and final human consensus are separate
 work. The unchanged local operator/filesystem assumptions remain material; this
 contract is not an external audit, power-loss certification or Gate A/B acceptance.
+
+## 9. MB-04B1 `serve`: bounded provider extension
+
+In addition to the common paths and network identity, require all five options:
+
+```text
+serve --listen ADDRESS --max-attempts UINT --max-io-bytes UINT
+      --timeout-ms UINT --admission-ms UINT
+```
+
+The listen address must be numeric with a nonzero port. Attempts are 1..8;
+application bytes are 1..157129488; timeout and admission-window values are
+1..60000 ms. Parse all inputs before effects, then strictly open clean A1 control
+before binding. One held controller supplies one fixed full accepted history;
+one F2 owner retains cumulative attempts and actual I/O across clients and failures.
+The provider owns its one nonblocking listener and admits at most one active stream.
+
+Linux SIGINT/SIGTERM requests sticky graceful shutdown. Idle admission stops at
+the next bounded check. An already admitted connection completes or rejects using
+its original timeout, then no further connection is admitted. Admission expiry has
+the same final-drain rule: the serving phase has one admission window plus at most
+one original session timeout, subject to non-preemptible work and scheduling.
+Initial A1 opening/replay and final output are outside that interval.
+
+No readiness/progress output is written while owners are held. After resource
+release, a normal run reports `status=stopped`, the selected full checkpoint,
+`reason=shutdown|admission-timeout|attempt-limit|wire-limit`, `attempts`,
+`completed_sessions`, `rejected_sessions`, actual `wire_bytes` and the retained
+static `last_session_error`. Peer rejection can consume allowance without making
+the provider lifecycle itself fail. Exit 0 means a normal stop, not proof of remote
+adoption; fatal startup/listener/local/history/output failure exits 1, usage exits 2.
+The [complete provider contract](NODE_PROVIDER_V2.md) defines ordering, shutdown
+races, exact limits, source/dependency exceptions and process acceptance.

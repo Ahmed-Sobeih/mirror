@@ -11,7 +11,9 @@ checkpoint, and persists both accepted histories before one preferred branch can
 replace durable storage. A process restart with unfinished intent requires an
 explicit operator recovery action. The existing V1 executable remains separate.
 A1 itself is a library; the separate [finite operator commands](NODE_OPERATOR_V2.md)
-compose it in MB-04A2. Neither component supplies a persistent server.
+compose it in MB-04A2. The separate [MB-04B1 finite provider](NODE_PROVIDER_V2.md)
+retains one ready controller and fixed accepted history through bounded serving
+and explicit shutdown. A1 itself remains the same local control library.
 
 ## 1. Trust and ownership
 

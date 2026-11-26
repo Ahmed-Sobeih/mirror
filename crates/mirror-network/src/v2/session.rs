@@ -235,11 +235,48 @@ impl PeerSessionsV2 {
         drop(listener);
         deadline.check()?;
         let mut socket = SessionSocket::new(stream)?;
+        self.serve_history(&mut socket.stream, identity, chain, deadline)
+    }
+
+    /// Consume one already accepted connection under this owner's unchanged
+    /// cumulative budgets. The caller owns listener admission; this method does
+    /// not bind, accept, retry or replenish a session allowance. Its original
+    /// absolute deadline starts here, so caller-side waiting is outside it.
+    ///
+    /// The supplied stream is guarded before budget and local-identity checks.
+    /// Every result shuts down and drops that connection, including a refusal
+    /// before any request bytes are read. No reusable stream is returned.
+    pub fn serve_connection(
+        &mut self,
+        stream: TcpStream,
+        identity: ManifestIdentityV2,
+        chain: &ChainV2,
+    ) -> Result<HistorySummaryV2, SessionErrorV2> {
+        let mut socket = SessionSocket { stream };
+        let deadline = self.begin_attempt()?;
+        if chain.manifest().identity() != identity {
+            return Err(SessionErrorV2::WrongNetwork);
+        }
+        deadline.check()?;
+        socket.stream.set_nonblocking(false)?;
+        socket.stream.set_nodelay(true)?;
+        self.serve_history(&mut socket.stream, identity, chain, deadline)
+    }
+
+    /// Shared checked provider protocol. Both entry points retain their own
+    /// socket guard and pass their one existing deadline into every I/O call.
+    fn serve_history(
+        &mut self,
+        stream: &mut TcpStream,
+        identity: ManifestIdentityV2,
+        chain: &ChainV2,
+        deadline: Deadline,
+    ) -> Result<HistorySummaryV2, SessionErrorV2> {
         let mut request = [0u8; REQUEST_LEN_V2];
-        self.read_bytes(&mut socket.stream, &mut request, deadline)?;
+        self.read_bytes(stream, &mut request, deadline)?;
         validate_history_request_v2(&request, identity)?;
         deadline.check()?;
-        self.expect_eof(&mut socket.stream, deadline)?;
+        self.expect_eof(stream, deadline)?;
 
         let mut frames = HistoryFramesV2::new(chain)?;
         deadline.check()?;
@@ -251,9 +288,9 @@ impl PeerSessionsV2 {
             };
             let frame = frame?;
             deadline.check()?;
-            self.write_bytes(&mut socket.stream, &frame, deadline)?;
+            self.write_bytes(stream, &frame, deadline)?;
         }
-        socket.stream.shutdown(Shutdown::Write)?;
+        stream.shutdown(Shutdown::Write)?;
         deadline.check()?;
         Ok(summary)
     }

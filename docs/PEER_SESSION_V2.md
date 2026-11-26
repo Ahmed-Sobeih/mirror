@@ -15,8 +15,10 @@ ownership and [recovery](STORAGE_REPLACEMENT_RECOVERY_V2.md) rules.
 
 The caller chooses `ManifestIdentityV2 { config_hash, genesis_hash }` from its own
 local configuration before making or accepting a request. The request and response
-cannot supply this authority. A provider also checks that its immutable accepted
+cannot supply this authority. `serve_once` checks that its immutable accepted
 history belongs to that independently selected identity before accepting a client.
+The additive `serve_connection` entry checks the same identity before reading an
+already accepted connection; its caller owns admission as described in section 9.
 
 The main APIs are:
 
@@ -28,10 +30,12 @@ sessions.request(address: SocketAddr, identity: ManifestIdentityV2)
     -> Result<ReceivedCandidateV2, SessionErrorV2>
 sessions.serve_once(listener: TcpListener, identity: ManifestIdentityV2, chain: &ChainV2)
     -> Result<HistorySummaryV2, SessionErrorV2>
+sessions.serve_connection(stream: TcpStream, identity: ManifestIdentityV2, chain: &ChainV2)
+    -> Result<HistorySummaryV2, SessionErrorV2>
 sessions.stats() -> SessionStatsV2 { attempts: u8, wire_bytes: u64 }
 ```
 
-`PeerSessionsV2` is not Clone. Both operations require an exclusive mutable borrow
+`PeerSessionsV2` is not Clone. All operations require an exclusive mutable borrow
 for the entire synchronous attempt. One owner therefore has at most one connected
 or accepted stream at a time. A copied statistics value does not copy or replenish
 the actual owner's budget. `limits()` exposes its immutable validated limits.
@@ -82,7 +86,7 @@ The requester performs this exact sequence:
 5. After accepting the matching End, require response EOF within the same deadline.
 6. Only then consume the receiver with `finish()` and return the accepted candidate.
 
-The provider consumes one `TcpListener`, waits under the attempt deadline, accepts
+`serve_once` consumes one `TcpListener`, waits under the attempt deadline, accepts
 at most one connection, and drops that listener before processing the connection.
 It reads the fixed request, validates it, and requires request EOF before producing
 any response. It streams the borrowed accepted history through `HistoryFramesV2`,
@@ -160,7 +164,8 @@ covered by a boundary test.
 One attempt is charged before network work, provider identity validation, or a
 refusal due to an already exhausted wire allowance. Attempts beyond the configured
 attempt cap are refused without opening a socket and do not increase the counter
-beyond its cap. No error restores consumed attempts or bytes.
+beyond its cap. If a caller supplies an already accepted stream, that stream is
+still shut down and dropped on refusal. No error restores consumed attempts or bytes.
 
 For the frozen main history, the response is 5,406 bytes and each successful
 endpoint accounts for **5,478 bytes**, including the 72-byte request. Accounting
@@ -173,7 +178,8 @@ Each attempt derives one `Instant` deadline. Connection establishment or listene
 waiting, request transfer, request EOF, response framing, semantic processing,
 terminal EOF and successful return all use this same deadline. A later explicit
 attempt gets a new deadline but consumes another item from the owner's finite
-attempt allowance.
+attempt allowance. Caller-side waiting before `serve_connection` is outside that
+entry's deadline; the provider must bound its own listener admission separately.
 
 The listener uses nonblocking accept and bounded polling. The connected stream is
 blocking, but the remaining deadline duration is recalculated and installed as the
@@ -236,3 +242,42 @@ Separate peer-process integration and adoption tests exercise the complete TCP,
 comparison, durable publication and strict reopen path. Full gate counts, exact
 source, CI and remaining work are recorded in [CURRENT_STATUS.md](../CURRENT_STATUS.md)
 and [MASTER_PLAN.md](../MASTER_PLAN.md).
+
+## 9. Accepted-connection adapter for MB-04B1
+
+`PeerSessionsV2::serve_connection` consumes one `TcpStream` that the caller has
+already accepted. It does not bind or accept a connection, clone a listener,
+create another session owner or reset any allowance. The caller must independently
+bound admission, retained listeners, lifecycle duration and concurrent work. The
+[MB-04B1 provider contract](NODE_PROVIDER_V2.md) defines that separate boundary.
+
+The stream has a shutdown/drop guard before preflight. The existing attempt rules
+then charge this owner once, check remaining cumulative bytes and establish one
+original absolute deadline. An already exhausted attempt cap cannot increase its
+counter; an exhausted wire allowance still charges an otherwise permitted attempt.
+The independently selected provider identity is checked before request I/O. Every
+error, including either exhausted budget or wrong local identity, shuts down and
+drops the supplied connection. No reusable stream is returned, and a descriptor
+clone retained outside this API cannot keep that connection open after shutdown.
+
+After socket configuration, both provider entry points use one shared checked
+routine: read the exact MPQ2 request, validate its independent network, require
+request EOF before any history output, emit unchanged `HistoryFramesV2` frames and
+shut down the response write half. All positive request/response/sentinel bytes
+remain charged against the same owner, including rejected requests and partial
+output. Calls to `request`, `serve_once` and `serve_connection` cannot replenish
+each other's attempt or byte allowance.
+
+The new entry starts its deadline after caller-side acceptance. Existing
+`serve_once` retains its earlier deadline, including its listener wait, and passes
+that same deadline into the shared routine. This extraction changes no request,
+frame, validation, EOF, byte-accounting or timeout rule. It adds no cancellation
+or hard CPU-preemption promise; a caller can stop new admission and let an already
+admitted connection finish or reject under its original F2 deadline.
+
+[`provider_connection_v2.rs`](../crates/mirror-network/tests/provider_connection_v2.rs)
+targets the additive entry with complete history reception, guarded preflight
+closure, malformed/wrong-network/incomplete/trailing requests, missing EOF,
+absolute-deadline drip input, cumulative failed-input/partial-output accounting
+and mixed old/new provider calls on one session owner. All earlier F2 tests,
+references, fixtures and examples remain part of the required acceptance gates.

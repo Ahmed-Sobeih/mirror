@@ -31,6 +31,12 @@ pub enum Command {
         peer: SocketAddr,
         limits: SessionLimitsV2,
     },
+    Serve {
+        common: Common,
+        listen: SocketAddr,
+        limits: SessionLimitsV2,
+        admission: Duration,
+    },
     Recover {
         common: Common,
         action: ReplacementRecoveryActionV2,
@@ -58,6 +64,7 @@ pub enum UsageError {
     InvalidNumber,
     OutOfRange,
     InvalidPeer,
+    InvalidListen,
     InvalidAction,
 }
 
@@ -83,6 +90,7 @@ impl UsageError {
             Self::InvalidNumber => "invalid_number",
             Self::OutOfRange => "out_of_range",
             Self::InvalidPeer => "invalid_peer",
+            Self::InvalidListen => "invalid_listen",
             Self::InvalidAction => "invalid_action",
         }
     }
@@ -93,6 +101,7 @@ enum Kind {
     Init,
     Status,
     Sync,
+    Serve,
     Recover,
 }
 
@@ -109,6 +118,9 @@ const PEER: usize = 9;
 const TIMEOUT: usize = 10;
 const IO_BYTES: usize = 11;
 const ACTION: usize = 12;
+const LISTEN: usize = 13;
+const ATTEMPTS: usize = 14;
+const ADMISSION: usize = 15;
 const COMMON_MASK: u16 = (1 << CONTROL) | (1 << STORE) | (1 << CONFIG) | (1 << GENESIS);
 
 fn required(kind: Kind) -> u16 {
@@ -119,6 +131,13 @@ fn required(kind: Kind) -> u16 {
             }
             Kind::Status => 0,
             Kind::Sync => (1 << PEER) | (1 << TIMEOUT) | (1 << IO_BYTES),
+            Kind::Serve => {
+                (1 << LISTEN)
+                    | (1 << ATTEMPTS)
+                    | (1 << IO_BYTES)
+                    | (1 << TIMEOUT)
+                    | (1 << ADMISSION)
+            }
             Kind::Recover => 1 << ACTION,
         }
 }
@@ -138,6 +157,9 @@ fn flag(value: &str) -> Result<usize, UsageError> {
         "--timeout-ms" => TIMEOUT,
         "--max-io-bytes" => IO_BYTES,
         "--action" => ACTION,
+        "--listen" => LISTEN,
+        "--max-attempts" => ATTEMPTS,
+        "--admission-ms" => ADMISSION,
         value if value.starts_with('-') => return Err(UsageError::UnknownOption),
         _ => return Err(UsageError::UnexpectedArgument),
     })
@@ -180,12 +202,13 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         "init" => Kind::Init,
         "status" => Kind::Status,
         "sync-once" => Kind::Sync,
+        "serve" => Kind::Serve,
         "recover" => Kind::Recover,
         _ => return Err(UsageError::UnknownCommand),
     };
     let required = required(kind);
     let mut seen = 0u16;
-    let mut values: [Option<&str>; 13] = [None; 13];
+    let mut values: [Option<&str>; 16] = [None; 16];
     let mut position = 1usize;
     while position < tokens.len() {
         let index = flag(&tokens[position])?;
@@ -270,6 +293,30 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
                 common,
                 peer,
                 limits,
+            }
+        }
+        Kind::Serve => {
+            let listen: SocketAddr = value(LISTEN)?
+                .parse()
+                .map_err(|_| UsageError::InvalidListen)?;
+            if listen.port() == 0 {
+                return Err(UsageError::InvalidListen);
+            }
+            let attempts =
+                u8::try_from(unsigned(value(ATTEMPTS)?)?).map_err(|_| UsageError::OutOfRange)?;
+            let allowance = unsigned(value(IO_BYTES)?)?;
+            let timeout = unsigned(value(TIMEOUT)?)?;
+            let admission = unsigned(value(ADMISSION)?)?;
+            if timeout == 0 || timeout > 60_000 || admission == 0 || admission > 60_000 {
+                return Err(UsageError::OutOfRange);
+            }
+            let limits = SessionLimitsV2::new(attempts, allowance, Duration::from_millis(timeout))
+                .map_err(|_| UsageError::OutOfRange)?;
+            Command::Serve {
+                common,
+                listen,
+                limits,
+                admission: Duration::from_millis(admission),
             }
         }
         Kind::Recover => {
@@ -368,6 +415,22 @@ mod tests {
         values.extend(["--action".into(), "complete".into()]);
         values
     }
+    fn serve() -> Vec<String> {
+        let mut values = common("serve");
+        values.extend([
+            "--listen".into(),
+            "127.0.0.1:9000".into(),
+            "--max-attempts".into(),
+            "2".into(),
+            "--max-io-bytes".into(),
+            "20000000".into(),
+            "--timeout-ms".into(),
+            "1000".into(),
+            "--admission-ms".into(),
+            "3000".into(),
+        ]);
+        values
+    }
     fn parsed(values: Vec<String>) -> Result<Command, UsageError> {
         parse(values.into_iter().map(OsString::from))
     }
@@ -394,8 +457,121 @@ mod tests {
 
     #[test]
     fn command_names_have_no_fallback_or_abbreviation() {
-        for value in ["", "INIT", "sync", "serve", "version", "-h", "status "] {
+        for value in ["", "INIT", "sync", "serve-once", "version", "-h", "status "] {
             assert_eq!(parsed(vec![value.into()]), Err(UsageError::UnknownCommand));
+        }
+    }
+
+    #[test]
+    fn serve_requires_every_explicit_input_and_rejects_duplicate_options() {
+        let full = serve();
+        for start in (1..full.len()).step_by(2) {
+            let mut missing = full.clone();
+            missing.drain(start..start + 2);
+            assert_eq!(parsed(missing), Err(UsageError::MissingOption));
+            let mut duplicate = full.clone();
+            duplicate.extend([full[start].clone(), full[start + 1].clone()]);
+            assert_eq!(parsed(duplicate), Err(UsageError::DuplicateOption));
+        }
+    }
+
+    #[test]
+    fn serve_preserves_independent_identity_and_all_budget_boundaries() {
+        for (address, attempts, allowance, timeout, admission) in [
+            ("127.0.0.1:1", 1, 1, 1, 1),
+            ("[::1]:65535", 8, MAX_SESSION_WIRE_BYTES_V2, 60_000, 60_000),
+        ] {
+            let mut values = serve();
+            for (flag, value) in [
+                ("--listen", address.to_string()),
+                ("--max-attempts", attempts.to_string()),
+                ("--max-io-bytes", allowance.to_string()),
+                ("--timeout-ms", timeout.to_string()),
+                ("--admission-ms", admission.to_string()),
+            ] {
+                change(&mut values, flag, &value);
+            }
+            let Command::Serve {
+                common,
+                listen,
+                limits,
+                admission: window,
+            } = parsed(values).unwrap()
+            else {
+                panic!("wrong command");
+            };
+            assert_eq!(common.identity.config_hash.to_hex(), "ab".repeat(32));
+            assert_eq!(common.identity.genesis_hash.to_hex(), "cd".repeat(32));
+            assert_eq!(listen, address.parse::<SocketAddr>().unwrap());
+            assert_eq!(limits.max_attempts(), attempts);
+            assert_eq!(limits.max_wire_bytes(), allowance);
+            assert_eq!(limits.timeout(), Duration::from_millis(timeout));
+            assert_eq!(window, Duration::from_millis(admission));
+        }
+    }
+
+    #[test]
+    fn serve_rejects_zero_and_excessive_resource_limits_before_effects() {
+        for (flag, value) in [
+            ("--max-attempts", "0"),
+            ("--max-attempts", "9"),
+            ("--max-attempts", "256"),
+            ("--max-attempts", "18446744073709551615"),
+            ("--max-io-bytes", "0"),
+            ("--max-io-bytes", "157129489"),
+            ("--timeout-ms", "0"),
+            ("--timeout-ms", "60001"),
+            ("--admission-ms", "0"),
+            ("--admission-ms", "60001"),
+        ] {
+            let mut values = serve();
+            change(&mut values, flag, value);
+            assert_eq!(parsed(values), Err(UsageError::OutOfRange));
+        }
+    }
+
+    #[test]
+    fn serve_requires_canonical_unsigned_decimal_for_every_limit() {
+        for flag in [
+            "--max-attempts",
+            "--max-io-bytes",
+            "--timeout-ms",
+            "--admission-ms",
+        ] {
+            for value in ["", "01", "+1", "-1", "1.0", " 1", "18446744073709551616"] {
+                let mut values = serve();
+                change(&mut values, flag, value);
+                assert_eq!(parsed(values), Err(UsageError::InvalidNumber));
+            }
+        }
+    }
+
+    #[test]
+    fn serve_requires_numeric_nonzero_listen_address() {
+        for address in [
+            "localhost:9000",
+            "127.0.0.1:0",
+            "[::1]:0",
+            "127.0.0.1:65536",
+            "127.0.0.1",
+            "",
+        ] {
+            let mut values = serve();
+            change(&mut values, "--listen", address);
+            assert_eq!(parsed(values), Err(UsageError::InvalidListen));
+        }
+    }
+
+    #[test]
+    fn serve_options_do_not_leak_into_other_commands_or_accept_receiver_flags() {
+        for mut values in [common("status"), init(), sync(), recover()] {
+            values.extend(["--listen".into(), "127.0.0.1:9000".into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+        }
+        for (flag, value) in [("--peer", "127.0.0.1:9000"), ("--action", "complete")] {
+            let mut values = serve();
+            values.extend([flag.into(), value.into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
         }
     }
 
