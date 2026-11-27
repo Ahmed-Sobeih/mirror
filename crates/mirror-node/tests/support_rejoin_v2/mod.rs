@@ -950,3 +950,20 @@ fn full_stdout_pipe() -> (Stdio, Option<File>) {
     );
     (Stdio::from(writer), Some(File::from(reader)))
 }
+
+impl RejoinProcess {
+    /// After observing a service listener, identify the real inter-round sleep.
+    /// B1's idle polling also sleeps, but still owns its listening descriptor.
+    /// No elapsed-time guess or parent-side TCP handshake establishes this phase.
+    pub fn wait_between_rounds(&mut self) {
+        let address = self.address;
+        self.observe("inter-round sleep after listener release", move |pid| {
+            if !socket_fds(pid, address, None, 0x0a)?.is_empty() {
+                return Ok(false);
+            }
+            Ok(syscall(pid)?.is_some_and(|call| {
+                call.number == libc::SYS_clock_nanosleep || call.number == libc::SYS_nanosleep
+            }))
+        });
+    }
+}

@@ -11,6 +11,7 @@ pub const MAX_ARGUMENTS: usize = 32;
 pub const MAX_TOKEN_BYTES: usize = 4096;
 pub const MAX_ARGUMENT_BYTES: usize = 16_384;
 pub(super) const MAX_FAILOVER_PEERS: usize = 4;
+pub(super) const MAX_RUN_ROUNDS: usize = 4;
 
 /// Fully parsed ordered endpoints. Unused fixed slots never enter acquisition.
 #[derive(Debug, PartialEq, Eq)]
@@ -64,6 +65,15 @@ pub enum Command {
         listen: SocketAddr,
         limits: SessionLimitsV2,
         admission: Duration,
+    },
+    Run {
+        common: Common,
+        peers: PeerList,
+        listen: SocketAddr,
+        limits: SessionLimitsV2,
+        admission: Duration,
+        max_rounds: u8,
+        round_wait: Duration,
     },
     Recover {
         common: Common,
@@ -138,6 +148,7 @@ enum Kind {
     Serve,
     RejoinServe,
     RejoinFailoverServe,
+    Run,
     Recover,
 }
 
@@ -158,6 +169,8 @@ const LISTEN: usize = 13;
 const ATTEMPTS: usize = 14;
 const ADMISSION: usize = 15;
 const PEERS: usize = 16;
+const ROUNDS: usize = 17;
+const ROUND_WAIT: usize = 18;
 const COMMON_MASK: u32 = (1 << CONTROL) | (1 << STORE) | (1 << CONFIG) | (1 << GENESIS);
 
 fn required(kind: Kind) -> u32 {
@@ -177,6 +190,7 @@ fn required(kind: Kind) -> u32 {
             }
             Kind::RejoinServe => required(Kind::Serve) | (1 << PEER),
             Kind::RejoinFailoverServe => required(Kind::Serve) | (1 << PEERS),
+            Kind::Run => required(Kind::RejoinFailoverServe) | (1 << ROUNDS) | (1 << ROUND_WAIT),
             Kind::Recover => 1 << ACTION,
         }
 }
@@ -194,6 +208,8 @@ fn flag(value: &str) -> Result<usize, UsageError> {
         "--generation" => GENERATION,
         "--peer" => PEER,
         "--peers" => PEERS,
+        "--max-rounds" => ROUNDS,
+        "--round-wait-ms" => ROUND_WAIT,
         "--timeout-ms" => TIMEOUT,
         "--max-io-bytes" => IO_BYTES,
         "--action" => ACTION,
@@ -245,12 +261,13 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         "serve" => Kind::Serve,
         "rejoin-serve" => Kind::RejoinServe,
         "rejoin-failover-serve" => Kind::RejoinFailoverServe,
+        "run" => Kind::Run,
         "recover" => Kind::Recover,
         _ => return Err(UsageError::UnknownCommand),
     };
     let required = required(kind);
     let mut seen = 0u32;
-    let mut values: [Option<&str>; 17] = [None; 17];
+    let mut values: [Option<&str>; 19] = [None; 19];
     let mut position = 1usize;
     while position < tokens.len() {
         let index = flag(&tokens[position])?;
@@ -337,7 +354,7 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
                 limits,
             }
         }
-        Kind::Serve | Kind::RejoinServe | Kind::RejoinFailoverServe => {
+        Kind::Serve | Kind::RejoinServe | Kind::RejoinFailoverServe | Kind::Run => {
             let listen: SocketAddr = value(LISTEN)?
                 .parse()
                 .map_err(|_| UsageError::InvalidListen)?;
@@ -355,7 +372,26 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
             let limits = SessionLimitsV2::new(attempts, allowance, Duration::from_millis(timeout))
                 .map_err(|_| UsageError::OutOfRange)?;
             let admission = Duration::from_millis(admission);
-            if matches!(kind, Kind::RejoinFailoverServe) {
+            if matches!(kind, Kind::Run) {
+                let max_rounds =
+                    u8::try_from(unsigned(value(ROUNDS)?)?).map_err(|_| UsageError::OutOfRange)?;
+                let round_wait = unsigned(value(ROUND_WAIT)?)?;
+                if max_rounds == 0
+                    || usize::from(max_rounds) > MAX_RUN_ROUNDS
+                    || round_wait > 60_000
+                {
+                    return Err(UsageError::OutOfRange);
+                }
+                Command::Run {
+                    common,
+                    peers: peer_list(value(PEERS)?)?,
+                    listen,
+                    limits,
+                    admission,
+                    max_rounds,
+                    round_wait: Duration::from_millis(round_wait),
+                }
+            } else if matches!(kind, Kind::RejoinFailoverServe) {
                 Command::RejoinFailoverServe {
                     common,
                     peers: peer_list(value(PEERS)?)?,
@@ -1355,5 +1391,224 @@ mod tests {
             parse([OsString::from_vec(vec![0xff])]),
             Err(UsageError::NonUtf8)
         );
+    }
+
+    fn run_command() -> Vec<String> {
+        let mut values = failover();
+        values[0] = "run".into();
+        values.extend([
+            "--max-rounds".into(),
+            "4".into(),
+            "--round-wait-ms".into(),
+            "0".into(),
+        ]);
+        values
+    }
+
+    #[test]
+    fn run_requires_all_twelve_options_and_rejects_duplicate_flags() {
+        let full = run_command();
+        assert_eq!(full.len(), 25);
+        for start in (1..full.len()).step_by(2) {
+            let mut missing = full.clone();
+            missing.drain(start..start + 2);
+            assert_eq!(parsed(missing), Err(UsageError::MissingOption));
+            let mut duplicate = full.clone();
+            duplicate.extend([full[start].clone(), full[start + 1].clone()]);
+            assert_eq!(parsed(duplicate), Err(UsageError::DuplicateOption));
+        }
+    }
+
+    #[test]
+    fn run_preserves_explicit_order_identity_and_independent_round_attempt_caps() {
+        for (rounds, wait, attempts, bytes, timeout, admission) in [
+            (1, 0, 1, 1, 1, 1),
+            (4, 60_000, 8, MAX_SESSION_WIRE_BYTES_V2, 60_000, 60_000),
+            (4, 0, 1, 1000, 10, 20),
+        ] {
+            let mut values = run_command();
+            for (flag, value) in [
+                ("--max-rounds", rounds.to_string()),
+                ("--round-wait-ms", wait.to_string()),
+                ("--max-attempts", attempts.to_string()),
+                ("--max-io-bytes", bytes.to_string()),
+                ("--timeout-ms", timeout.to_string()),
+                ("--admission-ms", admission.to_string()),
+            ] {
+                change(&mut values, flag, &value);
+            }
+            change(
+                &mut values,
+                "--peers",
+                "[::ffff:127.0.0.1]:9010,[::1]:9020,127.0.0.2:9030,127.0.0.3:9040",
+            );
+            let Command::Run {
+                common,
+                peers,
+                listen,
+                limits,
+                admission: window,
+                max_rounds,
+                round_wait,
+            } = parsed(values).unwrap()
+            else {
+                panic!("wrong command");
+            };
+            assert_eq!(common.identity.config_hash.to_hex(), "ab".repeat(32));
+            assert_eq!(common.identity.genesis_hash.to_hex(), "cd".repeat(32));
+            assert_eq!(common.control, PathBuf::from("control"));
+            assert_eq!(common.store, PathBuf::from("store"));
+            assert_eq!(listen, "127.0.0.1:9000".parse::<SocketAddr>().unwrap());
+            assert_eq!(
+                peers.as_slice(),
+                &[
+                    "[::ffff:127.0.0.1]:9010".parse::<SocketAddr>().unwrap(),
+                    "[::1]:9020".parse().unwrap(),
+                    "127.0.0.2:9030".parse().unwrap(),
+                    "127.0.0.3:9040".parse().unwrap(),
+                ]
+            );
+            assert!(peers.as_slice()[0].is_ipv6());
+            assert_eq!(limits.max_attempts(), attempts);
+            assert_eq!(limits.max_wire_bytes(), bytes);
+            assert_eq!(limits.timeout(), Duration::from_millis(timeout));
+            assert_eq!(window, Duration::from_millis(admission));
+            assert_eq!(max_rounds, rounds);
+            assert_eq!(round_wait, Duration::from_millis(wait));
+        }
+    }
+
+    #[test]
+    fn run_rejects_noncanonical_and_out_of_range_round_wait_and_transport_limits() {
+        for flag in [
+            "--max-rounds",
+            "--round-wait-ms",
+            "--max-attempts",
+            "--max-io-bytes",
+            "--timeout-ms",
+            "--admission-ms",
+        ] {
+            for value in [
+                "",
+                "01",
+                "+1",
+                "-1",
+                "1.0",
+                " 1",
+                "١",
+                "18446744073709551616",
+            ] {
+                let mut values = run_command();
+                change(&mut values, flag, value);
+                assert_eq!(parsed(values), Err(UsageError::InvalidNumber));
+            }
+        }
+        for (flag, value) in [
+            ("--max-rounds", "0"),
+            ("--max-rounds", "5"),
+            ("--max-rounds", "256"),
+            ("--round-wait-ms", "60001"),
+            ("--max-attempts", "0"),
+            ("--max-attempts", "9"),
+            ("--max-io-bytes", "0"),
+            ("--max-io-bytes", "157129489"),
+            ("--timeout-ms", "0"),
+            ("--timeout-ms", "60001"),
+            ("--admission-ms", "0"),
+            ("--admission-ms", "60001"),
+        ] {
+            let mut values = run_command();
+            change(&mut values, flag, value);
+            assert_eq!(parsed(values), Err(UsageError::OutOfRange));
+        }
+    }
+
+    #[test]
+    fn run_retains_bounded_numeric_list_and_alias_rejection() {
+        for (list, error) in [
+            ("", UsageError::InvalidPeerList),
+            (",127.0.0.1:1", UsageError::InvalidPeerList),
+            ("127.0.0.1:1,", UsageError::InvalidPeerList),
+            ("127.0.0.1:1,,127.0.0.1:2", UsageError::InvalidPeerList),
+            ("127.0.0.1:1, 127.0.0.1:2", UsageError::InvalidPeerList),
+            ("[fe80::1%1]:1", UsageError::InvalidPeerList),
+            ("localhost:1", UsageError::InvalidPeer),
+            ("127.0.0.1:0", UsageError::InvalidPeer),
+            ("[::1]:0", UsageError::InvalidPeer),
+            (
+                "127.0.0.1:1,127.0.0.1:2,127.0.0.1:3,127.0.0.1:4,127.0.0.1:5",
+                UsageError::TooManyPeers,
+            ),
+            (
+                "127.0.0.1:1,[::ffff:127.0.0.1]:1",
+                UsageError::DuplicatePeer,
+            ),
+            ("[::1]:1,[0:0:0:0:0:0:0:1]:1", UsageError::DuplicatePeer),
+        ] {
+            let mut values = run_command();
+            change(&mut values, "--peers", list);
+            assert_eq!(parsed(values), Err(error));
+        }
+        for listen in ["localhost:1", "127.0.0.1:0", "[::1]:0"] {
+            let mut values = run_command();
+            change(&mut values, "--listen", listen);
+            assert_eq!(parsed(values), Err(UsageError::InvalidListen));
+        }
+    }
+
+    #[test]
+    fn run_flags_are_separate_from_every_earlier_command_and_single_peer_mode() {
+        for full in [
+            common("status"),
+            init(),
+            sync(),
+            recover(),
+            serve(),
+            rejoin(),
+            failover(),
+        ] {
+            for (flag, value) in [("--max-rounds", "2"), ("--round-wait-ms", "0")] {
+                let mut values = full.clone();
+                values.extend([flag.into(), value.into()]);
+                assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+            }
+        }
+        for (flag, value) in [
+            ("--peer", "127.0.0.1:1"),
+            ("--action", "complete"),
+            ("--height", "0"),
+        ] {
+            let mut values = run_command();
+            values.extend([flag.into(), value.into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+        }
+        let mut values = run_command();
+        values.push("--attach-existing".into());
+        assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+    }
+
+    #[test]
+    fn run_keeps_original_argument_byte_count_and_control_character_admission() {
+        let mut values = run_command();
+        change(&mut values, "--control-dir", &"x".repeat(MAX_TOKEN_BYTES));
+        assert!(parsed(values).is_ok());
+        let mut values = run_command();
+        change(
+            &mut values,
+            "--control-dir",
+            &"x".repeat(MAX_TOKEN_BYTES + 1),
+        );
+        assert_eq!(parsed(values), Err(UsageError::TokenTooLong));
+        let mut values = run_command();
+        values.resize(MAX_ARGUMENTS + 1, "extra".into());
+        assert_eq!(parsed(values), Err(UsageError::TooManyArguments));
+        let mut values = run_command();
+        change(&mut values, "--peers", "127.0.0.1:1,\n127.0.0.1:2");
+        assert_eq!(parsed(values), Err(UsageError::ControlCharacter));
+        let mut values = run_command();
+        for flag in ["--control-dir", "--store-dir", "--peers", "--listen"] {
+            change(&mut values, flag, &"x".repeat(MAX_TOKEN_BYTES));
+        }
+        assert_eq!(parsed(values), Err(UsageError::ArgumentsTooLong));
     }
 }

@@ -23,6 +23,10 @@ standalone `serve` command; its fields, limits and shutdown behavior remain.
 list before the same retained-controller serving phase. Its failed acquisitions
 consume the same owner allowance; standalone `serve` remains unchanged.
 
+[MB-04B4 bounded run](NODE_RUN_V2.md) returns the retained controller from the
+private serving boundary for explicitly authorized later rounds. The standalone
+wrapper still releases ownership before returning its existing record.
+
 ## 1. Explicit invocation and limits
 
 Every value below is supplied deliberately; the angle-bracket text describes

@@ -59,6 +59,22 @@ pub(super) fn serve_ready(
     sessions: &mut PeerSessionsV2,
     signals: &Signals,
 ) -> Result<Report, Failure> {
+    let (ready, report) = serve_retained(ready, identity, listen, admission, sessions, signals)?;
+    drop(ready);
+    Ok(report)
+}
+
+/// A normal round returns the same owner after closing its listener. The run
+/// coordinator can continue without releasing/reopening either root; fatal
+/// returns still consume the owner. Earlier commands use the dropping wrapper.
+pub(super) fn serve_retained(
+    ready: NodeControlV2,
+    identity: ManifestIdentityV2,
+    listen: SocketAddr,
+    admission: Duration,
+    sessions: &mut PeerSessionsV2,
+    signals: &Signals,
+) -> Result<(NodeControlV2, Report), Failure> {
     let checkpoint = ready.checkpoint();
     let mut completed = 0;
     let mut rejected = 0;
@@ -73,14 +89,17 @@ pub(super) fn serve_ready(
         budget_stop_reason(sessions)
     };
     if let Some(reason) = before_window {
-        return Ok(Report {
-            checkpoint,
-            reason,
-            stats: sessions.stats(),
-            completed,
-            rejected,
-            last_session_error,
-        });
+        return Ok((
+            ready,
+            Report {
+                checkpoint,
+                reason,
+                stats: sessions.stats(),
+                completed,
+                rejected,
+                last_session_error,
+            },
+        ));
     }
     let end = Instant::now()
         .checked_add(admission)
@@ -148,11 +167,10 @@ pub(super) fn serve_ready(
         rejected,
         last_session_error,
     };
-    // Keep resource-release ordering independent of report/output construction.
-    // A1 itself drops store ownership before control ownership.
+    // The listener is gone before any next acquisition or inter-round wait.
+    // Earlier command wrappers release this retained owner before output.
     drop(listener);
-    drop(ready);
-    Ok(report)
+    Ok((ready, report))
 }
 
 fn stop_reason(

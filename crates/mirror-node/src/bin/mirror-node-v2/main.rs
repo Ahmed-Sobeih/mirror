@@ -7,6 +7,7 @@ mod failover;
 mod output;
 mod provider;
 mod rejoin;
+mod runner;
 mod signals;
 
 use std::{
@@ -48,6 +49,7 @@ fn main() -> ExitCode {
         Command::Serve { .. } => ("serve", true),
         Command::RejoinServe { .. } => ("rejoin-serve", true),
         Command::RejoinFailoverServe { .. } => ("rejoin-failover-serve", true),
+        Command::Run { .. } => ("run", true),
         Command::Recover { .. } => ("recover", true),
     };
     match execute(command) {
@@ -263,6 +265,28 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
             output::acquisition_context(&mut output, &report.acquisition, false)?;
             Ok((output, 0))
         }
+        Command::Run {
+            common,
+            peers,
+            listen,
+            limits,
+            admission,
+            max_rounds,
+            round_wait,
+        } => {
+            let report = runner::run(
+                &common,
+                peers.as_slice(),
+                listen,
+                limits,
+                admission,
+                max_rounds,
+                round_wait,
+            )?;
+            // The runner has released its one ownership path before bounded
+            // validation, formatting and potentially blocked output begin.
+            Ok((output::run_report(common.identity, &report)?, 0))
+        }
         Command::Recover { common, action } => {
             let ready =
                 NodeControlV2::recover(&common.control, &common.store, common.identity, action)?;
@@ -290,7 +314,11 @@ fn failure_diagnostic(
         .or_else(|| (failure.class == "output_limit").then_some(may_have_effects));
     let base = || output::diagnostic(operation, failure.class, failure.next, None, uncertain);
     let mut record = base()?;
-    if let Some(acquisition) = failure.acquisition {
+    if let Some(run) = failure.run {
+        if output::run_context(&mut record, &run).is_err() {
+            record = base()?;
+        }
+    } else if let Some(acquisition) = failure.acquisition {
         if output::acquisition_context(&mut record, &acquisition, true).is_err() {
             // Discard any partial context, retaining the original safe class,
             // next action and possible-completion warning. Internal reporting
@@ -346,6 +374,57 @@ mod tests {
         assert!(!text.contains("acquisition_"));
         assert!(!text.contains("validated_peer="));
         assert!(!text.contains("selected_"));
+        let mut bytes = Vec::new();
+        failure_diagnostic("status", &Failure::new("busy"), false)
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+        assert_eq!(
+            bytes,
+            b"format=mirror-node-v2-1\noperation=status\nerror=busy\nnext=inspect-status\n"
+        );
+    }
+
+    #[test]
+    fn malformed_run_evidence_retains_safe_diagnostic_and_never_leaks_partial_context() {
+        let acquisition = failover::Acquisition {
+            peer_count: 4,
+            validated_peer: 2,
+            failed_receives: 0,
+            last_receive_error: "none",
+            stop: "validated",
+            results: ["not-attempted"; 4],
+            stats: SessionStatsV2::default(),
+        };
+        let trace = runner::RunTrace {
+            round_limit: 4,
+            rounds_started: 2,
+            rounds_completed: 1,
+            peer_count: 4,
+            phase: "adoption-service",
+            stats: SessionStatsV2 {
+                attempts: 3,
+                wire_bytes: 2000,
+            },
+            receive: SessionStatsV2 {
+                attempts: 2,
+                wire_bytes: 1000,
+            },
+            failed_receives: 0,
+            last_receive_error: "none",
+            last_completed_service_error: "none",
+            acquisition: Some(acquisition),
+            adoption_admitted: true,
+        };
+        let failure = Failure::new("listen_bind")
+            .with_acquisition(acquisition)
+            .with_run(trace);
+        let mut bytes = Vec::new();
+        failure_diagnostic("run", &failure, true)
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+        assert_eq!(bytes, b"format=mirror-node-v2-1\noperation=run\nerror=listen_bind\noperation_may_have_completed=true\nnext=inspect-status\n");
         let mut bytes = Vec::new();
         failure_diagnostic("status", &Failure::new("busy"), false)
             .unwrap()

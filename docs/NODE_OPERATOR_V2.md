@@ -9,6 +9,9 @@ section 9 below. The **MB-04B2 `rejoin-serve` extension** has its separate
 The **MB-04B3 `rejoin-failover-serve` extension** has a separate
 [bounded explicit-peer failover contract](NODE_FAILOVER_V2.md). It preserves
 the existing commands and uses the same post-receive adoption/service path.
+The **MB-04B4 `run` extension** has a separate
+[bounded repeated-round contract](NODE_RUN_V2.md), retaining one controller and
+cumulative allowance across explicitly authorized acquisition/service rounds.
 Executed tests and
 exact source/CI acceptance belong to [CURRENT_STATUS.md](../CURRENT_STATUS.md)
 and the [master plan](../MASTER_PLAN.md).

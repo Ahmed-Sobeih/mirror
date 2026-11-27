@@ -12,6 +12,11 @@ is not best-peer selection, peer authentication, discovery or global latestness.
 There is no repeated-entry reconnect, backoff, parallel acquisition, multiple
 adoption, automatic recovery, serve-old fallback, pool or wallet.
 
+The separate [B4 bounded run contract](NODE_RUN_V2.md) explicitly authorizes
+repeated rounds under one controller and cumulative allowance. Its acquisition
+uses round-local deltas; this B3 command retains one acquisition prefix and the
+operational records and behavior specified below.
+
 ## 1. Explicit command and peer-list admission
 
 ```text

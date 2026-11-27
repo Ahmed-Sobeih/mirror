@@ -15,6 +15,7 @@ pub struct Failure {
     pub next: &'static str,
     pub may_have_completed: Option<bool>,
     pub(super) acquisition: Option<super::failover::Acquisition>,
+    pub(super) run: Option<super::runner::RunTrace>,
 }
 
 impl Failure {
@@ -43,6 +44,7 @@ impl Failure {
             next,
             may_have_completed: None,
             acquisition: None,
+            run: None,
         }
     }
 
@@ -58,6 +60,17 @@ impl Failure {
     /// or untrusted arguments. Other commands keep their original diagnostics.
     pub(super) fn with_acquisition(mut self, acquisition: super::failover::Acquisition) -> Self {
         self.acquisition = Some(acquisition);
+        self
+    }
+
+    /// B4's invocation trace supersedes a standalone acquisition trace. It is
+    /// fixed-size and never owns a controller, socket, path or untrusted text.
+    pub(super) fn with_run(mut self, run: super::runner::RunTrace) -> Self {
+        if run.adoption_admitted {
+            self = self.after_adoption();
+        }
+        self.acquisition = None;
+        self.run = Some(run);
         self
     }
 }
@@ -348,5 +361,61 @@ mod tests {
         assert_eq!(retained.stats, trace.stats);
         assert_eq!(retained.validated_peer, 2);
         assert_eq!(retained.last_receive_error, "peer_unreachable");
+    }
+
+    #[test]
+    fn run_context_supersedes_acquisition_without_losing_sticky_completion() {
+        let acquisition = crate::failover::Acquisition {
+            peer_count: 1,
+            validated_peer: 0,
+            failed_receives: 0,
+            last_receive_error: "none",
+            stop: "startup",
+            results: ["not-attempted"; 4],
+            stats: mirror_network::v2::session::SessionStatsV2::default(),
+        };
+        let mut trace = crate::runner::RunTrace {
+            round_limit: 4,
+            rounds_started: 1,
+            rounds_completed: 1,
+            peer_count: 1,
+            phase: "wait",
+            stats: mirror_network::v2::session::SessionStatsV2 {
+                attempts: 1,
+                wire_bytes: 1000,
+            },
+            receive: mirror_network::v2::session::SessionStatsV2 {
+                attempts: 1,
+                wire_bytes: 1000,
+            },
+            failed_receives: 0,
+            last_receive_error: "none",
+            last_completed_service_error: "none",
+            acquisition: None,
+            adoption_admitted: true,
+        };
+        let before = Failure::new("listen_bind");
+        assert!(before.run.is_none());
+        assert!(before.acquisition.is_none());
+        assert_eq!(before.may_have_completed, None);
+        let after = before.with_acquisition(acquisition).with_run(trace);
+        assert_eq!(after.class, "listen_bind");
+        assert_eq!(after.next, "inspect-status");
+        assert_eq!(after.may_have_completed, Some(true));
+        assert!(after.acquisition.is_none());
+        assert_eq!(after.run.unwrap().rounds_completed, 1);
+        trace.phase = "startup";
+        trace.rounds_started = 0;
+        trace.rounds_completed = 0;
+        trace.stats = mirror_network::v2::session::SessionStatsV2::default();
+        trace.receive = mirror_network::v2::session::SessionStatsV2::default();
+        trace.adoption_admitted = false;
+        let before = Failure::new("listen_bind").with_run(trace);
+        assert_eq!(before.may_have_completed, None);
+        assert_eq!(before.next, "verify-inputs");
+        let retained = Failure::new("control_io").after_adoption().with_run(trace);
+        assert_eq!(retained.class, "control_io");
+        assert_eq!(retained.may_have_completed, Some(true));
+        assert_eq!(retained.next, "inspect-status");
     }
 }

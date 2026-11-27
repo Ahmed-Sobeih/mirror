@@ -64,12 +64,29 @@ pub(super) fn finish_received(
     sessions: &mut PeerSessionsV2,
     signals: &Signals,
 ) -> Result<Report, Failure> {
+    let (ready, report) = finish_received_retained(
+        ready, received, identity, listen, admission, sessions, signals,
+    )?;
+    drop(ready);
+    Ok(report)
+}
+
+/// A normal round returns its ready owner for an explicitly bounded next round.
+/// The existing one-round commands retain the dropping wrapper above.
+pub(super) fn finish_received_retained(
+    ready: NodeControlV2,
+    received: ReceivedCandidateV2,
+    identity: ManifestIdentityV2,
+    listen: SocketAddr,
+    admission: Duration,
+    sessions: &mut PeerSessionsV2,
+    signals: &Signals,
+) -> Result<(NodeControlV2, Report), Failure> {
     let previous = ready.checkpoint();
     let receive = sessions.stats();
     if signals.requested() {
         drop(received);
-        drop(ready);
-        return Ok(stopped(previous, receive));
+        return Ok((ready, stopped(previous, receive)));
     }
 
     // This stop check is adoption admission. A later signal cannot cancel A1's
@@ -79,8 +96,9 @@ pub(super) fn finish_received(
         .map_err(|error| Failure::from(error).after_adoption())?;
     let adoption = outcome.report();
     let ready = outcome.into_control();
-    let service = provider::serve_ready(ready, identity, listen, admission, sessions, signals)
-        .map_err(Failure::after_adoption)?;
+    let (ready, service) =
+        provider::serve_retained(ready, identity, listen, admission, sessions, signals)
+            .map_err(Failure::after_adoption)?;
 
     // Statistics are snapshots, never a replacement allowance. Refuse an
     // inconsistent normal record rather than wrapping either phase delta.
@@ -99,13 +117,16 @@ pub(super) fn finish_received(
     if service.completed.checked_add(service.rejected) != Some(serve_stats.attempts) {
         return Err(Failure::new("lifecycle_limit").after_adoption());
     }
-    Ok(Report {
-        previous,
-        choice: Some(adoption.choice),
-        receive,
-        service,
-        serve_stats,
-    })
+    Ok((
+        ready,
+        Report {
+            previous,
+            choice: Some(adoption.choice),
+            receive,
+            service,
+            serve_stats,
+        },
+    ))
 }
 
 /// A stop before adoption reports the verified old selection and any completed

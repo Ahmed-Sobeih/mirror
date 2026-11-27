@@ -3,8 +3,10 @@
 
 use std::{fmt, fmt::Write as _, io};
 
-use mirror_chain::v2::ManifestIdentityV2;
-use mirror_network::v2::session::MAX_SESSION_WIRE_BYTES_V2;
+use mirror_chain::v2::{ForkChoiceV2, MAX_CHAIN_BLOCKS_V2, ManifestIdentityV2};
+use mirror_network::v2::session::{
+    MAX_SESSION_ATTEMPTS_V2, MAX_SESSION_WIRE_BYTES_V2, SessionStatsV2,
+};
 use mirror_storage::v2::ReplacementCheckpointV2;
 
 pub const MAX_OUTPUT_BYTES: usize = 4096;
@@ -45,6 +47,15 @@ impl Output {
 
     pub fn field(&mut self, key: &'static str, value: impl fmt::Display) -> fmt::Result {
         writeln!(self, "{key}={value}")
+    }
+
+    fn prefixed_field(
+        &mut self,
+        prefix: &'static str,
+        key: &'static str,
+        value: impl fmt::Display,
+    ) -> fmt::Result {
+        writeln!(self, "{prefix}_{key}={value}")
     }
 
     pub fn checkpoint(
@@ -107,22 +118,15 @@ pub fn diagnostic(
 
 /// Fixed, sanitized B3 evidence. Validate the complete trace before writing any
 /// of it; malformed internal accounting cannot become a normal success record.
-pub(super) fn acquisition_context(
-    output: &mut Output,
+fn validate_acquisition(
     acquisition: &super::failover::Acquisition,
     include_stats: bool,
 ) -> fmt::Result {
-    const KEYS: [&str; super::args::MAX_FAILOVER_PEERS] = [
-        "peer_1_result",
-        "peer_2_result",
-        "peer_3_result",
-        "peer_4_result",
-    ];
     let count = usize::from(acquisition.peer_count);
     let attempted = usize::from(acquisition.stats.attempts);
     let validated = usize::from(acquisition.validated_peer);
     if count == 0
-        || count > KEYS.len()
+        || count > super::args::MAX_FAILOVER_PEERS
         || attempted > count
         || validated > count
         || (validated != 0 && validated != attempted)
@@ -185,6 +189,22 @@ pub(super) fn acquisition_context(
     if acquisition.last_receive_error != last_error {
         return Err(fmt::Error);
     }
+    Ok(())
+}
+
+pub(super) fn acquisition_context(
+    output: &mut Output,
+    acquisition: &super::failover::Acquisition,
+    include_stats: bool,
+) -> fmt::Result {
+    const KEYS: [&str; super::args::MAX_FAILOVER_PEERS] = [
+        "peer_1_result",
+        "peer_2_result",
+        "peer_3_result",
+        "peer_4_result",
+    ];
+    validate_acquisition(acquisition, include_stats)?;
+    let count = usize::from(acquisition.peer_count);
     output.field("peer_count", acquisition.peer_count)?;
     output.field("validated_peer", acquisition.validated_peer)?;
     output.field("failed_receives", acquisition.failed_receives)?;
@@ -200,12 +220,392 @@ pub(super) fn acquisition_context(
     Ok(())
 }
 
+fn static_session_error(label: &str) -> bool {
+    matches!(
+        label,
+        "invalid_session_limits"
+            | "invalid_peer_request"
+            | "peer_wrong_network"
+            | "peer_attempt_budget"
+            | "peer_io_budget"
+            | "peer_deadline"
+            | "peer_early_close"
+            | "peer_trailing_data"
+            | "allocation_failed"
+            | "peer_unreachable"
+            | "peer_io"
+            | "invalid_peer_history"
+    )
+}
+
+fn valid_stats(stats: SessionStatsV2) -> bool {
+    stats.attempts <= MAX_SESSION_ATTEMPTS_V2
+        && stats.wire_bytes <= MAX_SESSION_WIRE_BYTES_V2
+        && (stats.attempts != 0 || stats.wire_bytes == 0)
+}
+
+fn checked_delta(
+    total: SessionStatsV2,
+    before: SessionStatsV2,
+) -> Result<SessionStatsV2, fmt::Error> {
+    let result = SessionStatsV2 {
+        attempts: total
+            .attempts
+            .checked_sub(before.attempts)
+            .ok_or(fmt::Error)?,
+        wire_bytes: total
+            .wire_bytes
+            .checked_sub(before.wire_bytes)
+            .ok_or(fmt::Error)?,
+    };
+    if !valid_stats(total) || !valid_stats(before) || !valid_stats(result) {
+        return Err(fmt::Error);
+    }
+    Ok(result)
+}
+
+fn add_stats(total: &mut SessionStatsV2, value: SessionStatsV2) -> fmt::Result {
+    *total = SessionStatsV2 {
+        attempts: total
+            .attempts
+            .checked_add(value.attempts)
+            .ok_or(fmt::Error)?,
+        wire_bytes: total
+            .wire_bytes
+            .checked_add(value.wire_bytes)
+            .ok_or(fmt::Error)?,
+    };
+    if !valid_stats(*total) || !valid_stats(value) {
+        return Err(fmt::Error);
+    }
+    Ok(())
+}
+
+fn validate_run_trace(trace: &super::runner::RunTrace) -> Result<SessionStatsV2, fmt::Error> {
+    let incomplete = trace
+        .rounds_started
+        .checked_sub(trace.rounds_completed)
+        .ok_or(fmt::Error)?;
+    if trace.round_limit == 0
+        || usize::from(trace.round_limit) > super::args::MAX_RUN_ROUNDS
+        || trace.peer_count == 0
+        || usize::from(trace.peer_count) > super::args::MAX_FAILOVER_PEERS
+        || trace.rounds_started > trace.round_limit
+        || incomplete > 1
+        || (trace.rounds_completed != 0 && !trace.adoption_admitted)
+        || !matches!(
+            trace.phase,
+            "startup" | "acquisition" | "adoption-service" | "wait" | "report"
+        )
+        || !(trace.last_completed_service_error == "none"
+            || static_session_error(trace.last_completed_service_error))
+        || ((trace.failed_receives == 0) != (trace.last_receive_error == "none"))
+        || (trace.failed_receives != 0 && !static_session_error(trace.last_receive_error))
+    {
+        return Err(fmt::Error);
+    }
+    let serve = checked_delta(trace.stats, trace.receive)?;
+    let mut validated = trace.rounds_completed;
+    match trace.acquisition {
+        Some(acquisition) => {
+            validate_acquisition(&acquisition, true)?;
+            if incomplete != 1 || acquisition.peer_count != trace.peer_count {
+                return Err(fmt::Error);
+            }
+            checked_delta(trace.receive, acquisition.stats)?;
+            if trace.failed_receives < acquisition.failed_receives
+                || (acquisition.failed_receives != 0
+                    && trace.last_receive_error != acquisition.last_receive_error)
+            {
+                return Err(fmt::Error);
+            }
+            validated = validated
+                .checked_add(u8::from(acquisition.validated_peer != 0))
+                .ok_or(fmt::Error)?;
+        }
+        None if incomplete != 0 => return Err(fmt::Error),
+        None => {}
+    }
+    if trace.failed_receives.checked_add(validated) != Some(trace.receive.attempts)
+        || ((trace.rounds_completed == 0 || serve.attempts == 0)
+            && trace.last_completed_service_error != "none")
+        || (trace.phase == "startup"
+            && (trace.rounds_started != 0
+                || trace.stats != SessionStatsV2::default()
+                || trace.adoption_admitted))
+        || (trace.phase == "wait" && (trace.acquisition.is_some() || trace.rounds_completed == 0))
+        || (matches!(trace.phase, "acquisition" | "adoption-service")
+            && trace.acquisition.is_none())
+    {
+        return Err(fmt::Error);
+    }
+    Ok(serve)
+}
+
+struct PeerResults<'a>(&'a [&'static str]);
+
+impl fmt::Display for PeerResults<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, result) in self.0.iter().enumerate() {
+            if index != 0 {
+                formatter.write_str(",")?;
+            }
+            formatter.write_str(result)?;
+        }
+        Ok(())
+    }
+}
+
+/// Validate all optional invocation evidence before appending any fields. No
+/// checkpoint or unreturned service-completion count enters a failure record.
+pub(super) fn run_context(output: &mut Output, trace: &super::runner::RunTrace) -> fmt::Result {
+    let serve = validate_run_trace(trace)?;
+    output.field("round_limit", trace.round_limit)?;
+    output.field("rounds_started", trace.rounds_started)?;
+    output.field("rounds_completed", trace.rounds_completed)?;
+    output.field("phase", trace.phase)?;
+    output.field("adoption_admitted", trace.adoption_admitted)?;
+    output.field("peer_count", trace.peer_count)?;
+    output.field("attempts", trace.stats.attempts)?;
+    output.field("wire_bytes", trace.stats.wire_bytes)?;
+    output.field("receive_attempts", trace.receive.attempts)?;
+    output.field("receive_wire_bytes", trace.receive.wire_bytes)?;
+    output.field("serve_attempts", serve.attempts)?;
+    output.field("serve_wire_bytes", serve.wire_bytes)?;
+    output.field("failed_receives", trace.failed_receives)?;
+    output.field("last_receive_error", trace.last_receive_error)?;
+    output.field(
+        "last_completed_service_error",
+        trace.last_completed_service_error,
+    )?;
+    if let Some(acquisition) = trace.acquisition {
+        output.field("current_round", trace.rounds_started)?;
+        output.field("current_validated_peer", acquisition.validated_peer)?;
+        output.field("current_failed_receives", acquisition.failed_receives)?;
+        output.field("current_receive_attempts", acquisition.stats.attempts)?;
+        output.field("current_receive_wire_bytes", acquisition.stats.wire_bytes)?;
+        output.field("current_acquisition_stop", acquisition.stop)?;
+        output.field("current_last_receive_error", acquisition.last_receive_error)?;
+        output.field(
+            "current_peer_results",
+            PeerResults(&acquisition.results[..usize::from(acquisition.peer_count)]),
+        )?;
+    }
+    Ok(())
+}
+
+fn valid_checkpoint(checkpoint: ReplacementCheckpointV2, identity: ManifestIdentityV2) -> bool {
+    checkpoint.chain.config_hash == identity.config_hash
+        && checkpoint.chain.genesis_hash == identity.genesis_hash
+        && checkpoint.chain.height < MAX_CHAIN_BLOCKS_V2 as u64
+        && checkpoint.generation <= checkpoint.chain.height
+}
+
+fn validate_run_report(
+    identity: ManifestIdentityV2,
+    report: &super::runner::Report,
+) -> Result<SessionStatsV2, fmt::Error> {
+    let trace = &report.trace;
+    let serve = validate_run_trace(trace)?;
+    if trace.phase != "report"
+        || trace.adoption_admitted != (trace.rounds_completed != 0)
+        || !valid_checkpoint(report.initial, identity)
+        || !valid_checkpoint(report.selected, identity)
+        || !matches!(
+            report.reason,
+            "shutdown" | "wire-limit" | "attempt-limit" | "round-limit"
+        )
+        || (report.reason == "round-limit" && trace.rounds_completed != trace.round_limit)
+        || (report.reason == "attempt-limit" && trace.stats.attempts == 0)
+        || (report.reason == "wire-limit" && trace.stats.wire_bytes == 0)
+        || (trace.acquisition.is_some() && report.reason != "shutdown")
+    {
+        return Err(fmt::Error);
+    }
+    let mut previous = report.initial;
+    let mut received = SessionStatsV2::default();
+    let mut served = SessionStatsV2::default();
+    let mut completed = 0u8;
+    let mut rejected = 0u8;
+    let mut failed = 0u8;
+    let mut last_receive = "none";
+    let mut last_service = "none";
+    for (index, entry) in report.rounds.iter().enumerate() {
+        if index >= usize::from(trace.rounds_completed) {
+            if entry.is_some() {
+                return Err(fmt::Error);
+            }
+            continue;
+        }
+        let round = entry.as_ref().ok_or(fmt::Error)?;
+        validate_acquisition(&round.acquisition, false)?;
+        if round.previous != previous
+            || !valid_checkpoint(round.selected, identity)
+            || round.acquisition.peer_count != trace.peer_count
+            || round.acquisition.validated_peer == 0
+            || round.acquisition.stop != "validated"
+            || round.completed.checked_add(round.rejected) != Some(round.serve_stats.attempts)
+            || !(round.last_session_error == "none"
+                || static_session_error(round.last_session_error))
+            || ((round.rejected == 0) != (round.last_session_error == "none"))
+            || !matches!(
+                round.service_reason,
+                "shutdown" | "wire-limit" | "attempt-limit" | "admission-timeout"
+            )
+            || (index + 1 < usize::from(trace.rounds_started)
+                && round.service_reason != "admission-timeout")
+        {
+            return Err(fmt::Error);
+        }
+        match round.choice {
+            ForkChoiceV2::KeepCurrent if round.selected != previous => return Err(fmt::Error),
+            ForkChoiceV2::PreferCandidate
+                if previous.generation.checked_add(1) != Some(round.selected.generation)
+                    || round.selected.chain.height <= previous.chain.height =>
+            {
+                return Err(fmt::Error);
+            }
+            _ => {}
+        }
+        add_stats(&mut received, round.acquisition.stats)?;
+        add_stats(&mut served, round.serve_stats)?;
+        completed = completed.checked_add(round.completed).ok_or(fmt::Error)?;
+        rejected = rejected.checked_add(round.rejected).ok_or(fmt::Error)?;
+        failed = failed
+            .checked_add(round.acquisition.failed_receives)
+            .ok_or(fmt::Error)?;
+        if round.acquisition.last_receive_error != "none" {
+            last_receive = round.acquisition.last_receive_error;
+        }
+        if round.last_session_error != "none" {
+            last_service = round.last_session_error;
+        }
+        previous = round.selected;
+    }
+    if let Some(acquisition) = trace.acquisition {
+        if !((acquisition.stop == "shutdown" && acquisition.stats.attempts == 0)
+            || (acquisition.stop == "validated" && acquisition.validated_peer != 0))
+        {
+            return Err(fmt::Error);
+        }
+        add_stats(&mut received, acquisition.stats)?;
+        failed = failed
+            .checked_add(acquisition.failed_receives)
+            .ok_or(fmt::Error)?;
+        if acquisition.last_receive_error != "none" {
+            last_receive = acquisition.last_receive_error;
+        }
+    }
+    if received != trace.receive
+        || served != serve
+        || previous != report.selected
+        || failed != trace.failed_receives
+        || last_receive != trace.last_receive_error
+        || last_service != trace.last_completed_service_error
+        || completed != report.completed
+        || rejected != report.rejected
+        || completed.checked_add(rejected) != Some(serve.attempts)
+    {
+        return Err(fmt::Error);
+    }
+    Ok(serve)
+}
+
+/// The owner has already dropped when this validates the fixed history of
+/// completed rounds and formats the only normal invocation record.
+pub(super) fn run_report(
+    identity: ManifestIdentityV2,
+    report: &super::runner::Report,
+) -> Result<Output, fmt::Error> {
+    const PREFIXES: [&str; super::args::MAX_RUN_ROUNDS] =
+        ["round_1", "round_2", "round_3", "round_4"];
+    let serve = validate_run_report(identity, report)?;
+    let trace = &report.trace;
+    let mut output = Output::state("run", "stopped", identity, "verified")?;
+    output.checkpoint("initial", report.initial)?;
+    output.checkpoint("selected", report.selected)?;
+    output.field("round_limit", trace.round_limit)?;
+    output.field("rounds_started", trace.rounds_started)?;
+    output.field("rounds_completed", trace.rounds_completed)?;
+    output.field("reason", report.reason)?;
+    output.field("peer_count", trace.peer_count)?;
+    output.field("attempts", trace.stats.attempts)?;
+    output.field("receive_attempts", trace.receive.attempts)?;
+    output.field("serve_attempts", serve.attempts)?;
+    output.field("completed_sessions", report.completed)?;
+    output.field("rejected_sessions", report.rejected)?;
+    output.field("wire_bytes", trace.stats.wire_bytes)?;
+    output.field("receive_wire_bytes", trace.receive.wire_bytes)?;
+    output.field("serve_wire_bytes", serve.wire_bytes)?;
+    output.field("failed_receives", trace.failed_receives)?;
+    output.field("last_receive_error", trace.last_receive_error)?;
+    output.field("last_session_error", trace.last_completed_service_error)?;
+    for (prefix, entry) in PREFIXES
+        .iter()
+        .zip(&report.rounds)
+        .take(usize::from(trace.rounds_completed))
+    {
+        let round = entry.as_ref().ok_or(fmt::Error)?;
+        output.checkpoint(prefix, round.selected)?;
+        output.prefixed_field(
+            prefix,
+            "choice",
+            match round.choice {
+                ForkChoiceV2::KeepCurrent => "keep-current",
+                ForkChoiceV2::PreferCandidate => "prefer-candidate",
+            },
+        )?;
+        output.prefixed_field(prefix, "validated_peer", round.acquisition.validated_peer)?;
+        output.prefixed_field(prefix, "receive_attempts", round.acquisition.stats.attempts)?;
+        output.prefixed_field(
+            prefix,
+            "receive_wire_bytes",
+            round.acquisition.stats.wire_bytes,
+        )?;
+        output.prefixed_field(prefix, "serve_attempts", round.serve_stats.attempts)?;
+        output.prefixed_field(prefix, "serve_wire_bytes", round.serve_stats.wire_bytes)?;
+        output.prefixed_field(prefix, "completed_sessions", round.completed)?;
+        output.prefixed_field(prefix, "rejected_sessions", round.rejected)?;
+        output.prefixed_field(prefix, "service_reason", round.service_reason)?;
+        output.prefixed_field(
+            prefix,
+            "last_receive_error",
+            round.acquisition.last_receive_error,
+        )?;
+        output.prefixed_field(prefix, "last_session_error", round.last_session_error)?;
+        output.prefixed_field(
+            prefix,
+            "peer_results",
+            PeerResults(&round.acquisition.results[..usize::from(trace.peer_count)]),
+        )?;
+    }
+    if let Some(acquisition) = trace.acquisition {
+        output.field("incomplete_round", trace.rounds_started)?;
+        output.field("incomplete_receive_attempts", acquisition.stats.attempts)?;
+        output.field(
+            "incomplete_receive_wire_bytes",
+            acquisition.stats.wire_bytes,
+        )?;
+        output.field("incomplete_validated_peer", acquisition.validated_peer)?;
+        output.field(
+            "incomplete_last_receive_error",
+            acquisition.last_receive_error,
+        )?;
+        output.field("incomplete_acquisition_stop", acquisition.stop)?;
+        output.field(
+            "incomplete_peer_results",
+            PeerResults(&acquisition.results[..usize::from(trace.peer_count)]),
+        )?;
+    }
+    Ok(output)
+}
+
 pub fn help() -> Result<Output, fmt::Error> {
     let mut output = Output::base("help")?;
     for (key, value) in [
         (
             "commands",
-            "init,status,sync-once,recover,serve,rejoin-serve,rejoin-failover-serve,help",
+            "init,status,sync-once,recover,serve,rejoin-serve,rejoin-failover-serve,run,help",
         ),
         (
             "common_options",
@@ -287,6 +687,18 @@ pub fn help() -> Result<Output, fmt::Error> {
         (
             "admission_ms_range",
             "1..60000; admission window plus at most one original session timeout; opening/output excluded",
+        ),
+        (
+            "run_options",
+            "--peers ADDRESS[,ADDRESS...] plus every serve option; --max-rounds UINT --round-wait-ms UINT",
+        ),
+        (
+            "run_scope",
+            "1..4 explicit rounds; wait 0..60000 ms; reuse ordered peers after successful rounds; one cumulative allowance",
+        ),
+        (
+            "run_timing",
+            "M*timeout + R*admission + (R-1)*wait; at most 900000 ms; local work/output excluded",
         ),
         ("help_scope", "help or --help alone"),
         (
@@ -617,6 +1029,490 @@ mod tests {
             let mut output = Output::base("rejoin-failover-serve").unwrap();
             let before = output.length;
             assert!(acquisition_context(&mut output, &trace, true).is_err());
+            assert_eq!(output.length, before);
+        }
+    }
+
+    fn run_fixture() -> (ManifestIdentityV2, crate::runner::Report) {
+        let identity = ManifestIdentityV2 {
+            config_hash: Hash256::from_bytes([0xab; 32]),
+            genesis_hash: Hash256::from_bytes([0xcd; 32]),
+        };
+        let checkpoint = |offset: u8| ReplacementCheckpointV2 {
+            generation: 4091 + u64::from(offset),
+            chain: ChainReplayExpectationV2 {
+                config_hash: identity.config_hash,
+                genesis_hash: identity.genesis_hash,
+                height: 4091 + u64::from(offset),
+                tip_hash: Hash256::from_bytes([offset; 32]),
+                ledger_root: Hash256::from_bytes([offset + 10; 32]),
+            },
+        };
+        let rounds = std::array::from_fn(|index| {
+            Some(crate::runner::CompletedRound {
+                previous: checkpoint(index as u8),
+                selected: checkpoint(index as u8 + 1),
+                choice: ForkChoiceV2::PreferCandidate,
+                acquisition: crate::failover::Acquisition {
+                    peer_count: 4,
+                    validated_peer: 1,
+                    failed_receives: 0,
+                    last_receive_error: "none",
+                    stop: "validated",
+                    results: [
+                        "validated",
+                        "not-attempted",
+                        "not-attempted",
+                        "not-attempted",
+                    ],
+                    stats: SessionStatsV2 {
+                        attempts: 1,
+                        wire_bytes: 1000,
+                    },
+                },
+                serve_stats: SessionStatsV2 {
+                    attempts: 1,
+                    wire_bytes: if index == 3 {
+                        MAX_SESSION_WIRE_BYTES_V2 - 7000
+                    } else {
+                        1000
+                    },
+                },
+                completed: u8::from(index % 2 == 1),
+                rejected: u8::from(index % 2 == 0),
+                service_reason: if index == 3 {
+                    "attempt-limit"
+                } else {
+                    "admission-timeout"
+                },
+                last_session_error: match index {
+                    0 => "peer_io",
+                    2 => "peer_wrong_network",
+                    _ => "none",
+                },
+            })
+        });
+        (
+            identity,
+            crate::runner::Report {
+                initial: checkpoint(0),
+                selected: checkpoint(4),
+                reason: "attempt-limit",
+                trace: crate::runner::RunTrace {
+                    round_limit: 4,
+                    rounds_started: 4,
+                    rounds_completed: 4,
+                    peer_count: 4,
+                    phase: "report",
+                    stats: SessionStatsV2 {
+                        attempts: 8,
+                        wire_bytes: MAX_SESSION_WIRE_BYTES_V2,
+                    },
+                    receive: SessionStatsV2 {
+                        attempts: 4,
+                        wire_bytes: 4000,
+                    },
+                    failed_receives: 0,
+                    last_receive_error: "none",
+                    last_completed_service_error: "peer_wrong_network",
+                    acquisition: None,
+                    adoption_admitted: true,
+                },
+                completed: 2,
+                rejected: 2,
+                rounds,
+            },
+        )
+    }
+
+    fn output_text(output: Output) -> String {
+        let mut bytes = Vec::new();
+        output.write_to(&mut bytes).unwrap();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    fn assert_run_independent_field_bound(text: &str, expected: usize) {
+        // This deliberately unreachable envelope overestimates each field
+        // independently: u64 generations, four longest failure labels even in
+        // a validated CSV, and maximum usage in every phase. Real validated
+        // records are smaller because of their checked cumulative constraints.
+        let mut maximum = Output::new();
+        for line in text.lines() {
+            let (key, value) = line.split_once('=').unwrap();
+            let replacement = if key.ends_with("_generation") {
+                u64::MAX.to_string()
+            } else if key.ends_with("_height") {
+                (MAX_CHAIN_BLOCKS_V2 - 1).to_string()
+            } else if key.ends_with("wire_bytes") {
+                MAX_SESSION_WIRE_BYTES_V2.to_string()
+            } else if key.ends_with("_peer_results") {
+                ["invalid_session_limits"; 4].join(",")
+            } else if key.ends_with("_error") {
+                "invalid_session_limits".into()
+            } else if key.ends_with("_choice") {
+                "prefer-candidate".into()
+            } else if key.ends_with("_service_reason") {
+                "admission-timeout".into()
+            } else if key.ends_with("_acquisition_stop") {
+                "peers-exhausted".into()
+            } else if key == "reason" {
+                "attempt-limit".into()
+            } else {
+                value.into()
+            };
+            writeln!(&mut maximum, "{key}={replacement}").unwrap();
+        }
+        assert_eq!(maximum.length, expected);
+        assert!(maximum.length < MAX_OUTPUT_BYTES);
+    }
+
+    #[test]
+    fn run_four_completed_rounds_fit_fixed_output_and_preserve_each_checkpoint() {
+        let (identity, report) = run_fixture();
+        let text = output_text(run_report(identity, &report).unwrap());
+        assert_eq!(text.lines().count(), 94);
+        assert!(text.len() <= 3918 && text.len() < MAX_OUTPUT_BYTES);
+        assert_run_independent_field_bound(&text, 3918);
+        assert!(text.contains("operation=run\n"));
+        assert!(text.contains("initial_height=4091\n"));
+        assert!(text.contains("round_1_height=4092\n"));
+        assert!(text.contains("round_4_height=4095\n"));
+        assert!(text.contains("selected_height=4095\n"));
+        assert!(text.contains("wire_bytes=157129488\n"));
+        assert!(text.contains("\nlast_session_error=peer_wrong_network\n"));
+        assert!(text.contains("round_4_last_session_error=none\n"));
+        assert!(text.contains(
+            "round_4_peer_results=validated,not-attempted,not-attempted,not-attempted\n"
+        ));
+        assert!(!text.contains("incomplete_") && !text.contains("127.0.0.1"));
+        let keys: std::collections::BTreeSet<_> = text
+            .lines()
+            .map(|line| line.split_once('=').unwrap().0)
+            .collect();
+        assert_eq!(keys.len(), text.lines().count());
+        let help = output_text(help().unwrap());
+        assert!(help.contains("rejoin-failover-serve,run,help\n"));
+        assert!(help.contains("run_options=--peers ADDRESS[,ADDRESS...] plus every serve option; --max-rounds UINT --round-wait-ms UINT\n"));
+        assert!(help.len() < MAX_OUTPUT_BYTES);
+    }
+
+    #[test]
+    fn run_incomplete_validated_and_zero_attempt_shutdown_keep_selected_checkpoint() {
+        let (identity, mut report) = run_fixture();
+        report.rounds[3] = None;
+        report.selected = report.rounds[2].unwrap().selected;
+        report.reason = "shutdown";
+        report.completed = 1;
+        report.rejected = 2;
+        report.trace.rounds_completed = 3;
+        report.trace.receive = SessionStatsV2 {
+            attempts: 5,
+            wire_bytes: MAX_SESSION_WIRE_BYTES_V2 - 3000,
+        };
+        report.trace.failed_receives = 1;
+        report.trace.last_receive_error = "peer_unreachable";
+        report.trace.acquisition = Some(crate::failover::Acquisition {
+            peer_count: 4,
+            validated_peer: 2,
+            failed_receives: 1,
+            last_receive_error: "peer_unreachable",
+            stop: "validated",
+            results: [
+                "peer_unreachable",
+                "validated",
+                "not-attempted",
+                "not-attempted",
+            ],
+            stats: SessionStatsV2 {
+                attempts: 2,
+                wire_bytes: MAX_SESSION_WIRE_BYTES_V2 - 6000,
+            },
+        });
+        let text = output_text(run_report(identity, &report).unwrap());
+        assert_eq!(text.lines().count(), 85);
+        assert!(text.len() <= 3529 && text.len() < MAX_OUTPUT_BYTES);
+        assert_run_independent_field_bound(&text, 3529);
+        assert!(text.contains("rounds_started=4\nrounds_completed=3\n"));
+        assert!(text.contains("selected_height=4094\n"));
+        assert!(!text.contains("round_4_"));
+        assert!(text.contains("incomplete_round=4\n"));
+        assert!(text.contains("incomplete_validated_peer=2\n"));
+        assert!(text.contains(
+            "incomplete_peer_results=peer_unreachable,validated,not-attempted,not-attempted\n"
+        ));
+        let acquisition = report.trace.acquisition.as_mut().unwrap();
+        acquisition.validated_peer = 0;
+        acquisition.failed_receives = 0;
+        acquisition.last_receive_error = "none";
+        acquisition.stop = "shutdown";
+        acquisition.results = ["not-attempted"; 4];
+        acquisition.stats = SessionStatsV2::default();
+        report.trace.stats = SessionStatsV2 {
+            attempts: 6,
+            wire_bytes: 6000,
+        };
+        report.trace.receive = SessionStatsV2 {
+            attempts: 3,
+            wire_bytes: 3000,
+        };
+        report.trace.failed_receives = 0;
+        report.trace.last_receive_error = "none";
+        let text = output_text(run_report(identity, &report).unwrap());
+        assert_eq!(text.lines().count(), 85);
+        assert!(text.contains("incomplete_receive_attempts=0\n"));
+        assert!(text.contains("incomplete_acquisition_stop=shutdown\n"));
+        report.selected = report.initial;
+        report.rounds = [None; 4];
+        report.completed = 0;
+        report.rejected = 0;
+        report.trace.rounds_started = 0;
+        report.trace.rounds_completed = 0;
+        report.trace.stats = SessionStatsV2::default();
+        report.trace.receive = SessionStatsV2::default();
+        report.trace.last_completed_service_error = "none";
+        report.trace.acquisition = None;
+        report.trace.adoption_admitted = false;
+        let text = output_text(run_report(identity, &report).unwrap());
+        assert_eq!(text.lines().count(), 30);
+        assert!(text.contains("selected_height=4091\n"));
+        assert!(!text.contains("round_1_") && !text.contains("incomplete_"));
+    }
+
+    #[test]
+    fn run_normal_records_reject_broken_prefix_totals_labels_and_checkpoint_continuity() {
+        let (identity, _) = run_fixture();
+        let mut invalid = Vec::new();
+        for count in [0, 5] {
+            let mut report = run_fixture().1;
+            report.trace.round_limit = count;
+            invalid.push(report);
+            let mut report = run_fixture().1;
+            report.trace.peer_count = count;
+            invalid.push(report);
+        }
+        let mut report = run_fixture().1;
+        report.rounds[1] = None;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.rounds_completed = 3;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.selected = report.initial;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[2].as_mut().unwrap().previous = report.initial;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[1].as_mut().unwrap().choice = ForkChoiceV2::KeepCurrent;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[1].as_mut().unwrap().selected.generation = 0;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.stats.attempts = 9;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.receive.wire_bytes = MAX_SESSION_WIRE_BYTES_V2;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.last_completed_service_error = "none";
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[0].as_mut().unwrap().rejected = 0;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[0].as_mut().unwrap().acquisition.results[0] = "secret\nstatus=clean";
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.phase = "wait";
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.adoption_admitted = false;
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.initial.chain.config_hash = Hash256::from_bytes([0; 32]);
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.reason = "unknown";
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.rounds[0].as_mut().unwrap().service_reason = "shutdown";
+        invalid.push(report);
+        let mut report = run_fixture().1;
+        report.trace.acquisition = Some(acquisition());
+        invalid.push(report);
+        for report in invalid {
+            assert!(run_report(identity, &report).is_err());
+        }
+    }
+
+    fn run_failure_trace() -> crate::runner::RunTrace {
+        crate::runner::RunTrace {
+            round_limit: 4,
+            rounds_started: 2,
+            rounds_completed: 1,
+            peer_count: 4,
+            phase: "acquisition",
+            stats: SessionStatsV2 {
+                attempts: 4,
+                wire_bytes: 2084,
+            },
+            receive: SessionStatsV2 {
+                attempts: 3,
+                wire_bytes: 1084,
+            },
+            failed_receives: 2,
+            last_receive_error: "peer_deadline",
+            last_completed_service_error: "peer_io",
+            acquisition: Some(crate::failover::Acquisition {
+                peer_count: 4,
+                validated_peer: 0,
+                failed_receives: 2,
+                last_receive_error: "peer_deadline",
+                stop: "attempt-limit",
+                results: ["peer_io", "peer_deadline", "not-attempted", "not-attempted"],
+                stats: SessionStatsV2 {
+                    attempts: 2,
+                    wire_bytes: 84,
+                },
+            }),
+            adoption_admitted: true,
+        }
+    }
+
+    #[test]
+    fn run_failure_context_distinguishes_completed_service_from_current_failure() {
+        let mut trace = run_failure_trace();
+        let mut output =
+            diagnostic("run", "peer_deadline", "inspect-status", None, Some(true)).unwrap();
+        run_context(&mut output, &trace).unwrap();
+        let text = output_text(output);
+        assert_eq!(text.lines().count(), 28);
+        assert!(text.len() < MAX_OUTPUT_BYTES);
+        assert!(text.contains("rounds_started=2\nrounds_completed=1\n"));
+        assert!(text.contains("serve_attempts=1\n"));
+        assert!(text.contains("last_completed_service_error=peer_io\n"));
+        assert!(text.contains("current_round=2\n"));
+        assert!(
+            text.contains(
+                "current_peer_results=peer_io,peer_deadline,not-attempted,not-attempted\n"
+            )
+        );
+        assert!(!text.contains("selected_") && !text.contains("initial_"));
+        assert!(!text.contains("completed_sessions=") && !text.contains("rejected_sessions="));
+        trace.phase = "adoption-service";
+        trace.stats = SessionStatsV2 {
+            attempts: 5,
+            wire_bytes: 4096,
+        };
+        trace.failed_receives = 1;
+        trace.last_receive_error = "peer_io";
+        let acquisition = trace.acquisition.as_mut().unwrap();
+        acquisition.validated_peer = 2;
+        acquisition.failed_receives = 1;
+        acquisition.last_receive_error = "peer_io";
+        acquisition.stop = "validated";
+        acquisition.results[1] = "validated";
+        let mut output = diagnostic(
+            "run",
+            "allocation_failed",
+            "inspect-status",
+            None,
+            Some(true),
+        )
+        .unwrap();
+        run_context(&mut output, &trace).unwrap();
+        let text = output_text(output);
+        assert!(text.contains("serve_attempts=2\n"));
+        assert!(text.contains("last_completed_service_error=peer_io\n"));
+        assert!(!text.contains("completed_sessions=") && !text.contains("rejected_sessions="));
+        trace.phase = "wait";
+        trace.rounds_started = 1;
+        trace.stats = SessionStatsV2 {
+            attempts: 2,
+            wire_bytes: 2000,
+        };
+        trace.receive = SessionStatsV2 {
+            attempts: 1,
+            wire_bytes: 1000,
+        };
+        trace.failed_receives = 0;
+        trace.last_receive_error = "none";
+        trace.acquisition = None;
+        let mut output =
+            diagnostic("run", "lifecycle_limit", "inspect-status", None, Some(true)).unwrap();
+        run_context(&mut output, &trace).unwrap();
+        let text = output_text(output);
+        assert_eq!(text.lines().count(), 20);
+        assert!(text.contains("phase=wait\n"));
+        assert!(!text.contains("current_"));
+        trace.phase = "startup";
+        trace.rounds_started = 0;
+        trace.rounds_completed = 0;
+        trace.stats = SessionStatsV2::default();
+        trace.receive = SessionStatsV2::default();
+        trace.last_completed_service_error = "none";
+        trace.adoption_admitted = false;
+        let mut output = diagnostic("run", "busy", "inspect-status", None, None).unwrap();
+        run_context(&mut output, &trace).unwrap();
+        let text = output_text(output);
+        assert_eq!(text.lines().count(), 19);
+        assert!(text.contains("phase=startup\n"));
+        assert!(!text.contains("current_") && !text.contains("operation_may_have_completed="));
+    }
+
+    #[test]
+    fn run_invalid_error_context_rejects_before_any_optional_field_is_appended() {
+        let valid = run_failure_trace();
+        let mut invalid = Vec::new();
+        for count in [0, 5] {
+            let mut trace = valid;
+            trace.round_limit = count;
+            invalid.push(trace);
+            let mut trace = valid;
+            trace.peer_count = count;
+            invalid.push(trace);
+        }
+        let mut trace = valid;
+        trace.rounds_completed = 3;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.adoption_admitted = false;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.receive.attempts = 5;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.receive.wire_bytes = 2085;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.failed_receives = 0;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.last_completed_service_error = "secret\nselected_height=5";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.stats = trace.receive;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.phase = "wait";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.phase = "unknown";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.acquisition = None;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.acquisition.as_mut().unwrap().results[0] = "secret";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.acquisition.as_mut().unwrap().peer_count = 3;
+        invalid.push(trace);
+        for trace in invalid {
+            let mut output = Output::base("run").unwrap();
+            let before = output.length;
+            assert!(run_context(&mut output, &trace).is_err());
             assert_eq!(output.length, before);
         }
     }

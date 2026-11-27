@@ -13,6 +13,10 @@ that may advance through a bounded ordered list before its first validated
 candidate. It shares this command's post-receive adoption and service routine;
 `rejoin-serve` retains exactly one source and the failure behavior below.
 
+[B4 bounded run](NODE_RUN_V2.md) reuses an ownership-returning private variant
+of this post-receive boundary. This command's wrapper still releases ownership
+and preserves its one-source invocation, records and stop behavior.
+
 The command retains one ready controller, one sticky signal guard and one
 cumulative transport owner across its phases. It introduces no initialization,
 automatic recovery, retry, discovery, concurrent receive/serve, scheduler, pool or

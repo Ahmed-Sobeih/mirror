@@ -3,11 +3,11 @@
 
 use std::{io, net::SocketAddr, time::Duration};
 
-use mirror_chain::v2::{ChainErrorV2, ManifestErrorV2};
+use mirror_chain::v2::{ChainErrorV2, ManifestErrorV2, ManifestIdentityV2};
 use mirror_consensus::v2::PowErrorV2;
 use mirror_core::v2::BlockErrorV2;
 use mirror_network::v2::{
-    HistoryErrorV2,
+    HistoryErrorV2, ReceivedCandidateV2,
     session::{PeerSessionsV2, SessionErrorV2, SessionLimitsV2, SessionStatsV2},
 };
 use mirror_node::v2::NodeControlV2;
@@ -34,7 +34,7 @@ pub(super) struct Acquisition {
 }
 
 impl Acquisition {
-    fn new(peer_count: u8) -> Self {
+    pub(super) fn new(peer_count: u8) -> Self {
         Self {
             peer_count,
             validated_peer: 0,
@@ -49,7 +49,7 @@ impl Acquisition {
     /// Validate an ordered prefix without trusting a copied count to stand in
     /// for the actual charged owner. Used before admitting a candidate and before
     /// returning normal output; unresolved errors do not assert selected state.
-    fn consistent(&self) -> bool {
+    pub(super) fn consistent(&self) -> bool {
         let count = usize::from(self.peer_count);
         let attempts = usize::from(self.stats.attempts);
         if count == 0
@@ -144,18 +144,54 @@ fn run_owned(
     let ready = NodeControlV2::open_writer(&common.control, &common.store, common.identity)?;
     let previous = ready.checkpoint();
     let mut sessions = PeerSessionsV2::new(limits);
+    match acquire(peers, common.identity, &mut sessions, &signals, acquisition)? {
+        Some(received) => rejoin::finish_received(
+            ready,
+            received,
+            common.identity,
+            listen,
+            admission,
+            &mut sessions,
+            &signals,
+        ),
+        None => {
+            drop(ready);
+            Ok(rejoin::stopped(previous, sessions.stats()))
+        }
+    }
+}
+
+/// Acquire one ordered prefix using an already retained cumulative owner.
+/// Only the trace is fresh per round; actual attempts and bytes never reset.
+/// None represents shutdown before any request in this acquisition phase.
+pub(super) fn acquire(
+    peers: &[SocketAddr],
+    identity: ManifestIdentityV2,
+    sessions: &mut PeerSessionsV2,
+    signals: &Signals,
+    acquisition: &mut Acquisition,
+) -> Result<Option<ReceivedCandidateV2>, Failure> {
+    if usize::from(acquisition.peer_count) != peers.len()
+        || acquisition.stop != "startup"
+        || acquisition.stats != SessionStatsV2::default()
+        || !acquisition.consistent()
+    {
+        acquisition.stop = "fatal";
+        return Err(Failure::new("lifecycle_limit"));
+    }
+    let base = sessions.stats();
+    let limits = sessions.limits();
     let mut last_failure = None;
 
     for (index, peer) in peers.iter().enumerate() {
         // A signal between failed requests preserves the actual latest failure.
-        // Before the first request it remains B2's zero-attempt normal shutdown.
+        // Before this round's first request it is a normal incomplete shutdown.
         if signals.requested() {
             acquisition.stop = "shutdown";
-            if let Some(failure) = last_failure {
-                return Err(failure);
-            }
-            drop(ready);
-            return Ok(rejoin::stopped(previous, sessions.stats()));
+            return match last_failure {
+                Some(failure) => Err(failure),
+                None => Ok(None),
+            };
         }
         if let Some(reason) = exhausted(sessions.stats(), limits) {
             acquisition.stop = reason;
@@ -169,14 +205,18 @@ fn run_owned(
         }
 
         let before = sessions.stats();
-        let result = sessions.request(*peer, common.identity);
+        let result = sessions.request(*peer, identity);
         let after = sessions.stats();
-        acquisition.stats = after;
+        let Some(round_stats) = usage_since(after, base) else {
+            acquisition.stop = "fatal";
+            return Err(Failure::new("lifecycle_limit"));
+        };
+        acquisition.stats = round_stats;
         let charged = before.attempts.checked_add(1) == Some(after.attempts);
         if after.wire_bytes < before.wire_bytes
             || after.wire_bytes > limits.max_wire_bytes()
             || after.attempts > limits.max_attempts()
-            || before.attempts as usize != index
+            || before.attempts.checked_sub(base.attempts).map(usize::from) != Some(index)
             || (!charged && after != before)
         {
             acquisition.stop = "fatal";
@@ -190,23 +230,13 @@ fn run_owned(
                     return Err(Failure::new("lifecycle_limit"));
                 }
                 acquisition.results[index] = "validated";
-                acquisition.validated_peer = after.attempts;
+                acquisition.validated_peer = round_stats.attempts;
                 acquisition.stop = "validated";
                 if !acquisition.consistent() {
                     acquisition.stop = "fatal";
                     return Err(Failure::new("lifecycle_limit"));
                 }
-                // This is the only adoption path. A valid keep-current candidate
-                // ends acquisition just as a preferred candidate does.
-                return rejoin::finish_received(
-                    ready,
-                    received,
-                    common.identity,
-                    listen,
-                    admission,
-                    &mut sessions,
-                    &signals,
-                );
+                return Ok(Some(received));
             }
             Err(error) => {
                 // Preserve the typed distinction before the output class merges
@@ -258,7 +288,14 @@ fn run_owned(
     Err(Failure::new("lifecycle_limit"))
 }
 
-fn exhausted(stats: SessionStatsV2, limits: SessionLimitsV2) -> Option<&'static str> {
+fn usage_since(after: SessionStatsV2, base: SessionStatsV2) -> Option<SessionStatsV2> {
+    Some(SessionStatsV2 {
+        attempts: after.attempts.checked_sub(base.attempts)?,
+        wire_bytes: after.wire_bytes.checked_sub(base.wire_bytes)?,
+    })
+}
+
+pub(super) fn exhausted(stats: SessionStatsV2, limits: SessionLimitsV2) -> Option<&'static str> {
     if stats.wire_bytes >= limits.max_wire_bytes() {
         Some("wire-limit")
     } else if stats.attempts >= limits.max_attempts() {
