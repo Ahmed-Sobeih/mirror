@@ -1428,7 +1428,10 @@ accessible exception proposals retain their recorded privacy, identity-continuit
 and evaluation/decision gates. No real keys, personal records, biometric archive,
 capture or hardware purchase is introduced.
 
-### Exact next increment — MB-04B2
+### Historical B1 continuation — MB-04B2
+
+The following records the next design scope at the accepted B1 checkpoint. The
+B2 engineering and exact-source acceptance evidence follow below.
 
 **Next: finite rejoin and serve coordination, beginning with explicit design.**
 Strictly open clean A1 control, receive at most one complete candidate through F2
@@ -1455,3 +1458,184 @@ No automatic reconnect/recovery, concurrent receive/serve phases, discovery,
 multi-peer scheduler, pool or wallet belongs to B2. It remains planned work;
 full MB-04 stays IN_PROGRESS, Gate A/B stay UNMET, and no unresolved monetary,
 enrollment or device decision blocks this dependency-ready engineering design.
+
+## MB-04B2 engineering choices — MIRROR-MB04B2-001
+
+Recorded **2026-11-27**. The separate `mirror-node-v2 rejoin-serve` command
+composes one explicitly selected peer receive, existing A1 keep/adopt and finite
+serving of the resulting fixed complete history. The design contract was written
+before implementation in [NODE_REJOIN_V2.md](NODE_REJOIN_V2.md). It reuses the
+accepted [control](NODE_CONTROL_V2.md), [operator](NODE_OPERATOR_V2.md),
+[provider](NODE_PROVIDER_V2.md) and [session](PEER_SESSION_V2.md) boundaries.
+
+**MB-04B2 is VERIFIED_COMPONENT — FINITE REJOIN / SERVE COORDINATION.** All **38 local command gates** and
+**43 exact-source CI steps** passed. Published source readback and the
+actual synthetic checkout were verified against the implementation. Later
+documentation-head CI is recorded separately on PR #1.
+
+| Evidence | Recorded value |
+|---|---|
+| Acceptance state | VERIFIED_COMPONENT — FINITE REJOIN / SERVE COORDINATION |
+| Implementation source | `bbac1622be18c97ab640f6834a158e5378f1d172` |
+| Source tree | `d724df618f6b45429abebaa3c24bb52ad742799b` |
+| Parent checkpoint | `966286bec62ce422db6bc091c472d74659935344` |
+| Source CI run / full job | [45927607784](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45927607784) / `140272547972` |
+| Actual source-CI checkout | `e00fbb793f5eb417cc0f0cda1ed52443c5cef34d` |
+| Published source/test/contract files read back | 13 |
+| Workspace runtime / node runtime tests | 1,201 / 182 |
+| New runtime / actual-process test functions | 34 / 27 |
+| Retained paths unchanged / intentionally changed | 160 / 6 of 166 |
+
+### Explicit input and one retained authority path
+
+Require all four common path/network options plus `--peer`, `--listen`,
+`--max-attempts`, `--max-io-bytes`, `--timeout-ms` and `--admission-ms`.
+Both addresses use the existing numeric nonzero-port syntax. Keep the existing
+32-argument, 4096-byte-token, 16384-total-byte and canonical scalar checks before
+effects; there is no implicit peer, DNS, environment/stdin/config fallback or
+initialization. The total limits remain 1..8 attempts, 1..157129488 actual
+application bytes and 1..60000 ms for each original attempt timeout and service
+admission window.
+
+Install the Linux signal guard once after parsing, then strictly open A1 before
+either peer contact or binding. Missing, pending, corrupt, mismatched or busy
+state fails unchanged; a signal cannot convert failed opening into readiness.
+Retain the ready controller and its previous local checkpoint through at most
+one unchanged F2 request. Any receive failure is operational failure, including
+failure accompanied by a stop request. No old-history serving fallback, retry,
+partial publication or implicit recovery follows.
+
+After validated receipt and the pre-adoption stop check, consume the controller
+and candidate through existing `NodeControlV2::adopt`. Copy `outcome.report()` and
+retain `outcome.into_control()` for serving. Ties, identical and shorter branches
+keep current; preferred candidates follow unchanged intent, replacement,
+confirmation and retirement ordering. Serve only that returned fixed complete
+history under the same ownership. A private shared provider loop avoids calling
+standalone `serve` setup, reopening either root, clearing stop or replacing the
+F2 owner. No A1/F2 public API or consensus/storage/wire/hash format changes.
+
+### Shared transport limits and phase-specific shutdown
+
+The receive charges the first attempt. One retained F2 owner keeps every actual
+byte and attempt charge through serving. Check stop and remaining budgets before
+binding. A one-attempt invocation may successfully keep/adopt then stop normally
+without binding, even when the supplied listen address is occupied. There is no
+reserved service allowance. The mandatory terminal EOF probe still needs one
+unused byte of capacity, though zero-byte EOF is not charged.
+
+Start the admission clock only after keep/adopt, immediately before permitted
+binding. B1's serial admission, post-accept race check and original-deadline final
+drain remain. The configured network-phase allowance is one receive timeout plus
+the admission window plus at most one final service timeout: at most 180000 ms.
+This excludes initial opening, durable adoption and final output, and is not hard
+CPU preemption or a total process-return guarantee. Standalone B1 retains 120000 ms.
+
+The same sticky signal guard spans every phase. Stop after successful opening
+but before request gives zero attempts and unchanged verified selection. An active
+receive drains under its original deadline. Stop observed after validated receipt
+but before adoption admission discards the candidate and preserves the charged
+receive. Once the adoption admission check succeeds, run A1 to success or error;
+do not asynchronously cancel its durable work. After success, honor stop before
+binding and report the actual returned selection. Serving keeps B1's stop and
+final-drain behavior. No phase clears the flag or renews an active deadline.
+
+### Truthful records, failure context and evidence limits
+
+The normal record has the 26 fields specified in the rejoin contract, including
+previous/selected local checkpoints, receive status, choice and separate phase
+counters. Receive attempts plus serve attempts equals total attempts; completed
+plus rejected sessions equals serve attempts; receive bytes plus serve bytes
+equals total bytes. Local publication generations are not peer state or global
+freshness. Complete accounts, memberships, approvals, sequences and population
+state must come from the chosen accepted branch.
+
+Any error after adoption admission carries conservative
+`operation_may_have_completed=true` and `next=inspect-status`, including later
+bind/listener/service failure. An adoption error exposes no ready controller and
+makes no selected-state assertion. Errors can follow completed confirmation and
+intent retirement; they do not necessarily imply pending intent or rollback.
+RetainOld never rolls back a selected candidate. Existing commands keep their
+prior diagnostic behavior through default-absent optional failure context.
+
+Release streams, listener and controller before final formatting/output. Output
+loss retains conservative possible-completion reporting for every normal B2
+result, including pre-adoption shutdown. Normal stops exit 0, operational/output
+failures 1 and usage failures 2; status alone retains 3/4. No output or error
+authorizes automatic retry, initialization or recovery. Diagnostics remain
+bounded and contain no raw paths, peer addresses, bytes or nested error text.
+
+The 34 added tests comprise six parser, one diagnostic and 27 actual-process
+functions. All required gates passed, retaining eleven compile-fail doctests,
+twelve independent references, sixteen synthetic examples and every required
+release suite. Release reruns, parameterized scenarios and child processes are
+not additional unique tests. All 13 published implementation/test/contract files
+match the accepted source; 160 of 166 retained source/dependency/workflow/reference/
+fixture paths remain byte-identical. The six existing private command-module
+changes leave lower-layer source, public APIs, manifests/lockfile, workflow,
+references, fixtures and consensus/storage/wire/hash encodings unchanged.
+
+The 27 added actual-process tests cover complete seed `serve` -> `rejoin-serve`
+-> third `sync-once` transfer with independent directories and an explicit second
+restart/rejoin cycle. Fresh strict reopening compares full histories, account
+bytes, membership records/bytes, retained approvals, sequences, population and
+resource counters. The seed keeps local generation 0 while adopters advance to 1;
+the restart keeps those local generations and complete state unchanged. The
+preferred fork retains equal account bytes but different membership state.
+
+Further cases cover effect-free parsing; local missing/pending/corrupt/mismatched/
+busy refusal before contact or bind; identical/shorter/tied keep-current; shared
+attempts and actual bytes; the exact terminal-EOF capacity boundary; rejected and
+partial serving; malformed/trailing/incomplete/wrong-network sources; idle/active
+service drain; original deadlines and admission timing; post-adoption bind/output
+uncertainty; and selected/confirming/confirmed no-rollback fixtures. Constructed
+pending layouts are explicitly separate from actual interrupted processes.
+
+Bounded Linux observations identify the actual child's socket endpoints, inode,
+descriptor and blocked syscall. SIGINT/SIGTERM during complete or partial receipt
+permit original-deadline completion/failure; validated completion under a prior
+stop discards the candidate before adoption. Directory descriptors and competing
+busy commands are checked across controlled receive/service phases; source review
+also verifies direct retained-controller flow. These observations do not claim
+to sample every hypothetical microscopic ownership gap.
+
+The adoption test extends a valid synthetic history by 128 mined empty blocks.
+An inotify event only prompts SIGSTOP. While the actual child is verified stopped,
+the test requires the complete canonical intent, independently validates both
+histories and checkpoints, confirms both owners remain held and no listener exists,
+then verifies caught, unblocked SIGTERM is pending before SIGCONT. Adoption finishes,
+retires intent and reopens the candidate at generation 1, followed by normal shutdown
+despite an occupied listen port. This observation passed in debug and release; it
+establishes signal generation during live adoption, not a particular fsync boundary.
+
+A full-pipe case observes the child blocked on final stdout while its listener is
+gone and fresh status plus strict writer opening already succeed. SIGKILL cases
+separately preserve the old branch during reception and the new branch during
+adopted service. Existing A1 publication-failure/process tests remain the evidence
+for their exact durable substeps. Zero-attempt stop before initial request is not
+artificially forced by this new process suite; that branch retains source-level
+lifecycle evidence. Process tests use Linux IPv4 loopback; numeric IPv6 parsing
+has CLI coverage. No test adds a production hook, permission change, hidden retry,
+power-loss guarantee or untested-filesystem claim.
+
+### Next planned design — MB-04B3 bounded explicit-peer failover
+
+**Next: MB-04B3 — bounded explicit-peer failover. READY — DESIGN FIRST.** Specify one finite ordered list of
+explicit numeric peers, at most one attempt per entry, ending acquisition at the
+first complete validated candidate. Then apply exactly one existing keep/adopt
+and B2 fixed-history serving, even when that candidate keeps current.
+
+Before implementation, define the failure-advance allowlist, duplicate-address
+treatment, list/argv caps, cumulative attempts/actual bytes and total network-phase
+allowance, phase-specific stop/error handling and bounded per-peer diagnostics.
+Retain one controller, signal guard and F2 owner. Local/adoption failures remain
+fatal; exhausted peers without a validated candidate fail without serving-old
+fallback. Verify failed-first/successful-second acquisition, no later contact
+after validation, exhaustion and shutdown through actual processes.
+
+This is planned design only. No repeated-peer retry/backoff, discovery, concurrent
+sessions, multiple durable adoptions, indefinite daemon, pool, wallet or policy
+choice is included. Full MB-04 remains IN_PROGRESS and Gate A/B remain UNMET.
+All accepted monetary, combined ECG/designated-pinky/supervised Ant Kiss,
+accessibility, privacy and identity-continuity decisions/proposals retain their
+existing gates. No real keys, personal records, biometric archive or hardware
+purchase is introduced.

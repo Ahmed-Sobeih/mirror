@@ -35,17 +35,18 @@ the separate finite `mirror-node-v2` operator executable**, with explicit
 authority. **MB-04B1 adds finite `serve` lifecycle and draining shutdown**:
 one fixed accepted history, one held controller, one listener and one cumulative
 session owner, with explicit attempt/byte/admission limits and SIGINT/SIGTERM.
+**MB-04B2 adds finite `rejoin-serve` coordination**: one complete receive,
+existing durable keep/adopt, then service under the same controller, signal
+guard and cumulative transport allowance.
 Current source, required-gate and CI acceptance are recorded separately
 in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04B2: finite rejoin and serve coordination**, beginning with an
-explicit design. Specify one deliberately selected peer receive, complete
-keep/adopt, then serving under retained control and one cumulative transport
-budget. Define shutdown and possible-completion outcomes for each phase, then
-verify independent seed-provider, rejoining-node and requester processes, clean
-restart/rejoin, complete-state agreement and pending-state refusal. Automatic
-reconnect/recovery, discovery, multi-peer scheduling, transaction pool and wallet
-remain separate work. **MB-04 remains IN_PROGRESS; Gate A and Gate B are unmet.**
+Next is **MB-04B3: bounded explicit-peer failover**, beginning with an explicit
+design for an ordered capped numeric-peer list and permitted pre-adoption failure
+advancement. Stop at the first fully validated candidate, then exactly one
+keep/adopt and B2 service; preserve shared budgets and phase-specific shutdown.
+Repeated reconnect/backoff, discovery, concurrent scheduling, transaction pool
+and wallet remain separate work. **MB-04 remains IN_PROGRESS; Gate A/B are unmet.**
 The existing V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -355,11 +356,130 @@ If output fails after a mutating command or serving, `operation_may_have_complet
 directs the operator to inspect status. A lost response does not authorize an
 automatic mutation retry or provider restart.
 
+### Receiving, adopting and then serving
+
+The [rejoin contract](docs/NODE_REJOIN_V2.md) adds one explicitly selected source
+to the finite provider options. Select both numeric addresses and every limit:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- rejoin-serve \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --peer "$mirror_peer_address" --listen "$mirror_listen_address" \
+  --max-attempts 8 --max-io-bytes 157129488 \
+  --timeout-ms 5000 --admission-ms 30000
+```
+
+The request must complete full validation and terminal EOF before existing A1
+keep/adopt runs. Reception and serving share one total attempt/byte allowance;
+at most seven service attempts remain after the receive. With `--max-attempts 1`,
+a successful receive may adopt and then stop normally without binding.
+
+SIGINT/SIGTERM during receive preserves its original deadline. If it completes
+and stop is observed before adoption admission, the candidate is discarded and
+the old selection remains. An admitted durable adoption completes or fails under
+A1's unchanged intent/confirmation rules. Service uses B1's draining shutdown.
+A later bind/output failure can follow successful adoption: inspect status before
+choosing any explicit next action. No automatic retry, recovery or rollback occurs.
+
+The 26-field final record includes previous and selected checkpoints, actual
+choice, total usage, receive usage and service usage. Completed/rejected counts
+refer only to service. The controller and all sockets are released before output.
+The service admission clock starts after adoption; initial receive/adoption are
+not covered by that window. Complete local/network timing qualifications are in
+the contract. A successful result does not establish global latestness.
+
 ## Verification checkpoints
 
-### Current MB-04B1 provider checkpoint
+### Current MB-04B2 rejoin checkpoint
 
-Checkpoint **MIRROR-MB04B1-001**. The current acceptance record belongs to
+Checkpoint **MIRROR-MB04B2-001**. Full evidence is in master-plan section 30 and
+[test-matrix section 22](docs/MEMBERSHIP_TEST_MATRIX.md#22-mb-04b2-finite-rejoin-and-serve-coordination).
+
+Implementation source: **bbac1622be18c97ab640f6834a158e5378f1d172**.
+Tested source tree: **d724df618f6b45429abebaa3c24bb52ad742799b**.
+Parent checkpoint: **966286bec62ce422db6bc091c472d74659935344**.
+[Source PR CI 45927607784](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45927607784)
+passed all **43 steps**. Full job `140272547972` logs were inspected and confirm
+**1,201 runtime tests and eleven compile-fail doctests**, with zero failures.
+The actual synthetic PR checkout `e00fbb793f5eb417cc0f0cda1ed52443c5cef34d` has no file differences from
+the implementation commit. All **13 published implementation, test and
+contract files** were read back byte-for-byte against locally tested content.
+Source acceptance: **PASSED — all 38 local gates and exact-source CI**.
+Later documentation-head CI is checked separately and recorded on PR #1; this
+source acceptance does not assert that a future head is tested. PR #1 remains
+OPEN and UNMERGED on `work/personhood-register-v0.1`. Main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used Rust **1.98.0** and locked dependencies. All **38 required
+command gates** passed:
+
+- **1,201 workspace/all-target runtime tests**, zero failures: 1,167 retained
+  plus **34 new** (six parser, one diagnostic and
+  **27 actual rejoin-process tests**). Parameterized cases,
+  subprocesses and release reruns are not extra unique tests.
+- **Eleven compile-fail doctests**, unchanged; three retained subprocess helpers
+  remain intentionally ignored in ordinary enumeration and exercised by parent tests.
+- Required release suites: personhood 234 runtime + 3 doctests, core 121, state 49,
+  consensus 23, chain 85 + 3, storage 350 + 2, protocol 38, network **108 + 2**,
+  node **182 + 1**.
+- All **twelve independent Python references** and **sixteen synthetic examples**;
+  scoped formatting, whitespace and allocation/runtime-data checks also passed.
+
+The 27 added actual-process tests cover complete seed `serve` -> `rejoin-serve`
+-> third `sync-once` transfer with independent directories and an explicit second
+restart/rejoin cycle. Fresh strict reopening compares full histories, account
+bytes, membership records/bytes, retained approvals, sequences, population and
+resource counters. The seed keeps local generation 0 while adopters advance to 1;
+the restart keeps those local generations and complete state unchanged. The
+preferred fork retains equal account bytes but different membership state.
+
+Further cases cover effect-free parsing; local missing/pending/corrupt/mismatched/
+busy refusal before contact or bind; identical/shorter/tied keep-current; shared
+attempts and actual bytes; the exact terminal-EOF capacity boundary; rejected and
+partial serving; malformed/trailing/incomplete/wrong-network sources; idle/active
+service drain; original deadlines and admission timing; post-adoption bind/output
+uncertainty; and selected/confirming/confirmed no-rollback fixtures. Constructed
+pending layouts are explicitly separate from actual interrupted processes.
+
+Bounded Linux observations identify the actual child's socket endpoints, inode,
+descriptor and blocked syscall. SIGINT/SIGTERM during complete or partial receipt
+permit original-deadline completion/failure; validated completion under a prior
+stop discards the candidate before adoption. Directory descriptors and competing
+busy commands are checked across controlled receive/service phases; source review
+also verifies direct retained-controller flow. These observations do not claim
+to sample every hypothetical microscopic ownership gap.
+
+The adoption test extends a valid synthetic history by 128 mined empty blocks.
+An inotify event only prompts SIGSTOP. While the actual child is verified stopped,
+the test requires the complete canonical intent, independently validates both
+histories and checkpoints, confirms both owners remain held and no listener exists,
+then verifies caught, unblocked SIGTERM is pending before SIGCONT. Adoption finishes,
+retires intent and reopens the candidate at generation 1, followed by normal shutdown
+despite an occupied listen port. This observation passed in debug and release; it
+establishes signal generation during live adoption, not a particular fsync boundary.
+
+A full-pipe case observes the child blocked on final stdout while its listener is
+gone and fresh status plus strict writer opening already succeed. SIGKILL cases
+separately preserve the old branch during reception and the new branch during
+adopted service. Existing A1 publication-failure/process tests remain the evidence
+for their exact durable substeps. Zero-attempt stop before initial request is not
+artificially forced by this new process suite; that branch retains source-level
+lifecycle evidence. Process tests use Linux IPv4 loopback; numeric IPv6 parsing
+has CLI coverage. No test adds a production hook, permission change, hidden retry,
+power-loss guarantee or untested-filesystem claim.
+
+**160 of 166 retained source/dependency/workflow/reference/fixture
+paths remain byte-identical**; 6 existing private V2 command
+modules change deliberately. New code adds the rejoin composition and its process
+suite/helper. Earlier tests, lower-layer/V1/A1/F2/storage/consensus/monetary source,
+public APIs, Cargo manifests and lockfile, all twelve references, frozen fixtures,
+workflow commands and its 20-minute job budget remain unchanged. No wire/storage/hash
+encoding, enrollment/device policy, dependency selection or runtime data changes.
+
+### Historical MB-04B1 provider checkpoint
+
+Checkpoint **MIRROR-MB04B1-001**. This historical acceptance record belongs to
 master-plan section 29 and
 [test-matrix section 21](docs/MEMBERSHIP_TEST_MATRIX.md#21-mb-04b1-finite-provider-lifecycle-and-draining-shutdown).
 
