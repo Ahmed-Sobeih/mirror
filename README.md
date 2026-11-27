@@ -37,16 +37,16 @@ one fixed accepted history, one held controller, one listener and one cumulative
 session owner, with explicit attempt/byte/admission limits and SIGINT/SIGTERM.
 **MB-04B2 adds finite `rejoin-serve` coordination**: one complete receive,
 existing durable keep/adopt, then service under the same controller, signal
-guard and cumulative transport allowance.
+guard and cumulative transport allowance. **MB-04B3 adds bounded explicit-peer
+failover**: one-to-four ordered sources, a closed typed failure policy and the
+first validated candidate entering the same keep/adopt/service path.
 Current source, required-gate and CI acceptance are recorded separately
 in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04B3: bounded explicit-peer failover**, beginning with an explicit
-design for an ordered capped numeric-peer list and permitted pre-adoption failure
-advancement. Stop at the first fully validated candidate, then exactly one
-keep/adopt and B2 service; preserve shared budgets and phase-specific shutdown.
-Repeated reconnect/backoff, discovery, concurrent scheduling, transaction pool
-and wallet remain separate work. **MB-04 remains IN_PROGRESS; Gate A/B are unmet.**
+Next is **MB-04B4: bounded persistent-run lifecycle**, beginning with a design
+for explicit repeated rounds, retained control, waits and cumulative limits.
+Discovery, indefinite operation, concurrent scheduling, transaction pool and
+wallet remain later work. **MB-04 remains IN_PROGRESS; Gate A/B are unmet.**
 The existing V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -389,9 +389,101 @@ The service admission clock starts after adoption; initial receive/adoption are
 not covered by that window. Complete local/network timing qualifications are in
 the contract. A successful result does not establish global latestness.
 
+### Trying a bounded list of explicit peers
+
+Use `rejoin-failover-serve` with `--peers ADDRESS[,ADDRESS...]` and all nine
+other deliberate B2 service/common options. Supply one to four numeric,
+nonzero-port endpoints; duplicate numeric aliases and scoped IPv6 lists reject
+before effects. See the [complete command contract](docs/NODE_FAILOVER_V2.md).
+
+Allowed peer failures can advance once to the next entry; local, allocation,
+internal/resource and unlisted errors stop. The first validated candidate ends
+acquisition even when it keeps current. All acquisition and service share the
+same 1..8 attempts and actual-byte allowance. No validated candidate means no
+serve-old fallback. Per-entry output uses ordinals and static categories, never
+raw addresses. Existing `rejoin-serve` remains a one-source command.
+
 ## Verification checkpoints
 
-### Current MB-04B2 rejoin checkpoint
+### Current MB-04B3 failover checkpoint
+
+Checkpoint **MIRROR-MB04B3-001**. Master-plan section 31 and
+[test-matrix section 23](docs/MEMBERSHIP_TEST_MATRIX.md#23-mb-04b3-bounded-explicit-peer-failover)
+record the scope and exact acceptance.
+
+Implementation source: **3311151ab627b3512abed47be20adea2f0e6d66a**.
+Tested source tree: **fc238ae2df95b7b2b3df2457d06f739048812c7e**.
+Parent checkpoint: **9ca7d99681877d014ae64aab31cb5eb22a957c35**.
+[Source PR CI 45933868084](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45933868084)
+passed all **43 steps**. Full job `140292436668` logs confirm **1,242 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`0cada2958afe985bb5fcd3b683c57a40b01042ce` has no file differences from the implementation source.
+All **12 published implementation/test/contract files** were read back byte-for-byte.
+The later checkpoint updates nine status/handoff records and clarifies one
+contract compatibility wording: existing operational records remain unchanged; the help
+catalogue gains the new command and options. It changes no runtime/test file,
+and the other 198 files frozen during source acceptance remain byte-identical.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+Later documentation-head CI is checked separately and recorded on PR #1; this
+source record does not assert that a future documentation head is tested.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed with **199 frozen noncheckpoint files unchanged**:
+
+- **1,242 runtime tests**, zero failures: 1,201 retained plus **41 new** — six
+  parser, eight typed-policy, three output, one error-context, one diagnostic-fallback
+  and **22 actual-process tests**. Scenarios, subprocesses and release reruns are
+  not additional unique test functions.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers are exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **223+1**. All **twelve references** and **sixteen examples** passed.
+- Scoped formatting, whitespace and allocation/runtime-data checks passed.
+
+Separate refused-first and malformed-first tests run a real seed executable,
+the B3 executable and a third requester with independent roots and a second
+explicit restart cycle. Strict reopening compares complete histories, accounts,
+membership records/bytes, approvals, sequences, population and resource counters;
+the preferred fork has equal accounts but different membership. First validated
+identical/shorter/tied candidates stop acquisition and leave later peers untouched.
+
+Actual cases cover all four peers failing, eligible malformed/wrong-network/
+incomplete/trailing/missing-EOF transfers, and a constructed nested manifest
+configuration error that remains fatal without later contact. Fixed invalid-header
+exchanges establish 84 charged bytes (72 request + 12 consumed header). Exact
+EOF-capacity and payload-larger-than-positive-remainder cases verify shared bytes;
+last-allowed receive succeeds without binding an occupied address. Later successful
+acquisition and service retain distinct earlier rejection evidence.
+
+Bounded Linux observations identify the child socket endpoints/inode/FD and blocked
+syscall before SIGINT/SIGTERM. They verify original deadlines, failed-receive stop,
+later validated-candidate discard, both exact directory descriptors across two
+receives and service, and busy competing commands with no outgoing contact.
+Bind/closed-output failure preserves adopted state and possible-completion context.
+Blocked final stdout releases the listener/owners before the write finishes;
+SIGKILL during a partial second receive preserves old state. Unused listeners
+remain reserved until exit when absence of later contact is asserted.
+
+The retained B2 live-adoption signal and service-drain/no-rollback tests exercise
+the same extracted post-receive path; they are separate retained evidence, not
+22 additional B3 scenarios. No new production hook, permission change, induced
+OOM, hidden retry, power-loss or untested-filesystem guarantee is introduced.
+Pre-first-request zero-attempt and brief between-request shutdown branches retain
+source-level evidence. Process tests use Linux IPv4; numeric IPv6 parsing is separate CLI coverage.
+
+**164 of 169 retained source/dependency/workflow/reference/fixture paths remain
+byte-identical.** Five existing private command modules change: args, errors,
+main, output and rejoin. New files add the coordinator, process suite/helper and
+contract. All earlier test functions and process helpers, public/lower-layer/V1/
+A1/F2/storage/consensus/monetary source, Cargo manifests/lockfile, references,
+fixtures, workflow commands and 20-minute budget remain unchanged. No wire,
+storage or hash encoding, enrollment/device or monetary policy changed.
+
+### Historical MB-04B2 rejoin checkpoint
 
 Checkpoint **MIRROR-MB04B2-001**. Full evidence is in master-plan section 30 and
 [test-matrix section 22](docs/MEMBERSHIP_TEST_MATRIX.md#22-mb-04b2-finite-rejoin-and-serve-coordination).

@@ -29,7 +29,8 @@ numeric endpoints in one token. The ordinary invocation remains 21 argument
 tokens. Existing limits remain **32 arguments after argv[0], 4096 UTF-8 bytes per
 token and 16384 total bytes**. Validate the whole invocation before installing
 signals, opening paths, acquiring owners, connecting or binding. Existing
-commands, their flags, output and scalar validation remain unchanged.
+command flags, scalar validation and operational record schemas and semantics
+remain unchanged. The help catalogue adds this command and its options.
 
 Reject empty lists/elements, more than four entries, leading/trailing/doubled
 commas, whitespace within the list, DNS, malformed addresses and zero ports.
@@ -286,7 +287,8 @@ typed-policy, parser/report and actual-process tests, counting test functions on
 Changes are confined to private node command composition, a behavior-preserving
 extraction of B2's post-receive path, new tests and documentation. Existing public
 A1/F2 APIs, V1 behavior, dependency selection, workflows, wire/storage/hash formats,
-references, fixtures and all previous command output contracts remain unchanged.
+references, fixtures and all previous operational command record contracts remain
+unchanged; the help catalogue has the additions noted in section 1.
 Cooperative Linux ownership and trusted local operator/parent-path assumptions
 remain. Process evidence is Linux IPv4; IPv6 parsing is separate coverage.
 

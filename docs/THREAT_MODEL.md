@@ -1,10 +1,10 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current accepted implementation: **MB-04B2 finite V2 rejoin and
-serve coordination**, with exact-source acceptance in the B2 update below. B1's
-accepted provider evidence, A1's durable local control/restart authority and
-A2's finite operator commands remain recorded separately. Exact acceptance evidence is
+and V2 design. Current implementation: **MB-04B3 bounded explicit-peer failover**,
+with source, focused results and exact acceptance recorded in the B3 update below.
+B2's accepted rejoin composition, B1's provider, A1's durable control/restart
+authority and A2's finite commands remain recorded separately. Exact acceptance evidence is
 tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MASTER_PLAN.md](../MASTER_PLAN.md).
 Source inspected at `db2861930cc0f01f735ccfba80a4f530f4d1ddd6`; PR #1 comments
@@ -43,11 +43,12 @@ authority through finite `init`, `status`, `sync-once` and explicit `recover`
 commands in a separate executable. MB-04B1 adds finite `serve` with one fixed
 accepted history, held controller, listener and cumulative F2 owner, explicit
 admission limits and SIGINT/SIGTERM draining shutdown. Its scope and evidence are
-recorded in the B1 update below. B2's contract composes one receive, keep/adopt and
-fixed-history serving without changing those authority boundaries; its exact-source
-acceptance is recorded below. **Next is MB-04B3: bounded
-explicit-peer failover, design first.** Arbitrary corruption repair, automatic
-reconnect, broader persistent scheduling, transaction pool, wallet and human
+recorded in the B1 update below. B2 composes one receive, keep/adopt and fixed-history
+serving. B3 adds a capped ordered acquisition prefix and closed typed advancement
+policy before that shared path. Earlier continuation paragraphs describe their
+historical checkpoints. **Next is MB-04B4: bounded persistent-run lifecycle,
+design first.** Arbitrary corruption repair, repeated-peer reconnect, broader
+persistent scheduling, transaction pool, wallet and human
 finality remain unfinished. MB-04 is IN_PROGRESS and Gate A/B remain unmet; exact
 source and later documentation-head CI are tracked separately.
 
@@ -964,10 +965,11 @@ outside the strict store root before mutation. **MB-04A2 adds finite V2 operator
 commands** for attachment-only init, read-only status, one sync attempt and explicit
 recovery. **MB-04B1 adds finite fixed-history serving and draining shutdown** under
 one retained controller and one cumulative F2 owner. B2's receive/adopt/serve
-composition and exact-source acceptance are recorded in its update below.
-**Next is MB-04B3 bounded explicit-peer failover, design first.**
-Arbitrary corruption repair, automatic
-reconnect, broader persistent/multi-peer scheduling, transaction pool, wallet,
+composition and B3's bounded explicit-peer acquisition appear in their updates
+below with separate source and acceptance evidence.
+**Next is MB-04B4 bounded persistent-run lifecycle, design first.**
+Arbitrary corruption repair, repeated-peer reconnect, broader persistent
+scheduling, transaction pool, wallet,
 human finality and Gate A/Gate B remain unfinished; MB-04 is still IN_PROGRESS.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
@@ -2242,9 +2244,9 @@ permission changes or hidden retries. SIGKILL and fresh replay demonstrate only
 their tested process boundary; they do not certify arbitrary corruption repair,
 physical durability or untested OS/filesystem behavior.
 
-### Next planned design and remaining threats — MB-04B3
+### Historical B2 continuation and remaining threats — MB-04B3
 
-**Next: MB-04B3 — bounded explicit-peer failover. READY — DESIGN FIRST.**
+At the B2 checkpoint, next was **MB-04B3 — bounded explicit-peer failover, design first**.
 Specify one finite ordered list of explicit numeric peers, at most one attempt
 per entry, ending acquisition at the first complete validated candidate. Apply
 exactly one existing keep/adopt and B2 fixed-history serving; a keep-current
@@ -2264,3 +2266,162 @@ outside it. Full MB-04 remains IN_PROGRESS; Gate A/B and the human-consensus,
 monetary, enrollment, private biometric matching and actual-device gates remain
 unmet. Existing combined ECG/designated-pinky/supervised Ant Kiss and accessibility
 preferences are neither altered nor validated by network composition tests.
+
+## MB-04B3 bounded explicit-peer failover update
+
+Checkpoint **MIRROR-MB04B3-001**, 2026-11-27. The design-first
+[failover contract](NODE_FAILOVER_V2.md) introduces `rejoin-failover-serve`:
+one bounded ordered acquisition prefix followed by the shared B2 adoption and
+provider path. It changes neither peer trust nor canonical selection authority.
+
+**VERIFIED_COMPONENT — BOUNDED EXPLICIT-PEER FAILOVER.**
+
+| Evidence | Verified source and execution |
+|---|---|
+| Implementation source / tree | `3311151ab627b3512abed47be20adea2f0e6d66a` / `fc238ae2df95b7b2b3df2457d06f739048812c7e` |
+| Parent checkpoint | `9ca7d99681877d014ae64aab31cb5eb22a957c35` |
+| Source CI run / full job | [45933868084](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45933868084) / `140292436668` |
+| Actual source-CI checkout | `0cada2958afe985bb5fcd3b683c57a40b01042ce` |
+| Implementation/test/contract publication inventory | 12 files |
+| Passing workspace / node runtime tests | 1,242 / 223 |
+| New runtime / actual-process functions | 41 / 22 |
+| Retained paths byte-identical / intentionally changed | 164 / 5 of 169 |
+
+The focused combined run passed **62 binary tests and all 22 new process tests**
+on its first execution. The 41 added functions comprise **six parser, eight
+typed-policy, three output, one error-context, one diagnostic-fallback and 22
+process tests**. Parameterized scenarios, child executions and release reruns are
+not extra unique tests. Full acceptance passed **all 38 local gates, 1,242 runtime
+tests, eleven compile-fail doctests, all seven release commands, twelve independent
+references and sixteen examples**, with zero failures and three retained ignored
+helpers exercised by parent tests. Node release passed 223 runtime tests and one
+doctest. Exact-source CI passed all **43 steps**; its full logs confirm these counts
+and every added test in both profiles. The actual synthetic checkout has no file
+differences from the source, and all 12 published source files were read back
+byte-for-byte. Later documentation-head CI is separate evidence recorded on PR #1.
+
+### F07/F08/T28: operator authority and first-valid ordering
+
+Effect-free parsing admits exactly one 1..4-entry numeric list, fixed slots and
+the existing scalar/argv caps. Alias rejection includes equivalent IPv6 spellings
+and IPv4-mapped endpoints; it does not identify physical machines. No peer is
+discovered or authenticated. Trusted operator paths and independent C/genesis
+remain authority. Pending, missing, corrupt, wrong-network or busy local state
+refuses before any configured peer contact or bind; no recovery is inferred.
+
+One A1 controller and one F2 owner remain held across acquisition and service.
+The first complete candidate passing actual F2 validation and terminal EOF ends
+acquisition, even when keep-current wins. A valid stale first peer can prevent
+contact with a later better history: first-valid is not convergence, best-peer
+selection or global latestness. The whole selected branch retains accounts,
+membership, approvals, sequences and population; no cross-branch state is merged.
+
+### F09/T21/T31/T32: closed refusal policy and finite resource consumption
+
+Only the typed allowlist in the contract advances. Never treat the coarse
+`invalid_peer_history` diagnostic as permission: nested allocation, arithmetic,
+accounting, local-authority and resource failures can share it. Unlisted I/O,
+manifest configuration, block-operation and ledger errors remain fatal. The eight
+classifier tests construct both allowed and excluded typed errors; this is unit
+classification evidence, not induced OOM or live coverage of every OS error kind.
+Actual processes cover representative transport/malformed responses, nested
+wrong-network refusal and excluded manifest-configuration failure.
+
+Failed requests retain actual attempt/byte charges, discard their socket/candidate
+and never resume framing. All peers failing produces operational failure without
+serving the old branch. Partial responses and service rejections share the same
+1..8 attempts and 1..157129488-byte owner. A payload larger than positive remaining
+capacity is fatal; terminal EOF still needs one unused byte even when it charges
+zero. The invalid-header process observes precisely 72+12=84 consumed bytes.
+
+At most min(P,M) requests occur, with each original 1..60000-ms deadline intact.
+Configured network-phase allowances are at most `min(P,M)*T+A+T` (360000 ms at
+the ceilings), also bounded by `M*T+A`. These are qualified allowances, not hard
+CPU, RSS or whole-process latency limits. Service begins after keep/adopt and
+drains at most its admitted attempt under B1's unchanged deadline. Successful
+last-allowed receipt can adopt and stop before binding an occupied address.
+
+### T29/T30/T32: shutdown, uncertainty and reporting
+
+One sticky signal guard spans every phase. An active request drains to failure
+or full validation under its original deadline. Failed receipt plus a signal
+preserves the error and prevents advancement; stop between failures likewise
+retains failure. A validated candidate under a prior stop is discarded before
+adoption admission, while its ordinal and earlier failure evidence remain.
+Admitted adoption is synchronous and retains A1's ordering and no-rollback rules.
+
+Every adoption or later fatal error keeps its category plus possible completion
+and inspection-first guidance; it makes no unresolved selected-state assertion.
+Optional acquisition evidence uses fixed static keys, separate receive counters,
+and no endpoints/paths/nested text. Malformed optional internal evidence falls
+back to the original safe diagnostic without losing completion uncertainty.
+Normal 32..35-field records and errors fit the existing 4096-byte cap. Release
+sockets, listener, both roots and signal guard before output; output loss cannot
+justify repetition. Service and acquisition errors remain separate after success.
+
+### Actual observations, retained evidence and limits
+
+The new [22-process suite](../crates/mirror-node/tests/failover_commands_v2.rs)
+uses unchanged B2 observations through [bounded support](../crates/mirror-node/tests/support_failover_v2/mod.rs).
+Refused/malformed first -> real seed second -> B3 -> third requester runs with
+independent roots and an explicit restart. Fresh strict reopening compares whole
+state, including equal-account/different-membership forks; the seed retains local
+generation 0 while adopters use 1. Held unused listeners establish no later
+contact, and retained prior listeners detect unintended repeat contact.
+
+Signal tests correlate the actual child socket endpoints/inode/FD and blocked
+syscall before SIGINT/SIGTERM, including later successful receipt discarded at EOF.
+Directory descriptor identities and competing busy commands are checked across
+failed receipt, validated receipt and service. A full output pipe observes a
+blocked write while the listener is gone and status/strict reopening succeeds.
+SIGKILL during second partial receipt leaves old storage unchanged; post-adoption
+bind/output failures leave the selected candidate and truthful uncertainty.
+
+The retained B2 live-adoption SIGTERM and idle/active service-drain tests exercise
+the newly shared post-receive path. They are not new B3 test functions or a claim
+that each phase was newly forced through the B3 command. Pre-first-request stop
+and the inter-request stop check retain source-level evidence. Finite observations
+cannot sample every microscopic ownership interval. Pending fixtures differ from
+actual interrupted processes; no observed signal establishes an exact fsync or
+physical power-loss boundary. Process evidence is cooperative Linux IPv4, with
+trusted local owners/parents; IPv6 parsing is separate coverage.
+
+The 164 unchanged retained paths and 199 files frozen throughout source acceptance preserve earlier
+tests/helpers, public A1/F2 APIs, lower layers, V1, dependencies, workflow and references.
+Fixtures and wire/storage/hash formats remain; only five retained private command modules change.
+No production hooks, privilege changes, real keys, biometric archives or new recovery/admission policies are introduced.
+
+The later checkpoint updates nine status/handoff records and clarifies only the
+contract's compatibility wording. Existing operational records are unchanged;
+help lists the new command and options. No runtime/test file changes, and the
+other 198 files frozen during source acceptance remain byte-identical.
+
+### Exact next increment and remaining threats
+
+**Next: MB-04B4 — bounded persistent-run lifecycle. READY — DESIGN FIRST.**
+
+Design a finite run mode that can repeat acquisition, keep/adopt and service
+rounds while retaining one controller, one sticky signal guard and one cumulative
+transport allowance. Choose the operator interface during that design; do not
+assume another rejoin-* command or change the accepted B3 command.
+
+Before implementation define explicit round and repeated-peer authorization,
+bounded inter-round waits, whole-invocation attempt/byte/time limits, first-valid
+ordering across rounds, all-peer-failure policy and shutdown at every phase.
+The existing private provider consumes/releases the controller, so specify an
+ownership-returning round boundary without dropping/reacquiring either root.
+Reacquisition pauses serving; no concurrent listener/request loop is implied.
+Repeatedly choosing a stale but valid first peer is possible and must not be
+described as convergence or global latestness.
+
+Once any round admits adoption, every later fatal error must retain truthful
+possible-completion context, even during a later receive or wait. Distinguish
+the initial checkpoint, each completed round and the final selected checkpoint;
+bound all reports and preserve resource release before output. Verify actual
+multiple rounds, whole-state reopening, cumulative exhaustion, ownership and
+shutdown before declaring that lifecycle implemented.
+
+B4 is planned only. Indefinite operation, discovery, parallel scheduling, pool,
+wallet and policy choices are not silently included. Full MB-04 and Gate A/B
+remain unfinished; all monetary, enrollment/device and accessibility decisions
+and proposals retain their existing gates.

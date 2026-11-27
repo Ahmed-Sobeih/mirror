@@ -1,10 +1,10 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current accepted implementation: **MB-04B2 — finite rejoin and serve coordination**,
-MIRROR-MB04B2-001. Section 22 records exact-source acceptance of 1,201 runtime tests,
-eleven doctests, all 38 local gates and all 43 source-CI steps. B1's earlier provider
-checkpoint remains in section 21; A2's finite command evidence remains in section 20.
+Current implementation: **MB-04B3 — bounded explicit-peer failover**,
+MIRROR-MB04B3-001. Section 23 records source inventory, focused results and exact
+acceptance. Section 22 preserves B2's accepted 1,201-runtime baseline and all its
+prior evidence. B1's provider remains in section 21 and A2 in section 20.
 A1 remains a
 **VERIFIED_COMPONENT within finite operator-owned control/restart scope**;
 section 19 preserves its accepted evidence.
@@ -35,13 +35,15 @@ completion/retention. MB-04B1 extends that executable with finite serving of one
 fixed accepted history, one retained controller/listener/session owner, cumulative
 application admission and graceful final drain. B2's separate
 [rejoin contract](NODE_REJOIN_V2.md) composes at most one validated receive,
-existing keep/adopt and fixed-history serving under the same owners. Its exact-source
-acceptance is recorded separately from B1's earlier passing results. Arbitrary corruption
-repair, automatic reconnect, multi-peer scheduling and broader persistent V2
-service remain unfinished.
+existing keep/adopt and fixed-history serving under the same owners. B3's separate
+[failover contract](NODE_FAILOVER_V2.md) admits a capped ordered numeric peer list
+and closed typed advancement before that shared path. Arbitrary corruption repair,
+repeated-peer reconnect and broader persistent scheduling remain unfinished.
 
-The following increment counts through B1 are historical accepted checkpoint
-evidence. Current B2 counts and results appear in section 22.
+The following increment counts through B2 are historical accepted checkpoint
+evidence. Current B3 inventory and acceptance appear in section 23. Sections 2–22
+are preserved byte-for-byte, including their then-current continuation plans;
+those historical future-tense statements do not override section 23.
 
 Historical counts and exact-source CI remain in sections 3–9: B1 added 31 cases,
 B2 39, B3 51, B4 69, and MB-02C added 61 to reach its **523-test baseline**. Those
@@ -136,13 +138,11 @@ At the B1 checkpoint, workspace accounting was **1,167 runtime tests**, with nod
 the exact source, finite evidence and acceptance status; historical counts above
 do not substitute for this source's full gates.
 
-**Next is MB-04B3: bounded explicit-peer failover — DESIGN
-FIRST.** Specify an ordered, capped list of explicit numeric peers and a narrow
-pre-adoption failure-advance allowlist before implementation. The first complete
-validated candidate ends acquisition and enters existing keep/adopt/serve under
-one cumulative owner; B3 is not implemented by this checkpoint. Automatic
-recovery, discovery, indefinite reconnect, pool, wallet, human finality, biological
-deduplication and live economy remain outside these component checks.
+**Next is MB-04B4: bounded persistent-run lifecycle — DESIGN FIRST.**
+The exact planned scope appears in section 23; B4 is not implemented by this
+checkpoint. Automatic recovery, discovery, indefinite reconnect, pool, wallet,
+human finality, biological deduplication and live economy remain outside these
+component checks.
 **MB-04 remains IN_PROGRESS; Gate A and Gate B are unmet.**
 
 Normative design: [LEDGER_MEMBERSHIP_V1.md](LEDGER_MEMBERSHIP_V1.md).
@@ -172,14 +172,16 @@ restart authority: [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md). Finite command inpu
 output and operator boundaries: [NODE_OPERATOR_V2.md](NODE_OPERATOR_V2.md).
 Finite provider admission and draining shutdown:
 [NODE_PROVIDER_V2.md](NODE_PROVIDER_V2.md). Finite receive/adopt/serve composition:
-[NODE_REJOIN_V2.md](NODE_REJOIN_V2.md).
+[NODE_REJOIN_V2.md](NODE_REJOIN_V2.md). Bounded explicit-peer failover:
+[NODE_FAILOVER_V2.md](NODE_FAILOVER_V2.md).
 
 ## 1. Rule-to-assertion map
 
 The following 35 coverage cells preserve the **historical MB-04A2 snapshot**.
 References there to B1 as future design describe that earlier checkpoint. Current
 B1 additions are recorded in [section 21](#21-mb-04b1-finite-provider-lifecycle-and-draining-shutdown);
-B2's exact-source evidence is recorded in [section 22](#22-mb-04b2-finite-rejoin-and-serve-coordination).
+B2's exact-source evidence is recorded in [section 22](#22-mb-04b2-finite-rejoin-and-serve-coordination);
+B3's added evidence is in [section 23](#23-mb-04b3-bounded-explicit-peer-failover).
 The required case/assertion text and all T33–T35 evidence remain unchanged.
 
 | Case | Required assertion / proposed acceptance name | Owner and coverage recorded through MB-04A2 |
@@ -1999,3 +2001,138 @@ B3 is planned design only. Repeated-peer retry/backoff, discovery, concurrent
 sessions, multiple durable adoptions, indefinite service, pool and wallet remain
 outside it. No monetary, real-admission, human-finality, privacy or device gate is
 settled by this work. Full MB-04 remains IN_PROGRESS and Gate A/B remain UNMET.
+
+## 23. MB-04B3 bounded explicit-peer failover
+
+Checkpoint **MIRROR-MB04B3-001**, 2026-11-27. The design-first
+[failover contract](NODE_FAILOVER_V2.md) adds a separate finite command, then
+reuses B2's post-receive adoption/service boundary. Original rows and sections
+2–22 remain unchanged; historical B2 continuation text is not the current action.
+
+**VERIFIED_COMPONENT — BOUNDED EXPLICIT-PEER FAILOVER.**
+
+| Evidence | Verified source and execution |
+|---|---|
+| Implementation source / tree | `3311151ab627b3512abed47be20adea2f0e6d66a` / `fc238ae2df95b7b2b3df2457d06f739048812c7e` |
+| Parent checkpoint | `9ca7d99681877d014ae64aab31cb5eb22a957c35` |
+| Source CI run / full job | [45933868084](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45933868084) / `140292436668` |
+| Actual source-CI checkout | `0cada2958afe985bb5fcd3b683c57a40b01042ce` |
+| Implementation/test/contract publication inventory | 12 files |
+| Passing workspace / node runtime tests | 1,242 / 223 |
+| New runtime / actual-process functions | 41 / 22 |
+| Retained paths byte-identical / intentionally changed | 164 / 5 of 169 |
+
+The focused combined run passed **62 binary tests and all 22 new process tests**
+on its first execution. The 41 added functions comprise **six parser, eight
+typed-policy, three output, one error-context, one diagnostic-fallback and 22
+process tests**. Parameterized scenarios, child executions and release reruns are
+not extra unique tests. Full acceptance passed **all 38 local gates, 1,242 runtime
+tests, eleven compile-fail doctests, all seven release commands, twelve independent
+references and sixteen examples**, with zero failures and three retained ignored
+helpers exercised by parent tests. Node release passed 223 runtime tests and one
+doctest. Exact-source CI passed all **43 steps**; its full logs confirm these counts
+and every added test in both profiles. The actual synthetic checkout has no file
+differences from the source, and all 12 published source files were read back
+byte-for-byte. Later documentation-head CI is separate evidence recorded on PR #1.
+
+### Exact new-function mapping
+
+Parser names below reside in [args.rs](../crates/mirror-node/src/bin/mirror-node-v2/args.rs),
+typed-policy names in [failover.rs](../crates/mirror-node/src/bin/mirror-node-v2/failover.rs),
+report names in [output.rs](../crates/mirror-node/src/bin/mirror-node-v2/output.rs),
+and error/fallback names in [errors.rs](../crates/mirror-node/src/bin/mirror-node-v2/errors.rs)
+and [main.rs](../crates/mirror-node/src/bin/mirror-node-v2/main.rs).
+All remaining named cases are actual processes in
+[failover_commands_v2.rs](../crates/mirror-node/tests/failover_commands_v2.rs), using
+[support_failover_v2](../crates/mirror-node/tests/support_failover_v2/mod.rs).
+
+| Boundary | Exact added test function(s) | Assertion and evidence scope |
+|---|---|---|
+| T01/T21 explicit input | `failover_requires_all_ten_options_and_rejects_duplicate_flags`; `failover_preserves_order_parsed_addresses_identity_and_shared_bounds` | Ten deliberate options, fixed order, original addresses and independent identity; list may exceed total attempt allowance |
+| T21 list/alias admission | `failover_rejects_empty_oversized_scoped_and_malformed_peer_lists`; `failover_rejects_numeric_aliases_but_preserves_distinct_endpoints` | 1..4 entries; no empties/scopes/DNS/zero ports; numeric IPv6 and mapped-IPv4 alias rejection without claiming physical peer uniqueness |
+| T01/T21 compatibility and bounds | `failover_list_flag_never_changes_existing_command_option_rules`; `failover_preserves_all_numeric_and_argument_admission_limits` | Old/new flag separation, canonical scalars and original token/count/control-character admission |
+| T21/T32 transport policy | `acquisition_advances_only_for_named_transport_failures`; `acquisition_keeps_session_authority_and_budget_failures_fatal` | Closed typed transport allowlist; local authority, allocation, limits and excluded I/O remain fatal |
+| T21/T31 receiver policy | `acquisition_distinguishes_peer_claims_from_receiver_invariants`; `acquisition_protocol_policy_excludes_local_lengths_and_allocation` | Peer-claim failures are distinct from receiver state, accounting, allocation and internal lengths |
+| T21/T32 nested decoding | `acquisition_manifest_policy_keeps_nested_configuration_errors_fatal`; `acquisition_block_policy_is_identical_directly_and_inside_chain_errors` | Nested configuration/operation failures stay fatal; direct and chain-body block policy agree |
+| T21/T32 accepted execution | `acquisition_chain_policy_separates_peer_block_claims_from_work_limits`; `acquisition_never_downgrades_nested_ledger_allocation_or_state_failures` | Wrong claimed blocks/work may advance only as listed; state/work ceilings and ledger/allocation failures do not; typed-unit evidence, no OOM induction |
+| T29 bounded normal/error records | `failover_maximum_normal_record_keeps_separate_phase_evidence_within_bound`; `failover_failure_and_startup_context_never_claim_selected_state` | Maximum 35-field normal output fits 4096 bytes; failure/startup traces omit selected pins and keep acquisition separate from service |
+| T29 defensive report accounting | `failover_inconsistent_internal_evidence_rejects_before_fields_are_written` | Invalid ordinals, prefix/count/last-error/phase relationships reject before trace fields are appended |
+| T29 completion uncertainty | `failover_context_survives_adoption_annotation_without_changing_old_defaults`; `malformed_failover_evidence_cannot_erase_possible_completion_or_old_diagnostics` | Annotation retains trace; malformed optional trace preserves original safe category/next/completion warning and old diagnostic bytes |
+| T01/T21 actual effect-free CLI | `all_required_options_and_bounded_peer_lists_fail_before_effects` | Real executable rejects list/option errors without touching paths or configured sockets |
+| T02/T28/T30 startup | `missing_pending_corrupt_mismatched_and_busy_state_refuse_every_peer` | Strict local refusal precedes every configured peer and bind; pending layouts are deliberate fixtures |
+| T18/T25/T26 three-node restart | `refused_first_then_real_seed_then_third_node_preserves_complete_restart_state`; `malformed_first_then_real_seed_then_third_node_preserves_complete_restart_state` | Real seed -> second-entry B3 -> requester, independent roots and explicit second cycle; complete reopened state and equal-account/different-membership fork |
+| T18/T26 first valid ends acquisition | `first_valid_identical_shorter_and_tied_history_ends_acquisition` | Kept-current valid histories still end acquisition; later held listener receives no contact; no best-peer claim |
+| T31/T32 permitted failures | `eligible_incomplete_trailing_invalid_block_and_missing_eof_sources_advance`; `received_wrong_network_advances_without_changing_independent_authority` | Representative actual malformed/terminal/deadline/wrong-network failures advance to a valid source without changing independent pins |
+| T21 fatal nested input | `excluded_nested_manifest_configuration_error_is_fatal_without_next_contact` | Unlisted nested configuration failure is operationally fatal despite being peer-triggerable |
+| T21/T32 exhaustion | `all_configured_peers_fail_without_serving_or_mutating_the_old_branch`; `one_attempt_preserves_the_received_error_and_leaves_later_entries_unattempted` | No serve-old fallback; actual error remains while terminal label distinguishes list/attempt exhaustion |
+| T21 last attempt and EOF | `successful_last_allowed_receive_adopts_without_binding_an_occupied_port`; `failed_exchange_bytes_and_terminal_eof_capacity_are_shared_with_the_next_peer` | Last allowed success adopts without bind; measured failed 84 bytes remain charged and exact response needs one spare EOF byte |
+| T21 positive insufficient remainder | `payload_that_exceeds_positive_remaining_wire_capacity_is_fatal_before_next_peer` | An 85-byte allowance with 84 consumed bytes cannot admit the response payload; no later contact |
+| T21/T29 phase accounting | `acquisition_and_service_errors_remain_separate_after_subsequent_success` | Earlier acquisition and service errors both survive later success; receive/service totals and completed/rejected counters agree |
+| T30/T32 signal plus failure | `failed_receive_under_sigint_or_sigterm_preserves_error_and_prevents_advancement`; `shutdown_during_receive_keeps_the_original_deadline_and_last_peer_untouched` | Actual child socket/FD/syscall observation precedes signal; failed receipt retains error and original deadline with no next contact |
+| T29/T32 stop after later receipt | `a_later_validated_receive_under_shutdown_discards_the_candidate_and_keeps_evidence` | After earlier failure, signal at actual EOF wait allows validation then discards candidate before adoption; ordinal/error trace remains |
+| T30 continuous ownership | `both_root_descriptors_remain_held_across_failed_receive_valid_receive_and_service` | Same two directory descriptors across observed phases; competing commands remain busy; finite observations do not sample every instruction |
+| T29 post-adoption bind | `post_adoption_bind_failure_preserves_the_candidate_and_all_acquisition_evidence` | Later bind error carries possible completion and trace; strict reopening sees candidate; retain-old does not reverse selection |
+| T29/T30 output lifetime | `closed_output_after_failover_reports_possible_completion_without_repeating_work`; `blocked_final_output_releases_listener_and_both_owners_after_failover` | Output loss preserves uncertainty; actual blocked stdout occurs after listener/owner release and fresh strict reopening |
+| T29/T30 forced termination | `forced_death_during_second_partial_receive_cannot_publish_candidate_or_contact_third` | SIGKILL during observed second partial receipt leaves old files/state unchanged, releases owners and never contacts third entry |
+
+### Shared evidence, preserved source and remaining limits
+
+The new suite observes acquisition phases through actual child endpoints/inodes,
+FDs and blocked syscalls; unused listeners remain alive until exit for no-contact
+assertions. Root descriptor identities are checked across both acquisition attempts
+and service, and the retained-owner source path is inspected separately.
+Fixed invalid-header accounting is exactly 72 request + 12 consumed header = 84
+bytes; offered response lengths are not assumed consumed bytes.
+
+The retained B2 `queued_sigterm_during_verified_live_adoption_finishes_adoption_without_binding`
+case exercises the shared post-receive routine, along with retained B2 idle/active
+service drain and no-rollback cases. These are prior test functions, not new B3
+counts or newly forced B3 adoption/service phases. Pre-first-request stop and
+the inter-request signal check retain source-level evidence. Constructed pending
+layouts remain distinct from actual SIGKILL; no test certifies an exact fsync
+boundary, physical power loss, hostile same-user races or untested filesystems.
+Process coverage is Linux IPv4; numeric IPv6 list handling has parser coverage.
+
+One invocation retains shared attempt/byte limits and original in-flight deadlines;
+the qualified network-phase ceiling is 360000 ms, not total runtime. Normal output
+has 32..35 fields with ordinal/prefix/failure identities in the contract. No raw
+peer disclosure, peer authentication, best-peer selection or global latestness
+claim follows. All 199 noncheckpoint files were frozen throughout implementation-source acceptance; 164 of 169
+retained paths are identical, with only five private command modules changed.
+Earlier tests/helpers, public APIs, dependencies, workflow, references, fixtures,
+wire/storage/hash encodings and all user-policy records remain preserved.
+
+The later checkpoint updates nine status/handoff records and clarifies only the
+contract's compatibility wording. Existing operational records are unchanged;
+help lists the new command and options. No runtime/test file changes, and the
+other 198 files frozen during source acceptance remain byte-identical.
+
+### Exact next increment
+
+**Next: MB-04B4 — bounded persistent-run lifecycle. READY — DESIGN FIRST.**
+
+Design a finite run mode that can repeat acquisition, keep/adopt and service
+rounds while retaining one controller, one sticky signal guard and one cumulative
+transport allowance. Choose the operator interface during that design; do not
+assume another rejoin-* command or change the accepted B3 command.
+
+Before implementation define explicit round and repeated-peer authorization,
+bounded inter-round waits, whole-invocation attempt/byte/time limits, first-valid
+ordering across rounds, all-peer-failure policy and shutdown at every phase.
+The existing private provider consumes/releases the controller, so specify an
+ownership-returning round boundary without dropping/reacquiring either root.
+Reacquisition pauses serving; no concurrent listener/request loop is implied.
+Repeatedly choosing a stale but valid first peer is possible and must not be
+described as convergence or global latestness.
+
+Once any round admits adoption, every later fatal error must retain truthful
+possible-completion context, even during a later receive or wait. Distinguish
+the initial checkpoint, each completed round and the final selected checkpoint;
+bound all reports and preserve resource release before output. Verify actual
+multiple rounds, whole-state reopening, cumulative exhaustion, ownership and
+shutdown before declaring that lifecycle implemented.
+
+B4 is planned only. Indefinite operation, discovery, parallel scheduling, pool,
+wallet and policy choices are not silently included. Full MB-04 and Gate A/B
+remain unfinished; all monetary, enrollment/device and accessibility decisions
+and proposals retain their existing gates.
