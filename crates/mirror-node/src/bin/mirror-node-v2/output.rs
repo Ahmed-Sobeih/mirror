@@ -107,7 +107,10 @@ pub fn diagnostic(
 pub fn help() -> Result<Output, fmt::Error> {
     let mut output = Output::base("help")?;
     for (key, value) in [
-        ("commands", "init,status,sync-once,recover,serve,help"),
+        (
+            "commands",
+            "init,status,sync-once,recover,serve,rejoin-serve,help",
+        ),
         (
             "common_options",
             "--control-dir DIR --store-dir DIR --config-hash HEX --genesis-hash HEX",
@@ -148,6 +151,22 @@ pub fn help() -> Result<Output, fmt::Error> {
         (
             "serve_shutdown",
             "Linux SIGINT/SIGTERM stops admission; active session drains its original timeout",
+        ),
+        (
+            "rejoin_serve_options",
+            "--peer ADDRESS plus every serve option; one shared attempt and byte allowance",
+        ),
+        (
+            "rejoin_serve_scope",
+            "one complete receive, admitted durable keep/adopt, then finite service of the selected history",
+        ),
+        (
+            "rejoin_serve_shutdown",
+            "stop before adoption discards receipt; admitted adoption completes or fails; no automatic retry",
+        ),
+        (
+            "rejoin_serve_timing",
+            "receive timeout plus service admission window plus at most one final session timeout; local work/output excluded",
         ),
         (
             "admission_ms_range",

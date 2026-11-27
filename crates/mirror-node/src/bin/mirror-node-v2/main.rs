@@ -5,6 +5,7 @@ mod args;
 mod errors;
 mod output;
 mod provider;
+mod rejoin;
 mod signals;
 
 use std::{
@@ -44,6 +45,7 @@ fn main() -> ExitCode {
         Command::Status(_) => ("status", false),
         Command::Sync { .. } => ("sync-once", true),
         Command::Serve { .. } => ("serve", true),
+        Command::RejoinServe { .. } => ("rejoin-serve", true),
         Command::Recover { .. } => ("recover", true),
     };
     match execute(command) {
@@ -63,7 +65,9 @@ fn main() -> ExitCode {
             }
         }
         Err(failure) => {
-            let uncertain = (failure.class == "output_limit").then_some(may_have_effects);
+            let uncertain = failure
+                .may_have_completed
+                .or_else(|| (failure.class == "output_limit").then_some(may_have_effects));
             emit_diagnostic(output::diagnostic(
                 operation,
                 failure.class,
@@ -170,6 +174,47 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
             output.field("rejected_sessions", report.rejected)?;
             output.field("wire_bytes", report.stats.wire_bytes)?;
             output.field("last_session_error", report.last_session_error)?;
+            Ok((output, 0))
+        }
+        Command::RejoinServe {
+            common,
+            peer,
+            listen,
+            limits,
+            admission,
+        } => {
+            // The finite lifecycle owns all resources. Its return releases them
+            // before any formatting or output, including a blocked stdout.
+            let report = rejoin::run(&common, peer, listen, limits, admission)?;
+            let mut output = Output::state("rejoin-serve", "stopped", common.identity, "verified")?;
+            output.checkpoint("previous", report.previous)?;
+            output.checkpoint("selected", report.service.checkpoint)?;
+            output.field(
+                "receive_status",
+                if report.receive.attempts == 0 {
+                    "not-started"
+                } else {
+                    "validated"
+                },
+            )?;
+            output.field(
+                "choice",
+                match report.choice {
+                    None => "not-attempted",
+                    Some(ForkChoiceV2::KeepCurrent) => "keep-current",
+                    Some(ForkChoiceV2::PreferCandidate) => "prefer-candidate",
+                },
+            )?;
+            output.field("reason", report.service.reason)?;
+            output.field("attempts", report.service.stats.attempts)?;
+            output.field("receive_attempts", report.receive.attempts)?;
+            output.field("serve_attempts", report.serve_stats.attempts)?;
+            output.field("completed_sessions", report.service.completed)?;
+            output.field("rejected_sessions", report.service.rejected)?;
+            output.field("wire_bytes", report.service.stats.wire_bytes)?;
+            output.field("receive_wire_bytes", report.receive.wire_bytes)?;
+            output.field("serve_wire_bytes", report.serve_stats.wire_bytes)?;
+            output.field("last_session_error", report.service.last_session_error)?;
             Ok((output, 0))
         }
         Command::Recover { common, action } => {

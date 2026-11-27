@@ -4,7 +4,9 @@ Initial surface: **MB-04A2**, the separate `mirror-node-v2` executable.
 This contract specifies the original commands and their boundaries. The
 **MB-04B1 `serve` extension** has its separate
 [provider lifecycle and shutdown contract](NODE_PROVIDER_V2.md), summarized in
-section 9 below. Executed tests and
+section 9 below. The **MB-04B2 `rejoin-serve` extension** has its separate
+[finite coordination contract](NODE_REJOIN_V2.md), summarized in section 10.
+Executed tests and
 exact source/CI acceptance belong to [CURRENT_STATUS.md](../CURRENT_STATUS.md)
 and the [master plan](../MASTER_PLAN.md).
 
@@ -265,7 +267,8 @@ observed physical interruption. A1's existing actual process-termination evidenc
 remains separately recorded in [NODE_CONTROL_V2.md](NODE_CONTROL_V2.md).
 
 These commands remain a finite development component. MB-04B1 adds the bounded
-fixed-history provider described below. Fresh-store distribution, indefinitely
+fixed-history provider described below; MB-04B2 composes one explicit peer receive,
+keep/adopt and subsequent finite serving. Fresh-store distribution, indefinitely
 persistent serving, reconnect/rejoin scheduling, broader admission/multi-peer
 policy, transaction pool, wallet/signer and final human consensus are separate
 work. The unchanged local operator/filesystem assumptions remain material; this
@@ -303,3 +306,49 @@ the provider lifecycle itself fail. Exit 0 means a normal stop, not proof of rem
 adoption; fatal startup/listener/local/history/output failure exits 1, usage exits 2.
 The [complete provider contract](NODE_PROVIDER_V2.md) defines ordering, shutdown
 races, exact limits, source/dependency exceptions and process acceptance.
+
+## 10. MB-04B2 `rejoin-serve`: one receive, keep/adopt and finite service
+
+Require the four common path/network options plus all six coordination options:
+
+```text
+rejoin-serve --peer ADDRESS --listen ADDRESS --max-attempts UINT
+             --max-io-bytes UINT --timeout-ms UINT --admission-ms UINT
+```
+
+Both addresses are numeric with nonzero ports. The existing 1..8 total attempts,
+1..157129488 actual application bytes and 1..60000-ms timeout/admission bounds
+remain, as do the original parser count/byte limits and validation before effects.
+The receive consumes the first attempt and shares every byte charge with later
+service. A valid `--max-attempts 1` can complete keep/adopt and stop at the attempt
+limit without binding or serving; no phase replenishes allowance.
+
+Install one sticky signal guard, strictly open clean A1 control before source
+contact, receive at most one fully validated candidate, and use existing A1
+keep/adopt. Retain `outcome.into_control()` through service and pass the same F2
+owner and signal guard into the private provider loop. Missing, pending, corrupt,
+wrong-network or busy state fails before connection or bind. Receive failure
+returns operational failure without serving the old branch as a fallback.
+
+A stop observed before the request prevents it. A stop during an admitted receive
+does not renew or cancel its original F2 deadline. After successful receipt, check
+stop before admitting adoption; an observed stop discards the candidate and
+preserves the old selection. Once adoption is admitted, unchanged A1 durable work
+finishes or fails before shutdown is honored. Later service retains B1's drain
+rules. The service admission window starts after keep/adopt.
+
+After resource release, the normal record identifies previous/selected local
+checkpoints, receive status, actual choice, stop reason and separate receive,
+service and total counters. Completed plus rejected service sessions equals
+`serve_attempts`; adding `receive_attempts` yields total `attempts`. Phase byte
+counts sum to total `wire_bytes`. Local generations are not imported from peers.
+The complete 26-field record and counter rules are in
+[NODE_REJOIN_V2.md](NODE_REJOIN_V2.md).
+
+Adoption errors and later fatal bind, listener, service or output errors carry
+conservative `operation_may_have_completed=true` and `next=inspect-status`.
+An adoption error returns no writer and makes no selected-state assertion.
+Inspection and any permitted recovery remain explicit; a lost final report never
+authorizes another receive or repeated adoption. Normal shutdown/limits exit 0,
+operational/output failure exits 1 and invalid input exits 2. Existing commands
+retain their original diagnostic and exit behavior.

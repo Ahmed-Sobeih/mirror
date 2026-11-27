@@ -15,6 +15,11 @@ compose it in MB-04A2. The separate [MB-04B1 finite provider](NODE_PROVIDER_V2.m
 retains one ready controller and fixed accepted history through bounded serving
 and explicit shutdown. A1 itself remains the same local control library.
 
+The separate [MB-04B2 rejoin-and-serve contract](NODE_REJOIN_V2.md) combines one
+explicit peer receive, this existing consuming keep/adopt operation and serving
+under the returned controller. It changes no A1 public API, durable record,
+ownership, publication or recovery rule; section 9 records that composition boundary.
+
 ## 1. Trust and ownership
 
 Every entry point receives independently selected `ManifestIdentityV2`: the full
@@ -337,3 +342,27 @@ their own [contract](NODE_OPERATOR_V2.md); A1's library and finite harness remai
 their foundation.
 Persistent serving, reconnect/rejoin scheduling, multi-peer policy, transaction
 pool, wallet and final human consensus remain later work.
+
+## 9. MB-04B2 composition retains A1 ownership and durable semantics
+
+After one complete F2 receive, `rejoin-serve` calls `ready.adopt(received)` only
+if its final pre-adoption stop check permits that operation. It copies the
+`NodeAdoptionOutcomeV2::report()` and retains `into_control()` directly for finite
+serving. Both ready outcomes remain whole-branch choices under the same directory
+owners; no release/reopen, raw-writer extraction or selected-history refresh is
+introduced. Previous/selected generations remain local replacement history,
+independent of another node's generation.
+
+A stop observed before adoption discards the received candidate without entering
+A1 adoption. Once admitted, adoption follows the unchanged intent, store,
+confirmation and retirement ordering; B2 adds no cancellation checks inside that
+durable operation. A subsequent stop is honored after A1 returns. Any adoption
+failure still consumes the owner and returns no ordinary controller.
+
+B2 must report possible completion on adoption failure or later fatal bind,
+service or output failure, even though the complete command did not reach its
+normal result. It must not infer rollback, claim that every error leaves pending
+intent, or automatically reopen/recover after failure. Fresh status and any
+explicitly requested recovery retain all existing validation and no-rollback rules.
+Command-level signal observations and A1's retained exact publication-boundary
+process tests remain distinct evidence; neither changes this library's authority.

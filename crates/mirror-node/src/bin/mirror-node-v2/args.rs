@@ -37,6 +37,13 @@ pub enum Command {
         limits: SessionLimitsV2,
         admission: Duration,
     },
+    RejoinServe {
+        common: Common,
+        peer: SocketAddr,
+        listen: SocketAddr,
+        limits: SessionLimitsV2,
+        admission: Duration,
+    },
     Recover {
         common: Common,
         action: ReplacementRecoveryActionV2,
@@ -102,6 +109,7 @@ enum Kind {
     Status,
     Sync,
     Serve,
+    RejoinServe,
     Recover,
 }
 
@@ -138,6 +146,7 @@ fn required(kind: Kind) -> u16 {
                     | (1 << TIMEOUT)
                     | (1 << ADMISSION)
             }
+            Kind::RejoinServe => required(Kind::Serve) | (1 << PEER),
             Kind::Recover => 1 << ACTION,
         }
 }
@@ -203,6 +212,7 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         "status" => Kind::Status,
         "sync-once" => Kind::Sync,
         "serve" => Kind::Serve,
+        "rejoin-serve" => Kind::RejoinServe,
         "recover" => Kind::Recover,
         _ => return Err(UsageError::UnknownCommand),
     };
@@ -295,7 +305,7 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
                 limits,
             }
         }
-        Kind::Serve => {
+        Kind::Serve | Kind::RejoinServe => {
             let listen: SocketAddr = value(LISTEN)?
                 .parse()
                 .map_err(|_| UsageError::InvalidListen)?;
@@ -312,11 +322,26 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
             }
             let limits = SessionLimitsV2::new(attempts, allowance, Duration::from_millis(timeout))
                 .map_err(|_| UsageError::OutOfRange)?;
-            Command::Serve {
-                common,
-                listen,
-                limits,
-                admission: Duration::from_millis(admission),
+            let admission = Duration::from_millis(admission);
+            if matches!(kind, Kind::RejoinServe) {
+                let peer: SocketAddr = value(PEER)?.parse().map_err(|_| UsageError::InvalidPeer)?;
+                if peer.port() == 0 {
+                    return Err(UsageError::InvalidPeer);
+                }
+                Command::RejoinServe {
+                    common,
+                    peer,
+                    listen,
+                    limits,
+                    admission,
+                }
+            } else {
+                Command::Serve {
+                    common,
+                    listen,
+                    limits,
+                    admission,
+                }
             }
         }
         Kind::Recover => {
@@ -429,6 +454,12 @@ mod tests {
             "--admission-ms".into(),
             "3000".into(),
         ]);
+        values
+    }
+    fn rejoin() -> Vec<String> {
+        let mut values = serve();
+        values[0] = "rejoin-serve".into();
+        values.extend(["--peer".into(), "127.0.0.1:9001".into()]);
         values
     }
     fn parsed(values: Vec<String>) -> Result<Command, UsageError> {
@@ -573,6 +604,130 @@ mod tests {
             values.extend([flag.into(), value.into()]);
             assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
         }
+    }
+
+    #[test]
+    fn rejoin_requires_every_explicit_input_and_rejects_duplicates() {
+        let full = rejoin();
+        assert_eq!(full.len(), 21);
+        for start in (1..full.len()).step_by(2) {
+            let mut missing = full.clone();
+            missing.drain(start..start + 2);
+            assert_eq!(parsed(missing), Err(UsageError::MissingOption));
+            let mut duplicate = full.clone();
+            duplicate.extend([full[start].clone(), full[start + 1].clone()]);
+            assert_eq!(parsed(duplicate), Err(UsageError::DuplicateOption));
+        }
+    }
+
+    #[test]
+    fn rejoin_preserves_identity_and_all_limits_including_one_attempt() {
+        for (address, attempts, allowance, timeout, admission) in [
+            ("127.0.0.1:1", 1, 1, 1, 1),
+            ("[::1]:65535", 8, MAX_SESSION_WIRE_BYTES_V2, 60_000, 60_000),
+        ] {
+            let mut values = rejoin();
+            for (flag, value) in [
+                ("--peer", address.to_string()),
+                ("--listen", address.to_string()),
+                ("--max-attempts", attempts.to_string()),
+                ("--max-io-bytes", allowance.to_string()),
+                ("--timeout-ms", timeout.to_string()),
+                ("--admission-ms", admission.to_string()),
+            ] {
+                change(&mut values, flag, &value);
+            }
+            let Command::RejoinServe {
+                common,
+                peer,
+                listen,
+                limits,
+                admission: window,
+            } = parsed(values).unwrap()
+            else {
+                panic!("wrong command");
+            };
+            assert_eq!(common.identity.config_hash.to_hex(), "ab".repeat(32));
+            assert_eq!(common.identity.genesis_hash.to_hex(), "cd".repeat(32));
+            assert_eq!(peer, address.parse::<SocketAddr>().unwrap());
+            assert_eq!(listen, peer);
+            assert_eq!(limits.max_attempts(), attempts);
+            assert_eq!(limits.max_wire_bytes(), allowance);
+            assert_eq!(limits.timeout(), Duration::from_millis(timeout));
+            assert_eq!(window, Duration::from_millis(admission));
+        }
+    }
+
+    #[test]
+    fn rejoin_rejects_zero_and_excessive_limits_before_effects() {
+        for (flag, value) in [
+            ("--max-attempts", "0"),
+            ("--max-attempts", "9"),
+            ("--max-attempts", "256"),
+            ("--max-io-bytes", "0"),
+            ("--max-io-bytes", "157129489"),
+            ("--timeout-ms", "0"),
+            ("--timeout-ms", "60001"),
+            ("--admission-ms", "0"),
+            ("--admission-ms", "60001"),
+        ] {
+            let mut values = rejoin();
+            change(&mut values, flag, value);
+            assert_eq!(parsed(values), Err(UsageError::OutOfRange));
+        }
+    }
+
+    #[test]
+    fn rejoin_rejects_noncanonical_limits() {
+        for flag in [
+            "--max-attempts",
+            "--max-io-bytes",
+            "--timeout-ms",
+            "--admission-ms",
+        ] {
+            for value in ["", "01", "+1", "-1", "1.0", " 1", "18446744073709551616"] {
+                let mut values = rejoin();
+                change(&mut values, flag, value);
+                assert_eq!(parsed(values), Err(UsageError::InvalidNumber));
+            }
+        }
+    }
+
+    #[test]
+    fn rejoin_requires_both_numeric_nonzero_addresses() {
+        for (flag, error) in [
+            ("--peer", UsageError::InvalidPeer),
+            ("--listen", UsageError::InvalidListen),
+        ] {
+            for address in [
+                "localhost:9000",
+                "127.0.0.1:0",
+                "[::1]:0",
+                "127.0.0.1:65536",
+                "127.0.0.1",
+                "",
+            ] {
+                let mut values = rejoin();
+                change(&mut values, flag, address);
+                assert_eq!(parsed(values), Err(error));
+            }
+        }
+    }
+
+    #[test]
+    fn rejoin_does_not_accept_initialization_or_recovery_options() {
+        for (flag, value) in [
+            ("--action", "complete"),
+            ("--generation", "0"),
+            ("--height", "0"),
+        ] {
+            let mut values = rejoin();
+            values.extend([flag.into(), value.into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+        }
+        let mut values = rejoin();
+        values.push("--attach-existing".into());
+        assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
     }
 
     #[test]

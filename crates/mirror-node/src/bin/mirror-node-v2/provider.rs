@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use mirror_chain::v2::ManifestIdentityV2;
 use mirror_network::v2::session::{
     PeerSessionsV2, SessionErrorV2, SessionLimitsV2, SessionStatsV2,
 };
@@ -19,6 +20,8 @@ use super::{args::Common, errors::Failure, signals::Signals};
 pub(super) struct Report {
     pub checkpoint: ReplacementCheckpointV2,
     pub reason: &'static str,
+    // Cumulative owner counters may include a preceding rejoin receive;
+    // completed/rejected below count only this serving phase.
     pub stats: SessionStatsV2,
     pub completed: u8,
     pub rejected: u8,
@@ -35,18 +38,44 @@ pub(super) fn run(
     // The guard restores prior dispositions after all owned resources drop.
     let signals = Signals::install()?;
     let ready = NodeControlV2::open_writer(&common.control, &common.store, common.identity)?;
-    let checkpoint = ready.checkpoint();
     let mut sessions = PeerSessionsV2::new(limits);
+    serve_ready(
+        ready,
+        common.identity,
+        listen,
+        admission,
+        &mut sessions,
+        &signals,
+    )
+}
+
+/// Serve the already selected history without reopening ownership, reinstalling
+/// signals or replenishing the invocation's cumulative transport allowance.
+pub(super) fn serve_ready(
+    ready: NodeControlV2,
+    identity: ManifestIdentityV2,
+    listen: SocketAddr,
+    admission: Duration,
+    sessions: &mut PeerSessionsV2,
+    signals: &Signals,
+) -> Result<Report, Failure> {
+    let checkpoint = ready.checkpoint();
     let mut completed = 0;
     let mut rejected = 0;
     let mut last_session_error = "none";
 
-    // Opening/replay is separate from the finite admission window. A stop
-    // delivered during opening is honored before binding any listening socket.
-    if signals.requested() {
+    // Opening/rejoin is separate from the finite service admission window.
+    // Resolve shutdown and any already spent allowance before starting that
+    // clock or binding: a last-attempt receive may still have adopted safely.
+    let before_window = if signals.requested() {
+        Some("shutdown")
+    } else {
+        budget_stop_reason(sessions)
+    };
+    if let Some(reason) = before_window {
         return Ok(Report {
             checkpoint,
-            reason: "shutdown",
+            reason,
             stats: sessions.stats(),
             completed,
             rejected,
@@ -62,7 +91,7 @@ pub(super) fn run(
         .map_err(|_| Failure::new("listen_io"))?;
 
     let reason = loop {
-        if let Some(reason) = stop_reason(signals.requested(), Instant::now(), end, &sessions) {
+        if let Some(reason) = stop_reason(signals.requested(), Instant::now(), end, sessions) {
             break reason;
         }
         let stream = match listener.accept() {
@@ -88,9 +117,9 @@ pub(super) fn run(
         // No other accept can run while this consuming call is active. Its
         // original absolute timeout is never refreshed by a signal or by the
         // admission deadline. At most one admitted connection drains afterward.
-        // A1 already established ready.chain().identity() == common.identity;
+        // A1 already established ready.chain().identity() == identity;
         // a WrongNetwork result here therefore concerns the untrusted request.
-        match sessions.serve_connection(stream, common.identity, ready.chain()) {
+        match sessions.serve_connection(stream, identity, ready.chain()) {
             Ok(_) => completed += 1,
             Err(error) => {
                 if matches!(
@@ -123,7 +152,6 @@ pub(super) fn run(
     // A1 itself drops store ownership before control ownership.
     drop(listener);
     drop(ready);
-    drop(signals);
     Ok(report)
 }
 
@@ -133,13 +161,19 @@ fn stop_reason(
     end: Instant,
     sessions: &PeerSessionsV2,
 ) -> Option<&'static str> {
-    let stats = sessions.stats();
-    let limits = sessions.limits();
     if shutdown {
         Some("shutdown")
     } else if now >= end {
         Some("admission-timeout")
-    } else if stats.wire_bytes >= limits.max_wire_bytes() {
+    } else {
+        budget_stop_reason(sessions)
+    }
+}
+
+fn budget_stop_reason(sessions: &PeerSessionsV2) -> Option<&'static str> {
+    let stats = sessions.stats();
+    let limits = sessions.limits();
+    if stats.wire_bytes >= limits.max_wire_bytes() {
         Some("wire-limit")
     } else if stats.attempts >= limits.max_attempts() {
         Some("attempt-limit")

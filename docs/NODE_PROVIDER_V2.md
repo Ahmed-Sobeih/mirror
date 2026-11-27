@@ -13,6 +13,12 @@ retained [A1 controller](NODE_CONTROL_V2.md) and one cumulative
 a finite admission window and graceful shutdown. It is not a background daemon,
 live synchronization scheduler, transaction pool or wallet.
 
+The separate [MB-04B2 rejoin-and-serve contract](NODE_REJOIN_V2.md) composes one
+receive and existing A1 keep/adopt before this serving phase. Its private loop
+integration retains the returned controller, the original sticky signal guard
+and one cumulative transport owner. This document continues to specify the
+standalone `serve` command; its fields, limits and shutdown behavior remain.
+
 ## 1. Explicit invocation and limits
 
 Every value below is supplied deliberately; the angle-bracket text describes
@@ -157,8 +163,10 @@ tests and semantics, A1/store/consensus behavior and protocol/storage/hash forma
 Linux `SIGINT` and `SIGTERM` request graceful shutdown. The handler only sets a
 sticky atomic flag: it does not allocate, format output, perform filesystem or
 socket I/O, lock a mutex, choose recovery or exit from inside the handler. The
-flag is not cleared during the lifecycle. Signal setup is scoped to `serve`, after
-valid parsing; standalone help and the existing commands keep their prior behavior.
+flag is not cleared during the lifecycle. For standalone `serve`, signal setup
+occurs after valid parsing; standalone help and the A2 commands keep their prior
+behavior. B2's separately specified composition installs the same mechanism once
+for its whole receive/adopt/serve invocation.
 
 When idle, the next bounded admission check observes shutdown and closes the
 listener. A stream accepted during a shutdown/time race is discarded by the
@@ -335,3 +343,23 @@ monetary rule, founder privilege, issuance, biometric archive, real private key
 or device purchase is introduced. Full MB-04, complete Ant Kiss, final human
 consensus and Gate A/B acceptance remain separate unfinished work. Passing this
 finite component is not a mainnet, external-audit or physical power-loss claim.
+
+## 10. MB-04B2 reuse of the private serving loop
+
+`rejoin-serve` passes the ready controller returned by A1 adoption, its already
+charged `PeerSessionsV2` and its existing signal guard into the private serving
+loop. It does not invoke standalone `serve` setup, reopen ownership, clear a stop
+request or construct another transport owner. The supplied controller determines
+one fixed complete history throughout that phase.
+
+B2 checks shutdown and remaining total budgets before binding. Its initial
+receive counts toward the same 1..8 attempt allowance; an exhausted allowance can
+end normally without a listener. B2 starts the service admission window only
+after keep/adopt, preserves the unchanged admission and final-drain rules, and
+separates receive and service counters in its own final record. Standalone `serve`
+retains its existing completed-plus-rejected-equals-attempts meaning.
+
+The [B2 contract](NODE_REJOIN_V2.md) additionally requires possible-completion
+context for adoption and later fatal bind/service/output failures. That context
+does not change B1's peer-rejection classification, resource release before output
+or original session deadlines, and does not add cancellation inside A1 adoption.

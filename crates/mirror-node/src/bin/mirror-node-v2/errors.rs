@@ -13,6 +13,7 @@ use mirror_storage::v2::{
 pub struct Failure {
     pub class: &'static str,
     pub next: &'static str,
+    pub may_have_completed: Option<bool>,
 }
 
 impl Failure {
@@ -36,7 +37,19 @@ impl Failure {
             | "unsupported_platform" => "verify-inputs",
             _ => "inspect-status",
         };
-        Self { class, next }
+        Self {
+            class,
+            next,
+            may_have_completed: None,
+        }
+    }
+
+    /// Once durable adoption is admitted, a later failure cannot imply rollback
+    /// or that repeating the command is safe. Keep the original error class.
+    pub(super) fn after_adoption(mut self) -> Self {
+        self.may_have_completed = Some(true);
+        self.next = "inspect-status";
+        self
     }
 }
 
@@ -259,5 +272,38 @@ mod tests {
         ] {
             assert_eq!(Failure::from(error).class, class);
         }
+    }
+
+    #[test]
+    fn adoption_context_preserves_error_class_and_requires_inspection() {
+        for class in [
+            "listen_bind",
+            "lifecycle_limit",
+            "control_io",
+            "recovery_required",
+        ] {
+            let before = Failure::new(class);
+            assert_eq!(before.may_have_completed, None);
+            let after = before.after_adoption();
+            assert_eq!(after.class, class);
+            assert_eq!(after.next, "inspect-status");
+            let mut bytes = Vec::new();
+            crate::output::diagnostic(
+                "rejoin-serve",
+                after.class,
+                after.next,
+                None,
+                after.may_have_completed,
+            )
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+            let text = String::from_utf8(bytes).unwrap();
+            assert!(text.contains("operation_may_have_completed=true\n"));
+            assert!(!text.contains("selected_"));
+            assert!(!text.contains("status=clean"));
+        }
+        assert_eq!(Failure::new("listen_bind").next, "verify-inputs");
+        assert_eq!(Failure::new("recovery_required").next, "explicit-recover");
     }
 }
