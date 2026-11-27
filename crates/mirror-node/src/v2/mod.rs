@@ -11,6 +11,7 @@ mod control_failure_tests;
 #[cfg(test)]
 mod control_process_tests;
 mod files;
+pub mod pool;
 pub mod records;
 
 use std::{
