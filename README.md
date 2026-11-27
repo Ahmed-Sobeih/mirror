@@ -39,14 +39,17 @@ session owner, with explicit attempt/byte/admission limits and SIGINT/SIGTERM.
 existing durable keep/adopt, then service under the same controller, signal
 guard and cumulative transport allowance. **MB-04B3 adds bounded explicit-peer
 failover**: one-to-four ordered sources, a closed typed failure policy and the
-first validated candidate entering the same keep/adopt/service path.
+first validated candidate entering the same keep/adopt/service path. **MB-04B4
+adds finite `run` coordination**: up to four explicitly authorized rounds
+retain the same roots, signal guard and cumulative allowance through bounded
+waits, while preserving completion uncertainty across later errors.
 Current source, required-gate and CI acceptance are recorded separately
 in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
 
-Next is **MB-04B4: bounded persistent-run lifecycle**, beginning with a design
-for explicit repeated rounds, retained control, waits and cumulative limits.
-Discovery, indefinite operation, concurrent scheduling, transaction pool and
-wallet remain later work. **MB-04 remains IN_PROGRESS; Gate A/B are unmet.**
+Next is **MB-04C1: a bounded local pending-operation pool**, beginning with
+design for admission, full ordered execution, conflicts and revalidation after
+selection changes. Discovery, indefinite operation, parallel scheduling, wallet
+and wider operator APIs remain unfinished. **MB-04 remains IN_PROGRESS; Gate A/B are unmet.**
 The existing V1 executable remains separate.
 
 [Device input contract](docs/DEVICE_INPUT_CONTRACT.md) is a draft compatibility
@@ -403,9 +406,104 @@ same 1..8 attempts and actual-byte allowance. No validated candidate means no
 serve-old fallback. Per-entry output uses ordinals and static categories, never
 raw addresses. Existing `rejoin-serve` remains a one-source command.
 
+### Repeating explicitly bounded rounds
+
+Use `run` with all common and `serve` options, an ordered `--peers` list,
+`--max-rounds 1..4` and `--round-wait-ms 0..60000`. All twelve options are
+required; see the [complete run contract](docs/NODE_RUN_V2.md). The limits
+apply to the whole invocation: later rounds do not replenish attempts or bytes.
+
+Each round starts at the first configured peer and stops acquiring at its first
+validated history, even if stale. Successful keep/adopt and finite service may
+be followed by an explicit wait and another round. All-peer/fatal failure ends
+the invocation. Shutdown prevents new work while admitted operations finish
+under their existing rules. A later error after any admitted keep/adopt reports
+possible completion and directs status inspection. No automatic recovery or
+convergence guarantee is added. Initial, per-round and final checkpoints fit
+one bounded record emitted only after all ownership has been released.
+
 ## Verification checkpoints
 
-### Current MB-04B3 failover checkpoint
+### Current MB-04B4 run checkpoint
+
+Checkpoint **MIRROR-MB04B4-001**. Master-plan section 32 and
+[test-matrix section 24](docs/MEMBERSHIP_TEST_MATRIX.md#24-mb-04b4-bounded-persistent-run-lifecycle)
+record the scope and exact acceptance.
+
+Implementation source: **e768268fae2e4c5c9980cc74dc7a9973da56849c**.
+Tested source tree: **daff130cc7652ea0946106f46a600c54671ecf18**.
+Parent checkpoint: **e421494a5a2ba28992ad581af4067618c38c0dae**.
+[Source PR CI 45941543950](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45941543950)
+passed all **43 steps**. Full job `140316760168` logs confirm **1,281 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`e51ff7da8385981dd9d94e4329ed35861f2dc31f` has no file differences from the implementation source.
+All **16 published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **203 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed with **203 frozen noncheckpoint files unchanged**:
+
+- **1,281 runtime tests**, zero failures: 1,242 retained plus **39 new** — six
+  parser, five output, one failure-context, one diagnostic-fallback, seven lifecycle
+  unit tests and **19 actual-process tests**. Parameterized cases, subprocesses and
+  release reruns are not additional unique test functions.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers are exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **262+1**. All **twelve references** and **sixteen examples** passed.
+- The focused first execution passed **82 binary tests and all 19 new process
+  tests**. Scoped formatting, whitespace and allocation/runtime-data checks passed.
+
+Actual processes cover two preferred adoptions under unchanged root descriptors,
+complete reopened history/accounts/membership/counters, three real executables and
+an explicit restart, repeated stale first-valid selection, and actual four-round
+execution with one eight-attempt allowance. A three-round sequence with earlier
+failed-peer and rejected-service attempts, ending in clean receipt/service, proves
+earlier errors remain visible and peer ordinals restart independently of prior usage.
+
+The suite exercises first/later all-peer or fatal refusal, keep-current followed
+by a later fatal error, cumulative receive/service bytes and terminal-EOF exhaustion,
+observed inter-round waits under SIGINT/SIGTERM, later validated-candidate discard,
+original-deadline failure, later active-service drain, second-adoption bind failure,
+closed/blocked final stdout, and SIGKILL during a later partial receive. A live
+second-adoption SIGTERM case observes and verifies the actual A1 intent before
+queuing shutdown; the admitted operation finishes without binding afterward.
+
+Linux observations identify owned directory descriptors and relevant socket/blocked
+syscall or verified intent phases. Busy competing commands and unused listeners
+check retained ownership and absence of later contact. Conservative independent-
+value output envelopes format to exactly **3918** and **3529 bytes**; these are
+synthetic width bounds, not simultaneously reachable runtime counter combinations.
+Validated normal records and additive help stay within the unchanged 4096-byte cap.
+
+Tests use Linux IPv4; numeric IPv6 parsing is separate CLI evidence. Pre-first-round
+and narrow between-request signal races retain source-level coverage. New SIGKILL
+evidence concerns a later partial receive, not forced death at every A1/fsync or
+service boundary. Process death and replay do not prove physical power-loss safety.
+No production test hook, induced OOM, hidden retry or untested-filesystem guarantee
+is introduced. First-valid repeated rounds do not prove convergence or latestness.
+
+**164 of 172 retained source/dependency/workflow/reference/fixture paths remain
+byte-identical.** Seven existing private command modules change intentionally:
+args, errors, failover, main, output, provider and rejoin. The sole retained test
+helper change appends an observed-wait method; all previous helper bytes remain an
+exact prefix. All **62 earlier private unit-test bodies** and every other retained
+test/helper file remain byte-identical. Four new files add the coordinator,
+process suite/helper and contract; four existing command contracts gain additive
+cross-references. Public/lower-layer/V1/A1/F2/storage/consensus/monetary source,
+Cargo manifests/lockfile, reference tools, frozen fixtures, workflow commands and
+the 20-minute CI budget remain unchanged. No wire, storage or hash encoding,
+enrollment/device or monetary policy changed.
+
+### Historical MB-04B3 failover checkpoint
 
 Checkpoint **MIRROR-MB04B3-001**. Master-plan section 31 and
 [test-matrix section 23](docs/MEMBERSHIP_TEST_MATRIX.md#23-mb-04b3-bounded-explicit-peer-failover)

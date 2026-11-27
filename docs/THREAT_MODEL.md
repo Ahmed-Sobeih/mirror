@@ -1,9 +1,9 @@
 # Mirror membership integration threat model
 
 Historical design checkpoint: **MIRROR-MB01A-001**. Scope: MB-01A source review
-and V2 design. Current implementation: **MB-04B3 bounded explicit-peer failover**,
-with source, focused results and exact acceptance recorded in the B3 update below.
-B2's accepted rejoin composition, B1's provider, A1's durable control/restart
+and V2 design. Current implementation: **MB-04B4 bounded persistent-run lifecycle**,
+with source, focused results and exact acceptance recorded in the B4 update below.
+B3's failover, B2's rejoin, B1's provider, A1's durable control/restart
 authority and A2's finite commands remain recorded separately. Exact acceptance evidence is
 tracked in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MASTER_PLAN.md](../MASTER_PLAN.md).
@@ -17,7 +17,7 @@ merely because a mitigation is documented. At the original design checkpoint,
 no V2 acceptance test had run.
 
 The preceding sentence describes the original design checkpoint. Current B1–B4,
-MB-02A/B/C, MB-03A/B/C/D/E1/E2a/E2b/F1/F2 and MB-04A1/A2/B1/B2 acceptance evidence
+MB-02A/B/C, MB-03A/B/C/D/E1/E2a/E2b/F1/F2 and MB-04A1/A2/B1/B2/B3/B4 acceptance evidence
 are in [CURRENT_STATUS.md](../CURRENT_STATUS.md) and
 [MEMBERSHIP_TEST_MATRIX.md](MEMBERSHIP_TEST_MATRIX.md). The updates below record
 component-level mitigations without rewriting historical findings. Actual V2
@@ -45,12 +45,13 @@ accepted history, held controller, listener and cumulative F2 owner, explicit
 admission limits and SIGINT/SIGTERM draining shutdown. Its scope and evidence are
 recorded in the B1 update below. B2 composes one receive, keep/adopt and fixed-history
 serving. B3 adds a capped ordered acquisition prefix and closed typed advancement
-policy before that shared path. Earlier continuation paragraphs describe their
-historical checkpoints. **Next is MB-04B4: bounded persistent-run lifecycle,
-design first.** Arbitrary corruption repair, repeated-peer reconnect, broader
-persistent scheduling, transaction pool, wallet and human
-finality remain unfinished. MB-04 is IN_PROGRESS and Gate A/B remain unmet; exact
-source and later documentation-head CI are tracked separately.
+policy. B4 repeats that finite path under explicit round/wait limits while retaining
+one controller and cumulative transport allowance. Its source and acceptance
+evidence are recorded below; earlier continuation paragraphs are historical.
+The exact current continuation appears in the B4 update. Arbitrary corruption
+repair, indefinite reconnect, broader scheduling, pool, wallet and human finality
+remain unfinished. MB-04 is IN_PROGRESS and Gate A/B remain unmet; exact source
+and later documentation-head CI are tracked separately.
 
 ## Historical B3 implementation update
 
@@ -965,11 +966,10 @@ outside the strict store root before mutation. **MB-04A2 adds finite V2 operator
 commands** for attachment-only init, read-only status, one sync attempt and explicit
 recovery. **MB-04B1 adds finite fixed-history serving and draining shutdown** under
 one retained controller and one cumulative F2 owner. B2's receive/adopt/serve
-composition and B3's bounded explicit-peer acquisition appear in their updates
-below with separate source and acceptance evidence.
-**Next is MB-04B4 bounded persistent-run lifecycle, design first.**
-Arbitrary corruption repair, repeated-peer reconnect, broader persistent
-scheduling, transaction pool, wallet,
+composition, B3's bounded explicit-peer acquisition and B4's finite repeated rounds
+appear below with separate source and acceptance evidence. The B4 update records
+the exact current continuation. Arbitrary corruption repair, indefinite reconnect,
+broader scheduling, transaction pool, wallet,
 human finality and Gate A/Gate B remain unfinished; MB-04 is still IN_PROGRESS.
 Keep MPH1/MRB1 unchanged and carry findings forward until linked passing tests
 demonstrate the required scope, rather than inferring complete deployment security.
@@ -2396,9 +2396,9 @@ contract's compatibility wording. Existing operational records are unchanged;
 help lists the new command and options. No runtime/test file changes, and the
 other 198 files frozen during source acceptance remain byte-identical.
 
-### Exact next increment and remaining threats
+### Historical B3 continuation and remaining threats — MB-04B4
 
-**Next: MB-04B4 — bounded persistent-run lifecycle. READY — DESIGN FIRST.**
+At the B3 checkpoint, next was **MB-04B4 — bounded persistent-run lifecycle, design first**.
 
 Design a finite run mode that can repeat acquisition, keep/adopt and service
 rounds while retaining one controller, one sticky signal guard and one cumulative
@@ -2425,3 +2425,164 @@ B4 is planned only. Indefinite operation, discovery, parallel scheduling, pool,
 wallet and policy choices are not silently included. Full MB-04 and Gate A/B
 remain unfinished; all monetary, enrollment/device and accessibility decisions
 and proposals retain their existing gates.
+
+## MB-04B4 bounded persistent-run lifecycle update
+
+Checkpoint **MIRROR-MB04B4-001**, 2026-11-27. The design-first
+[run contract](NODE_RUN_V2.md) adds separate `run` with explicitly finite repeated
+acquisition, keep/adopt and service. Repetition changes neither peer trust nor the
+independent network, canonical branch or local durable authority boundaries.
+
+**VERIFIED_COMPONENT — BOUNDED PERSISTENT-RUN LIFECYCLE.**
+
+| Evidence | Verified source and execution |
+|---|---|
+| Implementation source / tree | `e768268fae2e4c5c9980cc74dc7a9973da56849c` / `daff130cc7652ea0946106f46a600c54671ecf18` |
+| Parent checkpoint | `e421494a5a2ba28992ad581af4067618c38c0dae` |
+| Source CI run / full job | [45941543950](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45941543950) / `140316760168` |
+| Actual source-CI checkout | `e51ff7da8385981dd9d94e4329ed35861f2dc31f` |
+| Implementation/test/contract publication inventory | 16 files |
+| Passing workspace / node runtime tests | 1,281 / 262 |
+| New runtime / actual-process functions | 39 / 19 |
+| Retained paths byte-identical / intentionally changed | 164 / 8 of 172 |
+| Frozen noncheckpoint files | 203 |
+
+The first combined focused execution passed **82 binary tests and all 19 new
+process tests**, with zero failures (86.184 seconds); no execution fixes were needed.
+
+The 39 added functions comprise **six parser, five output, one Failure-context,
+one diagnostic-fallback, seven runner and nineteen actual-process tests**.
+Parameterized scenarios, child executions and release reruns are not extra unique
+tests. Full acceptance passed **all 38 local gates, 1,281 runtime tests, eleven
+compile-fail doctests, all seven release commands, twelve independent references
+and sixteen examples**, with zero failures and three retained ignored helpers
+exercised by parent tests. Node release passed 262 runtime tests and one doctest.
+Exact-source CI passed all **43 steps**; full logs confirm these counts and every
+added function in workspace and node release. The actual synthetic checkout has
+no file differences from the source, and all 16 published source files were read
+back byte-for-byte. Later checkpoint-head CI is separate evidence on PR #1.
+
+### F07/F08/T28: finite operator authority spans every round
+
+All twelve options are explicit. Run admits 1..4 rounds, one ordered 1..4-entry
+numeric peer list and a 0..60000-ms inter-round wait under unchanged parser limits.
+A peer may be retried only by entering an authorized later round. Each round
+restarts at entry one; first fully validated history and terminal EOF end that
+acquisition even when keep-current wins. A stale first source may repeatedly
+prevent later contact. This is neither peer authentication nor convergence.
+
+Strict clean A1 opening precedes any network effect. One controller, F2 session
+owner and signal guard persist across all rounds and waits. Private retained
+helpers return the same controller; no reopen, budget reset or overlapping listener
+and acquisition loop is introduced. Waiting holds both roots but no listener.
+Every selected state is one complete accepted history; accounts, membership,
+approvals, sequences and population are not merged across forks. Missing, busy,
+wrong-network, corrupt or pending state refuses without implicit recovery.
+
+### F09/T21/T31/T32: repeated work still has one cumulative budget
+
+B3's closed typed advancement policy remains unchanged. All-peer failure and
+unlisted nested, authority, allocation, accounting and resource failures terminate
+the invocation, including after successful earlier rounds. Failed/partial requests
+and rejected service keep their actual attempt/byte charges. The invalid-header
+fixture consumes exactly 72 request + 12 header = 84 bytes. Later terminal EOF
+still requires one unused byte, even when the successful probe consumes zero.
+
+Total transport remains 1..8 attempts and 1..157129488 bytes. Per-attempt timeout
+and each service admission are 1..60000 ms. With M attempts, R rounds, timeout T,
+admission A and wait W, configured network/admission/wait time is bounded by
+`M*T+R*A+(R-1)*W`, at most 900000 ms. Final draining consumes an already counted
+attempt. Synchronous validation, opening, adoption, scheduler delay and output
+remain outside a hard whole-process latency/CPU/RSS guarantee.
+
+After normal service return, priority is shutdown, wire limit, attempt limit,
+then round limit. Only `admission-timeout` with no global stop advances. Stops
+and errors skip the inter-round wait. A configured round count larger than the
+attempt cap is valid authorization, not a promise that every round will execute.
+
+### T29/T30/T32: admission and completion uncertainty remain distinct
+
+Active receive/service retain their original deadlines under shutdown. A failed
+receive plus a signal remains failure, even after earlier completion. A later
+validated candidate stopped before adoption is discarded; the last completed
+selection remains. Once any keep/adopt is admitted, all later fatal failures keep
+possible completion and inspection-first guidance, including later receipt/wait.
+Keep-current admission counts; a new acquisition cannot reset that annotation.
+
+Normal output identifies initial, completed-round and final selected checkpoints
+in exactly `30+16*C+7*I` fields. Checked phase totals and checkpoint continuity
+precede formatting. Latest non-`none` receive/service errors remain across rounds.
+Error evidence has fifteen invocation fields and eight optional current-acquisition
+fields. Its `adoption-service` phase deliberately does not guess an unavailable
+inner subphase. `last_completed_service_error` excludes an unreturned fatal phase;
+no completed/rejected totals or unresolved selected pins are invented for it.
+Malformed optional context preserves the original safe diagnostic and uncertainty.
+Static-label CSVs contain no addresses/paths/nested text. Conservative 3918/3529
+byte normal envelopes and help fit the existing 4096-byte buffer. All sockets,
+listener, roots and signal guard drop before output. A stalled or lost output
+record cannot authorize repeating work, automatic recovery or rollback.
+
+### Actual-process evidence and limits
+
+The new [nineteen-process suite](../crates/mirror-node/tests/run_commands_v2.rs)
+uses [bounded run assertions](../crates/mirror-node/tests/support_run_v2/mod.rs).
+A real seed, repeated run and requester use independent roots and an explicit
+restart cycle. Other cases adopt two preferred histories and compare complete
+freshly reopened state, exhaust the same attempt/byte owner across rounds, retain
+prior errors, and establish no later contact with held unused listeners.
+Root descriptor identities and busy competing commands span receipt, service and
+wait. Finite observation is complemented by inspection of the retained-owner path.
+
+The only retained helper change appends a wait observer that requires the child
+listener to be gone and its actual nanosleep syscall to be visible. SIGINT/SIGTERM
+then stop the wait without another round. Later receive tests observe the actual
+socket/FD/read and mandatory-EOF phase; successful receipt is discarded or its
+original deadline produces failure. Later service drains its admitted request
+while a queued request gets no response. Live second adoption is established by
+stopped child state, both roots and the exact canonical intent before queued
+SIGTERM is released; it completes without binding an occupied service address.
+
+Closed/full output pipes exercise uncertainty and owner release after two
+adoptions. SIGKILL during later partial receipt leaves the prior completed
+checkpoint unchanged. These are different observations from pending fixtures or
+physical power loss. No test certifies a precise fsync boundary, every instruction
+interval, hostile same-user races, untested filesystems or IPv6 TCP; numeric IPv6
+admission is parser coverage. Constructed fatal-error tests do not induce OOM.
+Seven private retained CLI modules and a 720-byte append-only helper are controlled
+changes. Earlier test bodies, public APIs, lower layers, V1, dependencies, workflow,
+references, fixtures, encodings and all monetary/enrollment/device policies remain.
+
+### Exact next increment and remaining threats
+
+**Next: MB-04C1 — bounded local pending-operation pool. READY — DESIGN FIRST.**
+
+Specify a local in-memory component for bounded signed `SignedOperationV2` inputs,
+covering transfers and membership operations without changing their accepted bytes
+or execution rules. Separate retained input, contextual validity, executable ordered
+batches and canonical inclusion. Admission is neither spendability nor an inclusion
+promise, and a pool must never acquire chain/store authority by holding a staged result.
+
+Before implementation define independently named local entry, encoded-byte,
+batch-size and cumulative validation/revalidation work caps. Check them before
+input-sized copying or expensive validation. Canonical membership `max_pending`
+is not a transaction-pool limit. Specify exact signed-operation-ID deduplication,
+stable bounded ordering, full-pool behavior, expiry/anchor handling, conflicts and
+removal. Transfer account and membership record sequences are separate domains;
+do not collapse them into one actor/sequence namespace or invent fee replacement.
+
+Bind evaluation to an actual immutable accepted `ChainV2` and its exact selected
+parent checkpoint. Existing contextual/signature validation does not execute
+balances or consume sequences; use the complete ordered mixed-operation ledger
+stager to assess executability atomically. Define explicit reconciliation after
+append or replacement, stale cached results, included/expired inputs, and handling
+of gaps or future inputs. A narrow next-block-only first scope is possible, but
+that choice and its failure behavior must be specified before code.
+
+The pool must not bind staged ledger state, append or mine a block, sign, mutate
+A1/store, persist, gossip, add submission CLI/API ingress or assume wallet custody.
+Those remain separate increments. Verify duplicates, ordering, overspend/sequence
+conflicts, mixed-operation late failure, caps and selected-parent changes without
+mutating the accepted chain. Preserve zero-fee/no-mint development semantics;
+production monetary, enrollment, device, privacy and accessibility decisions remain
+at their existing unresolved gates. C1 is planned only. Broader scheduling, wallet,
+operator APIs, full MB-04 and Gate A/B remain unfinished.

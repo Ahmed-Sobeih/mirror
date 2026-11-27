@@ -1761,9 +1761,9 @@ contract's compatibility wording. Existing operational records are unchanged;
 help lists the new command and options. No runtime/test file changes, and the
 other 198 files frozen during source acceptance remain byte-identical.
 
-### Exact next increment
+### Historical B3 continuation — MB-04B4 bounded persistent-run lifecycle
 
-**Next: MB-04B4 — bounded persistent-run lifecycle. READY — DESIGN FIRST.**
+At the B3 checkpoint, next was **MB-04B4 — bounded persistent-run lifecycle, design first**.
 
 Design a finite run mode that can repeat acquisition, keep/adopt and service
 rounds while retaining one controller, one sticky signal guard and one cumulative
@@ -1790,3 +1790,165 @@ B4 is planned only. Indefinite operation, discovery, parallel scheduling, pool,
 wallet and policy choices are not silently included. Full MB-04 and Gate A/B
 remain unfinished; all monetary, enrollment/device and accessibility decisions
 and proposals retain their existing gates.
+
+## MB-04B4 engineering choices — MIRROR-MB04B4-001
+
+Recorded **2026-11-27**. The separate `run` command performs explicitly bounded
+repeated acquisition, keep/adopt and service rounds while retaining one controller
+and cumulative transport owner. [NODE_RUN_V2.md](NODE_RUN_V2.md) was specified
+before implementation; its saved preimplementation SHA-256 is
+`d041c117dbdfafe933e25fbd0cabe4ec0ad8887295eefd4a8e3a4a6538544b53`.
+These engineering choices select no monetary, enrollment, consensus, device or
+accessibility policy, and do not turn a finite invocation into an indefinite daemon.
+
+**VERIFIED_COMPONENT — BOUNDED PERSISTENT-RUN LIFECYCLE.**
+
+| Evidence | Verified source and execution |
+|---|---|
+| Implementation source / tree | `e768268fae2e4c5c9980cc74dc7a9973da56849c` / `daff130cc7652ea0946106f46a600c54671ecf18` |
+| Parent checkpoint | `e421494a5a2ba28992ad581af4067618c38c0dae` |
+| Source CI run / full job | [45941543950](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45941543950) / `140316760168` |
+| Actual source-CI checkout | `e51ff7da8385981dd9d94e4329ed35861f2dc31f` |
+| Implementation/test/contract publication inventory | 16 files |
+| Passing workspace / node runtime tests | 1,281 / 262 |
+| New runtime / actual-process functions | 39 / 19 |
+| Retained paths byte-identical / intentionally changed | 164 / 8 of 172 |
+| Frozen noncheckpoint files | 203 |
+
+The first combined focused execution passed **82 binary tests and all 19 new
+process tests**, with zero failures (86.184 seconds); no execution fixes were needed.
+
+The 39 added functions comprise **six parser, five output, one Failure-context,
+one diagnostic-fallback, seven runner and nineteen actual-process tests**.
+Parameterized scenarios, child executions and release reruns are not extra unique
+tests. Full acceptance passed **all 38 local gates, 1,281 runtime tests, eleven
+compile-fail doctests, all seven release commands, twelve independent references
+and sixteen examples**, with zero failures and three retained ignored helpers
+exercised by parent tests. Node release passed 262 runtime tests and one doctest.
+Exact-source CI passed all **43 steps**; full logs confirm these counts and every
+added function in workspace and node release. The actual synthetic checkout has
+no file differences from the source, and all 16 published source files were read
+back byte-for-byte. Later checkpoint-head CI is separate evidence on PR #1.
+
+### Explicit repeated-round authorization
+
+Require all twelve flag/value pairs: B3's ten options plus `--max-rounds` 1..4
+and `--round-wait-ms` 0..60000. One ordered `--peers` token retains 1..4 numeric
+endpoints, original parsed connection addresses and alias rejection. The existing
+32-argument/4096-token-byte/16384-total-byte parser caps remain; the ordinary run
+has 25 tokens. Earlier commands reject these round flags. Independent round/peer
+counts may exceed the total attempt allowance; earlier exhaustion is deliberate.
+No DNS, discovery, automatic initialization/recovery or hidden configuration enters.
+
+Each round starts again at the first configured entry, trying an entry at most
+once in that round. B3's closed typed advancement policy is unchanged: unlisted
+nested, authority, allocation, accounting and resource errors remain fatal.
+The first complete validated candidate ends that acquisition even when it is
+identical, shorter or tied and keep-current wins. Repeated stale-first selection
+is permitted; no convergence, best-peer or global-latestness claim follows.
+
+### One retained owner and bounded advancement
+
+Strict clean A1 opening precedes contact or bind. One controller, signal guard and
+F2 owner span all rounds and waits. The private provider and post-receive helpers
+return the same ready controller on success; old command wrappers keep their prior
+behavior. Each listener ends before the next acquisition or wait. There is no
+concurrent receive/service loop, owner reopening or replenished session allowance.
+Only a normal return from admitted keep/adopt and service completes a round;
+service may perform zero attempts. All-peer failure always ends the invocation.
+
+After a completed round, global stop priority is shutdown, exhausted wire,
+exhausted attempts, then round limit. Only a completed `admission-timeout` service
+with no global stop enters the bounded wait and next round. A final stop or error
+never pays an irrelevant configured wait. Signals interrupt the wait without
+opening another peer or listener. Fixed arrays retain at most four round reports.
+
+Receive and service share 1..8 attempts and 1..157129488 actual bytes, including
+failed and partial traffic. Every timeout and per-round service admission stays
+within 1..60000 ms. For M attempts, R rounds, timeout T, admission A and wait W,
+the configured network/admission/wait allowance is `M*T+R*A+(R-1)*W`, at most
+900000 ms. No new global deadline is introduced. Opening, synchronous validation,
+durable adoption, scheduling and output prevent a hard whole-process time bound.
+Terminal EOF still needs one unspent byte of capacity although zero-byte EOF is
+not charged; a last-allowed valid receive can adopt and stop without binding.
+
+### Sticky uncertainty and fixed checkpoint evidence
+
+A failed receive plus shutdown remains an error after earlier successful rounds.
+A validated candidate stopped before admission is discarded, leaving the last
+completed selection. Once any round admits keep/adopt, every later fatal error
+retains its category, `operation_may_have_completed=true` and `next=inspect-status`,
+including later acquisition, wait or service failures. A keep-current admission
+also makes that context sticky; beginning another round cannot erase it.
+
+Normal records distinguish the initial checkpoint, each completed round and final
+selected checkpoint. They contain exactly `30+16*C+7*I` fields, with C completed
+rounds, optional incomplete acquisition I and C+I<=4. Checked totals, prefix and
+ordinal relationships, static labels and whole-checkpoint continuity precede output.
+Latest non-`none` receive/service errors survive later success. Fixed peer-result
+CSVs expose labels only. Independent-width envelopes are 3918 and 3529 bytes;
+help and every record retain the unchanged 4096-byte buffer.
+
+Error context has fifteen fixed invocation fields and eight optional current
+acquisition fields. Cumulative service usage is total minus receive usage. A
+combined `adoption-service` phase makes no unsupported inner-phase claim, and
+`last_completed_service_error` refers only to returned service reports. Fatal
+service without a report supplies no completed/rejected-session assertion or
+selected pins. Malformed optional evidence falls back to the original safe base
+diagnostic. Drop listener, sockets, both roots and signals before final output;
+blocked or failed output never authorizes repeated work or implicit rollback.
+
+### Evidence scope and preserved decisions
+
+The process suite asserts real seed -> repeated run -> requester, explicit restart,
+two preferred whole-history adoptions, repeated first-valid keep-current,
+round-local failover ordinals and invocation-wide attempt/byte exhaustion. It
+compares complete strict-reopened state, including membership-distinct histories,
+and verifies retained root descriptors across acquisition, service and waits.
+Signals follow actual child socket/FD/syscall observations, a listener-free sleep,
+or stopped state with the exact second-round canonical intent. Later bind/output
+failure and SIGKILL during later partial receipt remain separately evidenced.
+
+The wait observer is appended to the retained test helper; its original bytes
+and all prior test bodies remain. Seven retained private CLI modules change,
+plus that append-only helper; public APIs, lower layers, V1, dependencies,
+workflow, references, fixtures and wire/storage/hash encodings are preserved.
+Linux IPv4 process cases do not establish IPv6 transport, every microscopic
+ownership interval, induced OOM, an exact fsync boundary or physical power loss.
+Original monetary, combined-enrollment, device and accessibility records above
+remain authoritative; MB-04 is IN_PROGRESS and Gate A/B remain unmet.
+
+### Exact next increment
+
+**Next: MB-04C1 — bounded local pending-operation pool. READY — DESIGN FIRST.**
+
+Specify a local in-memory component for bounded signed `SignedOperationV2` inputs,
+covering transfers and membership operations without changing their accepted bytes
+or execution rules. Separate retained input, contextual validity, executable ordered
+batches and canonical inclusion. Admission is neither spendability nor an inclusion
+promise, and a pool must never acquire chain/store authority by holding a staged result.
+
+Before implementation define independently named local entry, encoded-byte,
+batch-size and cumulative validation/revalidation work caps. Check them before
+input-sized copying or expensive validation. Canonical membership `max_pending`
+is not a transaction-pool limit. Specify exact signed-operation-ID deduplication,
+stable bounded ordering, full-pool behavior, expiry/anchor handling, conflicts and
+removal. Transfer account and membership record sequences are separate domains;
+do not collapse them into one actor/sequence namespace or invent fee replacement.
+
+Bind evaluation to an actual immutable accepted `ChainV2` and its exact selected
+parent checkpoint. Existing contextual/signature validation does not execute
+balances or consume sequences; use the complete ordered mixed-operation ledger
+stager to assess executability atomically. Define explicit reconciliation after
+append or replacement, stale cached results, included/expired inputs, and handling
+of gaps or future inputs. A narrow next-block-only first scope is possible, but
+that choice and its failure behavior must be specified before code.
+
+The pool must not bind staged ledger state, append or mine a block, sign, mutate
+A1/store, persist, gossip, add submission CLI/API ingress or assume wallet custody.
+Those remain separate increments. Verify duplicates, ordering, overspend/sequence
+conflicts, mixed-operation late failure, caps and selected-parent changes without
+mutating the accepted chain. Preserve zero-fee/no-mint development semantics;
+production monetary, enrollment, device, privacy and accessibility decisions remain
+at their existing unresolved gates. C1 is planned only. Broader scheduling, wallet,
+operator APIs, full MB-04 and Gate A/B remain unfinished.
