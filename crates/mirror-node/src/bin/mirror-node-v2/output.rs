@@ -4,6 +4,7 @@
 use std::{fmt, fmt::Write as _, io};
 
 use mirror_chain::v2::ManifestIdentityV2;
+use mirror_network::v2::session::MAX_SESSION_WIRE_BYTES_V2;
 use mirror_storage::v2::ReplacementCheckpointV2;
 
 pub const MAX_OUTPUT_BYTES: usize = 4096;
@@ -104,12 +105,107 @@ pub fn diagnostic(
     Ok(output)
 }
 
+/// Fixed, sanitized B3 evidence. Validate the complete trace before writing any
+/// of it; malformed internal accounting cannot become a normal success record.
+pub(super) fn acquisition_context(
+    output: &mut Output,
+    acquisition: &super::failover::Acquisition,
+    include_stats: bool,
+) -> fmt::Result {
+    const KEYS: [&str; super::args::MAX_FAILOVER_PEERS] = [
+        "peer_1_result",
+        "peer_2_result",
+        "peer_3_result",
+        "peer_4_result",
+    ];
+    let count = usize::from(acquisition.peer_count);
+    let attempted = usize::from(acquisition.stats.attempts);
+    let validated = usize::from(acquisition.validated_peer);
+    if count == 0
+        || count > KEYS.len()
+        || attempted > count
+        || validated > count
+        || (validated != 0 && validated != attempted)
+        || acquisition
+            .failed_receives
+            .checked_add(u8::from(validated != 0))
+            != Some(acquisition.stats.attempts)
+        || acquisition.stats.wire_bytes > MAX_SESSION_WIRE_BYTES_V2
+        || (attempted == 0 && acquisition.stats.wire_bytes != 0)
+        || !matches!(
+            acquisition.stop,
+            "startup"
+                | "fatal"
+                | "wire-limit"
+                | "attempt-limit"
+                | "peers-exhausted"
+                | "shutdown"
+                | "validated"
+        )
+        || (acquisition.stop == "startup" && attempted != 0)
+        || (acquisition.stop == "peers-exhausted" && attempted != count)
+        || ((acquisition.stop == "validated") != (validated != 0))
+        || (!include_stats
+            && acquisition.stop != "validated"
+            && !(acquisition.stop == "shutdown" && attempted == 0))
+    {
+        return Err(fmt::Error);
+    }
+    let mut last_error = "none";
+    for (index, result) in acquisition.results.iter().enumerate() {
+        if index >= attempted {
+            if *result != "not-attempted" {
+                return Err(fmt::Error);
+            }
+        } else if index + 1 == validated {
+            if *result != "validated" {
+                return Err(fmt::Error);
+            }
+        } else {
+            if !matches!(
+                *result,
+                "invalid_session_limits"
+                    | "invalid_peer_request"
+                    | "peer_wrong_network"
+                    | "peer_attempt_budget"
+                    | "peer_io_budget"
+                    | "peer_deadline"
+                    | "peer_early_close"
+                    | "peer_trailing_data"
+                    | "allocation_failed"
+                    | "peer_unreachable"
+                    | "peer_io"
+                    | "invalid_peer_history"
+            ) {
+                return Err(fmt::Error);
+            }
+            last_error = result;
+        }
+    }
+    if acquisition.last_receive_error != last_error {
+        return Err(fmt::Error);
+    }
+    output.field("peer_count", acquisition.peer_count)?;
+    output.field("validated_peer", acquisition.validated_peer)?;
+    output.field("failed_receives", acquisition.failed_receives)?;
+    output.field("last_receive_error", acquisition.last_receive_error)?;
+    output.field("acquisition_stop", acquisition.stop)?;
+    if include_stats {
+        output.field("receive_attempts", acquisition.stats.attempts)?;
+        output.field("receive_wire_bytes", acquisition.stats.wire_bytes)?;
+    }
+    for (key, result) in KEYS.iter().zip(acquisition.results.iter()).take(count) {
+        output.field(key, result)?;
+    }
+    Ok(())
+}
+
 pub fn help() -> Result<Output, fmt::Error> {
     let mut output = Output::base("help")?;
     for (key, value) in [
         (
             "commands",
-            "init,status,sync-once,recover,serve,rejoin-serve,help",
+            "init,status,sync-once,recover,serve,rejoin-serve,rejoin-failover-serve,help",
         ),
         (
             "common_options",
@@ -167,6 +263,26 @@ pub fn help() -> Result<Output, fmt::Error> {
         (
             "rejoin_serve_timing",
             "receive timeout plus service admission window plus at most one final session timeout; local work/output excluded",
+        ),
+        (
+            "rejoin_failover_serve_options",
+            "--peers ADDRESS[,ADDRESS...] plus every serve option; one shared attempt and byte allowance",
+        ),
+        (
+            "rejoin_failover_serve_scope",
+            "1..4 ordered unique numeric peers; one request each; first validated candidate ends acquisition",
+        ),
+        (
+            "rejoin_failover_serve_errors",
+            "only the closed typed peer-failure allowlist may advance; no serve-old fallback or repeated entry",
+        ),
+        (
+            "rejoin_failover_peer_rules",
+            "no empty entries, whitespace or scopes; IPv6 and mapped-IPv4 aliases count as duplicate endpoints",
+        ),
+        (
+            "rejoin_failover_timing",
+            "at most min(peer count,attempt limit)*timeout plus service admission and one final timeout; local work/output excluded",
         ),
         (
             "admission_ms_range",
@@ -231,6 +347,27 @@ mod tests {
     use super::*;
     use mirror_chain::v2::ChainReplayExpectationV2;
     use mirror_crypto::Hash256;
+    use mirror_network::v2::session::SessionStatsV2;
+
+    fn acquisition() -> crate::failover::Acquisition {
+        crate::failover::Acquisition {
+            peer_count: 4,
+            validated_peer: 4,
+            failed_receives: 3,
+            last_receive_error: "invalid_peer_history",
+            stop: "validated",
+            results: [
+                "peer_unreachable",
+                "peer_early_close",
+                "invalid_peer_history",
+                "validated",
+            ],
+            stats: SessionStatsV2 {
+                attempts: 4,
+                wire_bytes: MAX_SESSION_WIRE_BYTES_V2 - 1000,
+            },
+        }
+    }
 
     #[test]
     fn pending_record_labels_intent_without_claiming_current_store_selection() {
@@ -323,5 +460,164 @@ mod tests {
         assert!(text.contains("operation_may_have_completed=true\n"));
         assert!(text.ends_with("next=inspect-status\n"));
         assert!(!text.contains("status=clean"));
+    }
+
+    #[test]
+    fn failover_maximum_normal_record_keeps_separate_phase_evidence_within_bound() {
+        let identity = ManifestIdentityV2 {
+            config_hash: Hash256::from_bytes([0xab; 32]),
+            genesis_hash: Hash256::from_bytes([0xcd; 32]),
+        };
+        let mut output =
+            Output::state("rejoin-failover-serve", "stopped", identity, "verified").unwrap();
+        for prefix in ["previous", "selected"] {
+            output
+                .checkpoint(
+                    prefix,
+                    ReplacementCheckpointV2 {
+                        generation: 4095,
+                        chain: ChainReplayExpectationV2 {
+                            config_hash: identity.config_hash,
+                            genesis_hash: identity.genesis_hash,
+                            height: 4095,
+                            tip_hash: Hash256::from_bytes([0xef; 32]),
+                            ledger_root: Hash256::from_bytes([0x12; 32]),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+        for (key, value) in [
+            ("receive_status", "validated"),
+            ("choice", "prefer-candidate"),
+            ("reason", "attempt-limit"),
+        ] {
+            output.field(key, value).unwrap();
+        }
+        for (key, value) in [
+            ("attempts", 8),
+            ("receive_attempts", 4),
+            ("serve_attempts", 4),
+            ("completed_sessions", 3),
+            ("rejected_sessions", 1),
+            ("wire_bytes", MAX_SESSION_WIRE_BYTES_V2),
+            ("receive_wire_bytes", MAX_SESSION_WIRE_BYTES_V2 - 1000),
+            ("serve_wire_bytes", 1000),
+        ] {
+            output.field(key, value).unwrap();
+        }
+        output
+            .field("last_session_error", "invalid_peer_request")
+            .unwrap();
+        acquisition_context(&mut output, &acquisition(), false).unwrap();
+        let mut bytes = Vec::new();
+        output.write_to(&mut bytes).unwrap();
+        assert!(bytes.len() < MAX_OUTPUT_BYTES);
+        let text = String::from_utf8(bytes).unwrap();
+        assert_eq!(text.lines().count(), 35);
+        assert!(text.contains("last_session_error=invalid_peer_request\n"));
+        assert!(text.contains("last_receive_error=invalid_peer_history\n"));
+        assert!(text.contains("peer_4_result=validated\n"));
+        assert!(!text.contains("peer_5"));
+        assert_eq!(text.matches("receive_attempts=").count(), 1);
+        assert_eq!(text.matches("receive_wire_bytes=").count(), 1);
+    }
+
+    #[test]
+    fn failover_failure_and_startup_context_never_claim_selected_state() {
+        let mut failed = acquisition();
+        failed.validated_peer = 0;
+        failed.failed_receives = 4;
+        failed.results[3] = "peer_deadline";
+        failed.last_receive_error = "peer_deadline";
+        failed.stop = "peers-exhausted";
+        let startup = crate::failover::Acquisition {
+            peer_count: 1,
+            validated_peer: 0,
+            failed_receives: 0,
+            last_receive_error: "none",
+            stop: "startup",
+            results: ["not-attempted"; 4],
+            stats: SessionStatsV2::default(),
+        };
+        for trace in [failed, startup, acquisition()] {
+            let mut output = diagnostic(
+                "rejoin-failover-serve",
+                "control_io",
+                "inspect-status",
+                None,
+                Some(true),
+            )
+            .unwrap();
+            acquisition_context(&mut output, &trace, true).unwrap();
+            let mut bytes = Vec::new();
+            output.write_to(&mut bytes).unwrap();
+            assert!(bytes.len() < MAX_OUTPUT_BYTES);
+            let text = String::from_utf8(bytes).unwrap();
+            assert!(text.contains("receive_attempts="));
+            assert!(text.contains("receive_wire_bytes="));
+            assert!(!text.contains("selected_"));
+            assert!(!text.contains("store_selection="));
+            assert!(!text.contains("status=clean"));
+            assert!(!text.contains("127.0.0.1"));
+            assert_eq!(
+                text.lines()
+                    .filter(|line| line.starts_with("peer_") && line.contains("_result="))
+                    .count(),
+                usize::from(trace.peer_count)
+            );
+        }
+        assert!(acquisition_context(&mut Output::new(), &failed, false).is_err());
+        let mut stopped = startup;
+        stopped.stop = "shutdown";
+        acquisition_context(&mut Output::new(), &stopped, false).unwrap();
+    }
+
+    #[test]
+    fn failover_inconsistent_internal_evidence_rejects_before_fields_are_written() {
+        let valid = acquisition();
+        let mut invalid = Vec::new();
+        for count in [0, 5] {
+            let mut trace = valid;
+            trace.peer_count = count;
+            invalid.push(trace);
+        }
+        for ordinal in [1, 5] {
+            let mut trace = valid;
+            trace.validated_peer = ordinal;
+            invalid.push(trace);
+        }
+        let mut trace = valid;
+        trace.stats.attempts = 5;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.failed_receives = 4;
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.last_receive_error = "peer_deadline";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.results[0] = "not-attempted";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.results[0] = "validated";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.results[0] = "secret\nstatus=clean";
+        invalid.push(trace);
+        let mut trace = valid;
+        trace.stats.wire_bytes = MAX_SESSION_WIRE_BYTES_V2 + 1;
+        invalid.push(trace);
+        for stop in ["startup", "fatal", "peers-exhausted", "unknown"] {
+            let mut trace = valid;
+            trace.stop = stop;
+            invalid.push(trace);
+        }
+        for trace in invalid {
+            let mut output = Output::base("rejoin-failover-serve").unwrap();
+            let before = output.length;
+            assert!(acquisition_context(&mut output, &trace, true).is_err());
+            assert_eq!(output.length, before);
+        }
     }
 }

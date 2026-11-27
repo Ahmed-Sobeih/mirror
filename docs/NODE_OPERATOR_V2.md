@@ -6,6 +6,9 @@ This contract specifies the original commands and their boundaries. The
 [provider lifecycle and shutdown contract](NODE_PROVIDER_V2.md), summarized in
 section 9 below. The **MB-04B2 `rejoin-serve` extension** has its separate
 [finite coordination contract](NODE_REJOIN_V2.md), summarized in section 10.
+The **MB-04B3 `rejoin-failover-serve` extension** has a separate
+[bounded explicit-peer failover contract](NODE_FAILOVER_V2.md). It preserves
+the existing commands and uses the same post-receive adoption/service path.
 Executed tests and
 exact source/CI acceptance belong to [CURRENT_STATUS.md](../CURRENT_STATUS.md)
 and the [master plan](../MASTER_PLAN.md).

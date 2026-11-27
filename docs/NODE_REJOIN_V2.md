@@ -8,6 +8,11 @@ the resulting fixed complete history. It composes the accepted
 The design is specified before implementation; checkpoint records distinguish
 implemented code, executed acceptance and exact published-source CI.
 
+[B3 explicit-peer failover](NODE_FAILOVER_V2.md) specifies a separate command
+that may advance through a bounded ordered list before its first validated
+candidate. It shares this command's post-receive adoption and service routine;
+`rejoin-serve` retains exactly one source and the failure behavior below.
+
 The command retains one ready controller, one sticky signal guard and one
 cumulative transport owner across its phases. It introduces no initialization,
 automatic recovery, retry, discovery, concurrent receive/serve, scheduler, pool or

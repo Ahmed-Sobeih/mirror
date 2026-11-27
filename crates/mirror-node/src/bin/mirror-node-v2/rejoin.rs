@@ -3,8 +3,11 @@
 
 use std::{net::SocketAddr, time::Duration};
 
-use mirror_chain::v2::ForkChoiceV2;
-use mirror_network::v2::session::{PeerSessionsV2, SessionLimitsV2, SessionStatsV2};
+use mirror_chain::v2::{ForkChoiceV2, ManifestIdentityV2};
+use mirror_network::v2::{
+    ReceivedCandidateV2,
+    session::{PeerSessionsV2, SessionLimitsV2, SessionStatsV2},
+};
 use mirror_node::v2::NodeControlV2;
 use mirror_storage::v2::ReplacementCheckpointV2;
 
@@ -39,6 +42,29 @@ pub(super) fn run(
     // F2 closes the sole stream before returning a complete candidate or error.
     // A concurrent stop never hides a failed receive or starts another attempt.
     let received = sessions.request(peer, common.identity)?;
+    finish_received(
+        ready,
+        received,
+        common.identity,
+        listen,
+        admission,
+        &mut sessions,
+        &signals,
+    )
+}
+
+/// Shared B2/B3 adoption admission and fixed-history serving. The caller retains
+/// the original signal guard and transport owner, including earlier failures.
+pub(super) fn finish_received(
+    ready: NodeControlV2,
+    received: ReceivedCandidateV2,
+    identity: ManifestIdentityV2,
+    listen: SocketAddr,
+    admission: Duration,
+    sessions: &mut PeerSessionsV2,
+    signals: &Signals,
+) -> Result<Report, Failure> {
+    let previous = ready.checkpoint();
     let receive = sessions.stats();
     if signals.requested() {
         drop(received);
@@ -53,15 +79,8 @@ pub(super) fn run(
         .map_err(|error| Failure::from(error).after_adoption())?;
     let adoption = outcome.report();
     let ready = outcome.into_control();
-    let service = provider::serve_ready(
-        ready,
-        common.identity,
-        listen,
-        admission,
-        &mut sessions,
-        &signals,
-    )
-    .map_err(Failure::after_adoption)?;
+    let service = provider::serve_ready(ready, identity, listen, admission, sessions, signals)
+        .map_err(Failure::after_adoption)?;
 
     // Statistics are snapshots, never a replacement allowance. Refuse an
     // inconsistent normal record rather than wrapping either phase delta.
@@ -91,7 +110,7 @@ pub(super) fn run(
 
 /// A stop before adoption reports the verified old selection and any completed
 /// receive. No candidate was compared, and no service attempt or bind occurred.
-fn stopped(previous: ReplacementCheckpointV2, receive: SessionStatsV2) -> Report {
+pub(super) fn stopped(previous: ReplacementCheckpointV2, receive: SessionStatsV2) -> Report {
     Report {
         previous,
         choice: None,

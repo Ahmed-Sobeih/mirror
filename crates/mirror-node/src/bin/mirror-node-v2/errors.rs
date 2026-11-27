@@ -14,6 +14,7 @@ pub struct Failure {
     pub class: &'static str,
     pub next: &'static str,
     pub may_have_completed: Option<bool>,
+    pub(super) acquisition: Option<super::failover::Acquisition>,
 }
 
 impl Failure {
@@ -41,6 +42,7 @@ impl Failure {
             class,
             next,
             may_have_completed: None,
+            acquisition: None,
         }
     }
 
@@ -49,6 +51,13 @@ impl Failure {
     pub(super) fn after_adoption(mut self) -> Self {
         self.may_have_completed = Some(true);
         self.next = "inspect-status";
+        self
+    }
+
+    /// B3 retains only fixed-size sanitized observations, never owned resources
+    /// or untrusted arguments. Other commands keep their original diagnostics.
+    pub(super) fn with_acquisition(mut self, acquisition: super::failover::Acquisition) -> Self {
+        self.acquisition = Some(acquisition);
         self
     }
 }
@@ -305,5 +314,39 @@ mod tests {
         }
         assert_eq!(Failure::new("listen_bind").next, "verify-inputs");
         assert_eq!(Failure::new("recovery_required").next, "explicit-recover");
+    }
+
+    #[test]
+    fn failover_context_survives_adoption_annotation_without_changing_old_defaults() {
+        let trace = crate::failover::Acquisition {
+            peer_count: 2,
+            validated_peer: 2,
+            failed_receives: 1,
+            last_receive_error: "peer_unreachable",
+            stop: "validated",
+            results: [
+                "peer_unreachable",
+                "validated",
+                "not-attempted",
+                "not-attempted",
+            ],
+            stats: mirror_network::v2::session::SessionStatsV2 {
+                attempts: 2,
+                wire_bytes: 1000,
+            },
+        };
+        let before = Failure::new("listen_bind");
+        assert!(before.acquisition.is_none());
+        assert_eq!(before.may_have_completed, None);
+        assert_eq!(before.next, "verify-inputs");
+        let after = before.with_acquisition(trace).after_adoption();
+        assert_eq!(after.class, "listen_bind");
+        assert_eq!(after.may_have_completed, Some(true));
+        assert_eq!(after.next, "inspect-status");
+        let retained = after.acquisition.unwrap();
+        assert_eq!(retained.results, trace.results);
+        assert_eq!(retained.stats, trace.stats);
+        assert_eq!(retained.validated_peer, 2);
+        assert_eq!(retained.last_receive_error, "peer_unreachable");
     }
 }

@@ -10,6 +10,20 @@ use mirror_storage::v2::{ReplacementCheckpointV2, ReplacementRecoveryActionV2};
 pub const MAX_ARGUMENTS: usize = 32;
 pub const MAX_TOKEN_BYTES: usize = 4096;
 pub const MAX_ARGUMENT_BYTES: usize = 16_384;
+pub(super) const MAX_FAILOVER_PEERS: usize = 4;
+
+/// Fully parsed ordered endpoints. Unused fixed slots never enter acquisition.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PeerList {
+    addresses: [SocketAddr; MAX_FAILOVER_PEERS],
+    length: usize,
+}
+
+impl PeerList {
+    pub(super) fn as_slice(&self) -> &[SocketAddr] {
+        &self.addresses[..self.length]
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Common {
@@ -44,6 +58,13 @@ pub enum Command {
         limits: SessionLimitsV2,
         admission: Duration,
     },
+    RejoinFailoverServe {
+        common: Common,
+        peers: PeerList,
+        listen: SocketAddr,
+        limits: SessionLimitsV2,
+        admission: Duration,
+    },
     Recover {
         common: Common,
         action: ReplacementRecoveryActionV2,
@@ -71,6 +92,9 @@ pub enum UsageError {
     InvalidNumber,
     OutOfRange,
     InvalidPeer,
+    InvalidPeerList,
+    TooManyPeers,
+    DuplicatePeer,
     InvalidListen,
     InvalidAction,
 }
@@ -97,6 +121,9 @@ impl UsageError {
             Self::InvalidNumber => "invalid_number",
             Self::OutOfRange => "out_of_range",
             Self::InvalidPeer => "invalid_peer",
+            Self::InvalidPeerList => "invalid_peer_list",
+            Self::TooManyPeers => "too_many_peers",
+            Self::DuplicatePeer => "duplicate_peer",
             Self::InvalidListen => "invalid_listen",
             Self::InvalidAction => "invalid_action",
         }
@@ -110,6 +137,7 @@ enum Kind {
     Sync,
     Serve,
     RejoinServe,
+    RejoinFailoverServe,
     Recover,
 }
 
@@ -129,9 +157,10 @@ const ACTION: usize = 12;
 const LISTEN: usize = 13;
 const ATTEMPTS: usize = 14;
 const ADMISSION: usize = 15;
-const COMMON_MASK: u16 = (1 << CONTROL) | (1 << STORE) | (1 << CONFIG) | (1 << GENESIS);
+const PEERS: usize = 16;
+const COMMON_MASK: u32 = (1 << CONTROL) | (1 << STORE) | (1 << CONFIG) | (1 << GENESIS);
 
-fn required(kind: Kind) -> u16 {
+fn required(kind: Kind) -> u32 {
     COMMON_MASK
         | match kind {
             Kind::Init => {
@@ -147,6 +176,7 @@ fn required(kind: Kind) -> u16 {
                     | (1 << ADMISSION)
             }
             Kind::RejoinServe => required(Kind::Serve) | (1 << PEER),
+            Kind::RejoinFailoverServe => required(Kind::Serve) | (1 << PEERS),
             Kind::Recover => 1 << ACTION,
         }
 }
@@ -163,6 +193,7 @@ fn flag(value: &str) -> Result<usize, UsageError> {
         "--ledger-root" => ROOT,
         "--generation" => GENERATION,
         "--peer" => PEER,
+        "--peers" => PEERS,
         "--timeout-ms" => TIMEOUT,
         "--max-io-bytes" => IO_BYTES,
         "--action" => ACTION,
@@ -213,16 +244,17 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         "sync-once" => Kind::Sync,
         "serve" => Kind::Serve,
         "rejoin-serve" => Kind::RejoinServe,
+        "rejoin-failover-serve" => Kind::RejoinFailoverServe,
         "recover" => Kind::Recover,
         _ => return Err(UsageError::UnknownCommand),
     };
     let required = required(kind);
-    let mut seen = 0u16;
-    let mut values: [Option<&str>; 16] = [None; 16];
+    let mut seen = 0u32;
+    let mut values: [Option<&str>; 17] = [None; 17];
     let mut position = 1usize;
     while position < tokens.len() {
         let index = flag(&tokens[position])?;
-        let bit = 1u16 << index;
+        let bit = 1u32 << index;
         if required & bit == 0 {
             return Err(UsageError::WrongCommandOption);
         }
@@ -305,7 +337,7 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
                 limits,
             }
         }
-        Kind::Serve | Kind::RejoinServe => {
+        Kind::Serve | Kind::RejoinServe | Kind::RejoinFailoverServe => {
             let listen: SocketAddr = value(LISTEN)?
                 .parse()
                 .map_err(|_| UsageError::InvalidListen)?;
@@ -323,7 +355,15 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
             let limits = SessionLimitsV2::new(attempts, allowance, Duration::from_millis(timeout))
                 .map_err(|_| UsageError::OutOfRange)?;
             let admission = Duration::from_millis(admission);
-            if matches!(kind, Kind::RejoinServe) {
+            if matches!(kind, Kind::RejoinFailoverServe) {
+                Command::RejoinFailoverServe {
+                    common,
+                    peers: peer_list(value(PEERS)?)?,
+                    listen,
+                    limits,
+                    admission,
+                }
+            } else if matches!(kind, Kind::RejoinServe) {
                 let peer: SocketAddr = value(PEER)?.parse().map_err(|_| UsageError::InvalidPeer)?;
                 if peer.port() == 0 {
                     return Err(UsageError::InvalidPeer);
@@ -353,6 +393,50 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
             Command::Recover { common, action }
         }
     })
+}
+
+fn peer_list(text: &str) -> Result<PeerList, UsageError> {
+    if text.is_empty() || text.chars().any(char::is_whitespace) || text.contains('%') {
+        return Err(UsageError::InvalidPeerList);
+    }
+    let mut peers = PeerList {
+        addresses: [SocketAddr::from(([0, 0, 0, 0], 0)); MAX_FAILOVER_PEERS],
+        length: 0,
+    };
+    for value in text.split(',') {
+        if value.is_empty() {
+            return Err(UsageError::InvalidPeerList);
+        }
+        if peers.length == MAX_FAILOVER_PEERS {
+            return Err(UsageError::TooManyPeers);
+        }
+        let address: SocketAddr = value.parse().map_err(|_| UsageError::InvalidPeer)?;
+        if address.port() == 0 || matches!(address, SocketAddr::V6(value) if value.scope_id() != 0)
+        {
+            return Err(UsageError::InvalidPeer);
+        }
+        // Equality is numeric, not spelling equality. Mapped-v4 normalization
+        // is used only for duplicate detection, never to change the request.
+        if peers
+            .as_slice()
+            .iter()
+            .any(|previous| duplicate_key(*previous) == duplicate_key(address))
+        {
+            return Err(UsageError::DuplicatePeer);
+        }
+        peers.addresses[peers.length] = address;
+        peers.length += 1;
+    }
+    Ok(peers)
+}
+
+fn duplicate_key(address: SocketAddr) -> SocketAddr {
+    if let SocketAddr::V6(value) = address {
+        if let Some(ipv4) = value.ip().to_ipv4_mapped() {
+            return SocketAddr::from((ipv4, value.port()));
+        }
+    }
+    address
 }
 
 fn forbidden_character(character: char) -> bool {
@@ -460,6 +544,12 @@ mod tests {
         let mut values = serve();
         values[0] = "rejoin-serve".into();
         values.extend(["--peer".into(), "127.0.0.1:9001".into()]);
+        values
+    }
+    fn failover() -> Vec<String> {
+        let mut values = serve();
+        values[0] = "rejoin-failover-serve".into();
+        values.extend(["--peers".into(), "127.0.0.1:9001,[::1]:9002".into()]);
         values
     }
     fn parsed(values: Vec<String>) -> Result<Command, UsageError> {
@@ -728,6 +818,205 @@ mod tests {
         let mut values = rejoin();
         values.push("--attach-existing".into());
         assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+    }
+
+    #[test]
+    fn failover_requires_all_ten_options_and_rejects_duplicate_flags() {
+        let full = failover();
+        assert_eq!(full.len(), 21);
+        for start in (1..full.len()).step_by(2) {
+            let mut missing = full.clone();
+            missing.drain(start..start + 2);
+            assert_eq!(parsed(missing), Err(UsageError::MissingOption));
+            let mut duplicate = full.clone();
+            duplicate.extend([full[start].clone(), full[start + 1].clone()]);
+            assert_eq!(parsed(duplicate), Err(UsageError::DuplicateOption));
+        }
+    }
+
+    #[test]
+    fn failover_preserves_order_parsed_addresses_identity_and_shared_bounds() {
+        for (list, attempts, allowance, timeout, admission) in [
+            ("127.0.0.1:1", 1, 1, 1, 1),
+            (
+                "[::ffff:192.0.2.1]:65535,[2001:db8::1]:1,127.0.0.1:7,[::1]:9",
+                8,
+                MAX_SESSION_WIRE_BYTES_V2,
+                60_000,
+                60_000,
+            ),
+        ] {
+            let mut values = failover();
+            for (flag, value) in [
+                ("--peers", list.to_string()),
+                ("--max-attempts", attempts.to_string()),
+                ("--max-io-bytes", allowance.to_string()),
+                ("--timeout-ms", timeout.to_string()),
+                ("--admission-ms", admission.to_string()),
+            ] {
+                change(&mut values, flag, &value);
+            }
+            let Command::RejoinFailoverServe {
+                common,
+                peers,
+                limits,
+                admission: window,
+                ..
+            } = parsed(values).unwrap()
+            else {
+                panic!("wrong command");
+            };
+            assert_eq!(common.identity.config_hash.to_hex(), "ab".repeat(32));
+            assert_eq!(common.identity.genesis_hash.to_hex(), "cd".repeat(32));
+            let expected: Vec<SocketAddr> = list.split(',').map(|x| x.parse().unwrap()).collect();
+            assert_eq!(peers.as_slice(), expected.as_slice());
+            assert_eq!(limits.max_attempts(), attempts);
+            assert_eq!(limits.max_wire_bytes(), allowance);
+            assert_eq!(limits.timeout(), Duration::from_millis(timeout));
+            assert_eq!(window, Duration::from_millis(admission));
+        }
+        // The list need not fit the total attempt allowance; later entries may
+        // remain unattempted. Reordering flags must not reorder peers.
+        let mut first = failover();
+        change(&mut first, "--max-attempts", "1");
+        let mut second = vec![first[0].clone()];
+        for pair in first[1..].chunks_exact(2).rev() {
+            second.extend_from_slice(pair);
+        }
+        assert_eq!(parsed(first), parsed(second));
+    }
+
+    #[test]
+    fn failover_rejects_empty_oversized_scoped_and_malformed_peer_lists() {
+        for list in [
+            "",
+            ",127.0.0.1:1",
+            "127.0.0.1:1,",
+            "127.0.0.1:1,,127.0.0.1:2",
+            "127.0.0.1:1, 127.0.0.1:2",
+            "127.0.0.1:1,\u{a0}127.0.0.1:2",
+            "[fe80::1%3]:1",
+            "[fe80::1%0]:1",
+            "[fe80::1%eth0]:1",
+        ] {
+            let mut values = failover();
+            change(&mut values, "--peers", list);
+            assert_eq!(parsed(values), Err(UsageError::InvalidPeerList), "{list}");
+        }
+        for list in [
+            "localhost:1",
+            "127.0.0.1:0",
+            "[::1]:0",
+            "127.0.0.1:65536",
+            "127.0.0.1",
+            "::1:1",
+            "127.0.0.1:1;127.0.0.1:2",
+        ] {
+            let mut values = failover();
+            change(&mut values, "--peers", list);
+            assert_eq!(parsed(values), Err(UsageError::InvalidPeer), "{list}");
+        }
+        let mut values = failover();
+        change(
+            &mut values,
+            "--peers",
+            "127.0.0.1:1,127.0.0.1:2,127.0.0.1:3,127.0.0.1:4,127.0.0.1:5",
+        );
+        assert_eq!(parsed(values), Err(UsageError::TooManyPeers));
+    }
+
+    #[test]
+    fn failover_rejects_numeric_aliases_but_preserves_distinct_endpoints() {
+        for list in [
+            "127.0.0.1:1,127.0.0.1:1",
+            "[::1]:9,[0:0:0:0:0:0:0:1]:9",
+            "[2001:DB8::1]:9,[2001:0db8:0:0:0:0:0:1]:9",
+            "192.0.2.1:9,[::ffff:192.0.2.1]:9",
+            "[::ffff:c000:201]:9,192.0.2.1:9",
+            "[::ffff:c000:201]:9,[::ffff:192.0.2.1]:9",
+        ] {
+            let mut values = failover();
+            change(&mut values, "--peers", list);
+            assert_eq!(parsed(values), Err(UsageError::DuplicatePeer), "{list}");
+        }
+        for list in [
+            "127.0.0.1:1,127.0.0.1:2",
+            "192.0.2.1:1,[::ffff:192.0.2.1]:2",
+            "192.0.2.1:1,[::192.0.2.1]:1",
+            "[2001:db8::1]:1,[2001:db8::2]:1",
+        ] {
+            let mut values = failover();
+            change(&mut values, "--peers", list);
+            assert!(parsed(values).is_ok(), "{list}");
+        }
+    }
+
+    #[test]
+    fn failover_list_flag_never_changes_existing_command_option_rules() {
+        for mut values in [
+            common("status"),
+            init(),
+            sync(),
+            serve(),
+            rejoin(),
+            recover(),
+        ] {
+            values.extend(["--peers".into(), "127.0.0.1:1".into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+        }
+        for (flag, value) in [
+            ("--peer", "127.0.0.1:1"),
+            ("--action", "complete"),
+            ("--generation", "0"),
+            ("--height", "0"),
+        ] {
+            let mut values = failover();
+            values.extend([flag.into(), value.into()]);
+            assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+        }
+        let mut values = failover();
+        values.push("--attach-existing".into());
+        assert_eq!(parsed(values), Err(UsageError::WrongCommandOption));
+    }
+
+    #[test]
+    fn failover_preserves_all_numeric_and_argument_admission_limits() {
+        for flag in [
+            "--max-attempts",
+            "--max-io-bytes",
+            "--timeout-ms",
+            "--admission-ms",
+        ] {
+            for value in ["", "01", "+1", "-1", "1.0", " 1", "18446744073709551616"] {
+                let mut values = failover();
+                change(&mut values, flag, value);
+                assert_eq!(parsed(values), Err(UsageError::InvalidNumber));
+            }
+        }
+        for (flag, value) in [
+            ("--max-attempts", "0"),
+            ("--max-attempts", "9"),
+            ("--max-attempts", "256"),
+            ("--max-io-bytes", "0"),
+            ("--max-io-bytes", "157129489"),
+            ("--timeout-ms", "0"),
+            ("--timeout-ms", "60001"),
+            ("--admission-ms", "0"),
+            ("--admission-ms", "60001"),
+        ] {
+            let mut values = failover();
+            change(&mut values, flag, value);
+            assert_eq!(parsed(values), Err(UsageError::OutOfRange));
+        }
+        let mut values = failover();
+        change(&mut values, "--peers", &"x".repeat(MAX_TOKEN_BYTES + 1));
+        assert_eq!(parsed(values), Err(UsageError::TokenTooLong));
+        let mut values = failover();
+        values.resize(MAX_ARGUMENTS + 1, "extra".into());
+        assert_eq!(parsed(values), Err(UsageError::TooManyArguments));
+        let mut values = failover();
+        change(&mut values, "--peers", "127.0.0.1:1,\n127.0.0.1:2");
+        assert_eq!(parsed(values), Err(UsageError::ControlCharacter));
     }
 
     #[test]

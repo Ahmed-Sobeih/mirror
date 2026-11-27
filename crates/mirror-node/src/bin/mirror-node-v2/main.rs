@@ -3,6 +3,7 @@
 
 mod args;
 mod errors;
+mod failover;
 mod output;
 mod provider;
 mod rejoin;
@@ -46,6 +47,7 @@ fn main() -> ExitCode {
         Command::Sync { .. } => ("sync-once", true),
         Command::Serve { .. } => ("serve", true),
         Command::RejoinServe { .. } => ("rejoin-serve", true),
+        Command::RejoinFailoverServe { .. } => ("rejoin-failover-serve", true),
         Command::Recover { .. } => ("recover", true),
     };
     match execute(command) {
@@ -65,16 +67,7 @@ fn main() -> ExitCode {
             }
         }
         Err(failure) => {
-            let uncertain = failure
-                .may_have_completed
-                .or_else(|| (failure.class == "output_limit").then_some(may_have_effects));
-            emit_diagnostic(output::diagnostic(
-                operation,
-                failure.class,
-                failure.next,
-                None,
-                uncertain,
-            ));
+            emit_diagnostic(failure_diagnostic(operation, &failure, may_have_effects));
             ExitCode::from(1)
         }
     }
@@ -217,6 +210,59 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
             output.field("last_session_error", report.service.last_session_error)?;
             Ok((output, 0))
         }
+        Command::RejoinFailoverServe {
+            common,
+            peers,
+            listen,
+            limits,
+            admission,
+        } => {
+            let report = failover::run(&common, peers.as_slice(), listen, limits, admission)?;
+            let lifecycle = report.lifecycle;
+            if lifecycle.receive != report.acquisition.stats {
+                return Err(Failure::new("lifecycle_limit")
+                    .after_adoption()
+                    .with_acquisition(report.acquisition));
+            }
+            // The lifecycle has released ownership and sockets before either
+            // the successful report or a bounded diagnostic is formatted.
+            let mut output = Output::state(
+                "rejoin-failover-serve",
+                "stopped",
+                common.identity,
+                "verified",
+            )?;
+            output.checkpoint("previous", lifecycle.previous)?;
+            output.checkpoint("selected", lifecycle.service.checkpoint)?;
+            output.field(
+                "receive_status",
+                if lifecycle.receive.attempts == 0 {
+                    "not-started"
+                } else {
+                    "validated"
+                },
+            )?;
+            output.field(
+                "choice",
+                match lifecycle.choice {
+                    None => "not-attempted",
+                    Some(ForkChoiceV2::KeepCurrent) => "keep-current",
+                    Some(ForkChoiceV2::PreferCandidate) => "prefer-candidate",
+                },
+            )?;
+            output.field("reason", lifecycle.service.reason)?;
+            output.field("attempts", lifecycle.service.stats.attempts)?;
+            output.field("receive_attempts", lifecycle.receive.attempts)?;
+            output.field("serve_attempts", lifecycle.serve_stats.attempts)?;
+            output.field("completed_sessions", lifecycle.service.completed)?;
+            output.field("rejected_sessions", lifecycle.service.rejected)?;
+            output.field("wire_bytes", lifecycle.service.stats.wire_bytes)?;
+            output.field("receive_wire_bytes", lifecycle.receive.wire_bytes)?;
+            output.field("serve_wire_bytes", lifecycle.serve_stats.wire_bytes)?;
+            output.field("last_session_error", lifecycle.service.last_session_error)?;
+            output::acquisition_context(&mut output, &report.acquisition, false)?;
+            Ok((output, 0))
+        }
         Command::Recover { common, action } => {
             let ready =
                 NodeControlV2::recover(&common.control, &common.store, common.identity, action)?;
@@ -234,6 +280,27 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
     }
 }
 
+fn failure_diagnostic(
+    operation: &'static str,
+    failure: &Failure,
+    may_have_effects: bool,
+) -> Result<Output, fmt::Error> {
+    let uncertain = failure
+        .may_have_completed
+        .or_else(|| (failure.class == "output_limit").then_some(may_have_effects));
+    let base = || output::diagnostic(operation, failure.class, failure.next, None, uncertain);
+    let mut record = base()?;
+    if let Some(acquisition) = failure.acquisition {
+        if output::acquisition_context(&mut record, &acquisition, true).is_err() {
+            // Discard any partial context, retaining the original safe class,
+            // next action and possible-completion warning. Internal reporting
+            // failure must not erase uncertainty after admitted adoption.
+            record = base()?;
+        }
+    }
+    Ok(record)
+}
+
 fn emit_diagnostic(record: Result<Output, fmt::Error>) {
     let mut stderr = io::stderr().lock();
     if let Ok(record) = record {
@@ -245,5 +312,48 @@ fn emit_diagnostic(record: Result<Output, fmt::Error>) {
             b"format=mirror-node-v2-1\noperation=output\nerror=output_limit\nnext=inspect-status\n",
         );
         let _ = stderr.flush();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mirror_network::v2::session::SessionStatsV2;
+
+    #[test]
+    fn malformed_failover_evidence_cannot_erase_possible_completion_or_old_diagnostics() {
+        let malformed = failover::Acquisition {
+            peer_count: 4,
+            validated_peer: 2,
+            failed_receives: 0,
+            last_receive_error: "none",
+            stop: "validated",
+            results: ["not-attempted"; 4],
+            stats: SessionStatsV2::default(),
+        };
+        let failure = Failure::new("listen_bind")
+            .after_adoption()
+            .with_acquisition(malformed);
+        let mut bytes = Vec::new();
+        failure_diagnostic("rejoin-failover-serve", &failure, true)
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert!(text.contains("error=listen_bind\n"));
+        assert!(text.contains("operation_may_have_completed=true\n"));
+        assert!(text.contains("next=inspect-status\n"));
+        assert!(!text.contains("acquisition_"));
+        assert!(!text.contains("validated_peer="));
+        assert!(!text.contains("selected_"));
+        let mut bytes = Vec::new();
+        failure_diagnostic("status", &Failure::new("busy"), false)
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+        assert_eq!(
+            bytes,
+            b"format=mirror-node-v2-1\noperation=status\nerror=busy\nnext=inspect-status\n"
+        );
     }
 }

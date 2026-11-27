@@ -19,6 +19,10 @@ integration retains the returned controller, the original sticky signal guard
 and one cumulative transport owner. This document continues to specify the
 standalone `serve` command; its fields, limits and shutdown behavior remain.
 
+[MB-04B3 explicit-peer failover](NODE_FAILOVER_V2.md) adds a bounded acquisition
+list before the same retained-controller serving phase. Its failed acquisitions
+consume the same owner allowance; standalone `serve` remains unchanged.
+
 ## 1. Explicit invocation and limits
 
 Every value below is supplied deliberately; the angle-bracket text describes
