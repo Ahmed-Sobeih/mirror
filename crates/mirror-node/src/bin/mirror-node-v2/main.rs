@@ -1,10 +1,12 @@
-//! Finite V2 operator commands composed from accepted A1 control and F2 sessions.
-//! Serving has one fixed history and explicit admission/shutdown limits.
+//! Finite V2 operator commands composed from accepted A1 control, F2 sessions
+//! and local C1 inspection. Each lifecycle retains its explicit bounds.
 
 mod args;
 mod errors;
 mod failover;
 mod output;
+mod pool_input;
+mod pool_inspect;
 mod provider;
 mod rejoin;
 mod runner;
@@ -50,6 +52,7 @@ fn main() -> ExitCode {
         Command::RejoinServe { .. } => ("rejoin-serve", true),
         Command::RejoinFailoverServe { .. } => ("rejoin-failover-serve", true),
         Command::Run { .. } => ("run", true),
+        Command::PoolInspect { .. } => ("pool-inspect", true),
         Command::Recover { .. } => ("recover", true),
     };
     match execute(command) {
@@ -75,8 +78,9 @@ fn main() -> ExitCode {
     }
 }
 
-/// No success record reaches stdout until the whole requested operation succeeds.
-/// Output errors preserve the operation's uncertainty and never trigger a retry.
+/// No normal record reaches stdout until its lifecycle returns and all resource
+/// owners drop. C2 can report a completed inspection with a blocked evaluation
+/// and exit 1. Output errors preserve uncertainty and never trigger a retry.
 fn execute(command: Command) -> Result<(Output, u8), Failure> {
     match command {
         Command::Help => Ok((output::help()?, 0)),
@@ -287,6 +291,17 @@ fn execute(command: Command) -> Result<(Output, u8), Failure> {
             // validation, formatting and potentially blocked output begin.
             Ok((output::run_report(common.identity, &report)?, 0))
         }
+        Command::PoolInspect {
+            common,
+            input,
+            options,
+        } => {
+            let report = pool_inspect::run(&common, &input, options)?;
+            // Input, the ephemeral pool, the signal guard and both authority
+            // owners are gone before bounded formatting or stdout can block.
+            let exit = report.exit_code();
+            Ok((output::pool_inspection(common.identity, &report)?, exit))
+        }
         Command::Recover { common, action } => {
             let ready =
                 NodeControlV2::recover(&common.control, &common.store, common.identity, action)?;
@@ -340,6 +355,21 @@ fn emit_diagnostic(record: Result<Output, fmt::Error>) {
             b"format=mirror-node-v2-1\noperation=output\nerror=output_limit\nnext=inspect-status\n",
         );
         let _ = stderr.flush();
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+
+    #[test]
+    fn pool_output_limit_keeps_completion_uncertainty_and_static_diagnostic() {
+        let mut bytes = Vec::new();
+        failure_diagnostic("pool-inspect", &Failure::new("output_limit"), true)
+            .unwrap()
+            .write_to(&mut bytes)
+            .unwrap();
+        assert_eq!(bytes, b"format=mirror-node-v2-1\noperation=pool-inspect\nerror=output_limit\noperation_may_have_completed=true\nnext=inspect-status\n");
     }
 }
 

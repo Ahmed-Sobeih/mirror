@@ -3,9 +3,16 @@
 use std::{ffi::OsString, net::SocketAddr, path::PathBuf, time::Duration};
 
 use mirror_chain::v2::{MAX_CHAIN_BLOCKS_V2, ManifestIdentityV2};
+use mirror_core::v2::MIN_ENCODED_BLOCK_LEN_V2;
 use mirror_crypto::Hash256;
 use mirror_network::v2::session::{MAX_SESSION_WIRE_BYTES_V2, SessionLimitsV2};
+use mirror_node::v2::pool::{
+    MAX_POOL_BATCH_BYTES_V2, MAX_POOL_BATCH_OPERATIONS_V2, MAX_POOL_ENCODED_BYTES_V2,
+    MAX_POOL_ENTRIES_V2, MAX_POOL_WORK_UNITS_V2, PendingPoolLimitsV2,
+};
 use mirror_storage::v2::{ReplacementCheckpointV2, ReplacementRecoveryActionV2};
+
+use super::pool_input::{MAX_INPUT_BYTES, MAX_INPUT_COUNT};
 
 pub const MAX_ARGUMENTS: usize = 32;
 pub const MAX_TOKEN_BYTES: usize = 4096;
@@ -31,6 +38,41 @@ pub struct Common {
     pub control: PathBuf,
     pub store: PathBuf,
     pub identity: ManifestIdentityV2,
+}
+
+/// Explicit C2 policy, validated before signal setup, file access or A1 opening.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PoolInspectOptions {
+    pub max_input_bytes: usize,
+    pub max_input_count: usize,
+    pub limits: PendingPoolLimitsV2,
+    pub evaluate_count: usize,
+}
+
+impl PoolInspectOptions {
+    pub(super) fn validate(self) -> Result<(), UsageError> {
+        let limits = self.limits;
+        if self.max_input_bytes == 0
+            || self.max_input_bytes > MAX_INPUT_BYTES
+            || self.max_input_count == 0
+            || self.max_input_count > MAX_INPUT_COUNT
+            || limits.max_entries == 0
+            || limits.max_entries > MAX_POOL_ENTRIES_V2
+            || limits.max_encoded_bytes == 0
+            || limits.max_encoded_bytes > MAX_POOL_ENCODED_BYTES_V2
+            || limits.max_batch_operations == 0
+            || limits.max_batch_operations > MAX_POOL_BATCH_OPERATIONS_V2
+            || limits.max_batch_operations > limits.max_entries
+            || limits.max_batch_bytes < MIN_ENCODED_BLOCK_LEN_V2
+            || limits.max_batch_bytes > MAX_POOL_BATCH_BYTES_V2
+            || limits.max_work_units == 0
+            || limits.max_work_units > MAX_POOL_WORK_UNITS_V2
+            || self.evaluate_count > limits.max_batch_operations
+        {
+            return Err(UsageError::OutOfRange);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -74,6 +116,11 @@ pub enum Command {
         admission: Duration,
         max_rounds: u8,
         round_wait: Duration,
+    },
+    PoolInspect {
+        common: Common,
+        input: PathBuf,
+        options: PoolInspectOptions,
     },
     Recover {
         common: Common,
@@ -149,6 +196,7 @@ enum Kind {
     RejoinServe,
     RejoinFailoverServe,
     Run,
+    PoolInspect,
     Recover,
 }
 
@@ -171,6 +219,15 @@ const ADMISSION: usize = 15;
 const PEERS: usize = 16;
 const ROUNDS: usize = 17;
 const ROUND_WAIT: usize = 18;
+const INPUT_FILE: usize = 19;
+const INPUT_BYTES: usize = 20;
+const INPUT_COUNT: usize = 21;
+const POOL_ENTRIES: usize = 22;
+const POOL_BYTES: usize = 23;
+const BATCH_OPERATIONS: usize = 24;
+const BATCH_BYTES: usize = 25;
+const WORK_UNITS: usize = 26;
+const EVALUATE_COUNT: usize = 27;
 const COMMON_MASK: u32 = (1 << CONTROL) | (1 << STORE) | (1 << CONFIG) | (1 << GENESIS);
 
 fn required(kind: Kind) -> u32 {
@@ -191,6 +248,17 @@ fn required(kind: Kind) -> u32 {
             Kind::RejoinServe => required(Kind::Serve) | (1 << PEER),
             Kind::RejoinFailoverServe => required(Kind::Serve) | (1 << PEERS),
             Kind::Run => required(Kind::RejoinFailoverServe) | (1 << ROUNDS) | (1 << ROUND_WAIT),
+            Kind::PoolInspect => {
+                (1 << INPUT_FILE)
+                    | (1 << INPUT_BYTES)
+                    | (1 << INPUT_COUNT)
+                    | (1 << POOL_ENTRIES)
+                    | (1 << POOL_BYTES)
+                    | (1 << BATCH_OPERATIONS)
+                    | (1 << BATCH_BYTES)
+                    | (1 << WORK_UNITS)
+                    | (1 << EVALUATE_COUNT)
+            }
             Kind::Recover => 1 << ACTION,
         }
 }
@@ -216,6 +284,15 @@ fn flag(value: &str) -> Result<usize, UsageError> {
         "--listen" => LISTEN,
         "--max-attempts" => ATTEMPTS,
         "--admission-ms" => ADMISSION,
+        "--input-file" => INPUT_FILE,
+        "--max-input-bytes" => INPUT_BYTES,
+        "--max-input-count" => INPUT_COUNT,
+        "--max-entries" => POOL_ENTRIES,
+        "--max-encoded-bytes" => POOL_BYTES,
+        "--max-batch-operations" => BATCH_OPERATIONS,
+        "--max-batch-bytes" => BATCH_BYTES,
+        "--max-work-units" => WORK_UNITS,
+        "--evaluate-count" => EVALUATE_COUNT,
         value if value.starts_with('-') => return Err(UsageError::UnknownOption),
         _ => return Err(UsageError::UnexpectedArgument),
     })
@@ -262,12 +339,13 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
         "rejoin-serve" => Kind::RejoinServe,
         "rejoin-failover-serve" => Kind::RejoinFailoverServe,
         "run" => Kind::Run,
+        "pool-inspect" => Kind::PoolInspect,
         "recover" => Kind::Recover,
         _ => return Err(UsageError::UnknownCommand),
     };
     let required = required(kind);
     let mut seen = 0u32;
-    let mut values: [Option<&str>; 19] = [None; 19];
+    let mut values: [Option<&str>; 28] = [None; 28];
     let mut position = 1usize;
     while position < tokens.len() {
         let index = flag(&tokens[position])?;
@@ -420,6 +498,29 @@ pub fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Command, U
                 }
             }
         }
+        Kind::PoolInspect => {
+            let count = |index| {
+                usize::try_from(unsigned(value(index)?)?).map_err(|_| UsageError::OutOfRange)
+            };
+            let options = PoolInspectOptions {
+                max_input_bytes: count(INPUT_BYTES)?,
+                max_input_count: count(INPUT_COUNT)?,
+                limits: PendingPoolLimitsV2 {
+                    max_entries: count(POOL_ENTRIES)?,
+                    max_encoded_bytes: count(POOL_BYTES)?,
+                    max_batch_operations: count(BATCH_OPERATIONS)?,
+                    max_batch_bytes: count(BATCH_BYTES)?,
+                    max_work_units: unsigned(value(WORK_UNITS)?)?,
+                },
+                evaluate_count: count(EVALUATE_COUNT)?,
+            };
+            options.validate()?;
+            Command::PoolInspect {
+                common,
+                input: path(INPUT_FILE)?,
+                options,
+            }
+        }
         Kind::Recover => {
             let action = match value(ACTION)? {
                 "complete" => ReplacementRecoveryActionV2::Complete,
@@ -509,6 +610,238 @@ fn hash(text: &str) -> Result<Hash256, UsageError> {
         bytes[index] = nibble(pair[0])? * 16 + nibble(pair[1])?;
     }
     Ok(Hash256::from_bytes(bytes))
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+
+    fn pool_arguments() -> Vec<String> {
+        [
+            "pool-inspect",
+            "--control-dir",
+            "control",
+            "--store-dir",
+            "store",
+            "--config-hash",
+            &"ab".repeat(32),
+            "--genesis-hash",
+            &"cd".repeat(32),
+            "--input-file",
+            "operations.hex",
+            "--max-input-bytes",
+            "149248",
+            "--max-input-count",
+            "256",
+            "--max-entries",
+            "256",
+            "--max-encoded-bytes",
+            "74496",
+            "--max-batch-operations",
+            "64",
+            "--max-batch-bytes",
+            "19048",
+            "--max-work-units",
+            "67108864",
+            "--evaluate-count",
+            "64",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+    }
+
+    fn pool_parse(arguments: Vec<String>) -> Result<Command, UsageError> {
+        parse(arguments.into_iter().map(OsString::from))
+    }
+
+    fn pool_set(arguments: &mut [String], flag: &str, value: &str) {
+        let index = arguments
+            .iter()
+            .position(|argument| argument == flag)
+            .unwrap();
+        arguments[index + 1] = value.to_owned();
+    }
+
+    #[test]
+    fn pool_all_explicit_upper_limits_fit_unchanged_argument_budget() {
+        let arguments = pool_arguments();
+        assert_eq!(arguments.len(), 27);
+        assert_eq!(MAX_ARGUMENTS, 32);
+        assert_eq!(MAX_TOKEN_BYTES, 4096);
+        assert_eq!(MAX_ARGUMENT_BYTES, 16384);
+        let Command::PoolInspect {
+            common,
+            input,
+            options,
+        } = pool_parse(arguments).unwrap()
+        else {
+            panic!("wrong command");
+        };
+        assert_eq!(common.control, PathBuf::from("control"));
+        assert_eq!(common.store, PathBuf::from("store"));
+        assert_eq!(common.identity.config_hash.to_hex(), "ab".repeat(32));
+        assert_eq!(common.identity.genesis_hash.to_hex(), "cd".repeat(32));
+        assert_eq!(input, PathBuf::from("operations.hex"));
+        assert_eq!(options.max_input_bytes, MAX_INPUT_BYTES);
+        assert_eq!(options.max_input_count, MAX_INPUT_COUNT);
+        assert_eq!(options.limits.max_entries, MAX_POOL_ENTRIES_V2);
+        assert_eq!(options.limits.max_encoded_bytes, MAX_POOL_ENCODED_BYTES_V2);
+        assert_eq!(
+            options.limits.max_batch_operations,
+            MAX_POOL_BATCH_OPERATIONS_V2
+        );
+        assert_eq!(options.limits.max_batch_bytes, MAX_POOL_BATCH_BYTES_V2);
+        assert_eq!(options.limits.max_work_units, MAX_POOL_WORK_UNITS_V2);
+        assert_eq!(options.evaluate_count, MAX_POOL_BATCH_OPERATIONS_V2);
+    }
+
+    #[test]
+    fn pool_requires_every_pair_once_and_accepts_any_pair_order() {
+        let arguments = pool_arguments();
+        for index in (1..arguments.len()).step_by(2) {
+            let mut missing = arguments.clone();
+            missing.drain(index..index + 2);
+            assert_eq!(pool_parse(missing), Err(UsageError::MissingOption));
+            let mut duplicate = arguments.clone();
+            duplicate.extend_from_slice(&arguments[index..index + 2]);
+            assert_eq!(pool_parse(duplicate), Err(UsageError::DuplicateOption));
+        }
+        let mut reversed = vec![arguments[0].clone()];
+        for pair in arguments[1..].chunks_exact(2).rev() {
+            reversed.extend_from_slice(pair);
+        }
+        assert_eq!(pool_parse(reversed), pool_parse(arguments));
+    }
+
+    #[test]
+    fn pool_options_never_enter_old_commands_or_accept_network_flags() {
+        let arguments = pool_arguments();
+        for command in [
+            "init",
+            "status",
+            "sync-once",
+            "recover",
+            "serve",
+            "rejoin-serve",
+            "rejoin-failover-serve",
+            "run",
+        ] {
+            for pair in arguments[9..].chunks_exact(2) {
+                let mut crossed = arguments[..9].to_vec();
+                crossed[0] = command.to_owned();
+                crossed.extend_from_slice(pair);
+                assert_eq!(pool_parse(crossed), Err(UsageError::WrongCommandOption));
+            }
+        }
+        for flag in ["--peer", "--listen", "--action", "--max-rounds"] {
+            let mut crossed = arguments.clone();
+            crossed.extend([flag.to_owned(), "untrusted-value".to_owned()]);
+            assert_eq!(pool_parse(crossed), Err(UsageError::WrongCommandOption));
+        }
+    }
+
+    #[test]
+    fn pool_small_input_retention_and_work_limits_are_independent() {
+        let mut arguments = pool_arguments();
+        for (flag, value) in [
+            ("--max-input-bytes", "1"),
+            ("--max-input-count", "1"),
+            ("--max-entries", "1"),
+            ("--max-encoded-bytes", "1"),
+            ("--max-batch-operations", "1"),
+            ("--max-batch-bytes", "168"),
+            ("--max-work-units", "1"),
+            ("--evaluate-count", "0"),
+        ] {
+            pool_set(&mut arguments, flag, value);
+        }
+        let Command::PoolInspect { options, .. } = pool_parse(arguments.clone()).unwrap() else {
+            panic!("wrong command");
+        };
+        assert_eq!(options.evaluate_count, 0);
+        assert_eq!(options.validate(), Ok(()));
+        pool_set(&mut arguments, "--evaluate-count", "1");
+        assert!(pool_parse(arguments).is_ok());
+    }
+
+    #[test]
+    fn pool_rejects_every_scalar_bound_and_cross_limit_violation() {
+        for (flag, values) in [
+            ("--max-input-bytes", ["0", "149249"]),
+            ("--max-input-count", ["0", "257"]),
+            ("--max-entries", ["0", "257"]),
+            ("--max-encoded-bytes", ["0", "74497"]),
+            ("--max-batch-operations", ["0", "65"]),
+            ("--max-batch-bytes", ["167", "19049"]),
+            ("--max-work-units", ["0", "67108865"]),
+            ("--evaluate-count", ["65", "18446744073709551615"]),
+        ] {
+            for value in values {
+                let mut arguments = pool_arguments();
+                pool_set(&mut arguments, flag, value);
+                assert_eq!(pool_parse(arguments), Err(UsageError::OutOfRange));
+            }
+        }
+        let mut arguments = pool_arguments();
+        pool_set(&mut arguments, "--max-entries", "63");
+        assert_eq!(pool_parse(arguments), Err(UsageError::OutOfRange));
+        let mut arguments = pool_arguments();
+        pool_set(&mut arguments, "--max-batch-operations", "63");
+        assert_eq!(pool_parse(arguments), Err(UsageError::OutOfRange));
+    }
+
+    #[test]
+    fn pool_numbers_retain_canonical_decimal_and_overflow_refusal() {
+        for flag in [
+            "--max-input-bytes",
+            "--max-input-count",
+            "--max-entries",
+            "--max-encoded-bytes",
+            "--max-batch-operations",
+            "--max-batch-bytes",
+            "--max-work-units",
+            "--evaluate-count",
+        ] {
+            for value in ["", "00", "01", "+1", "-1", "1.0", "18446744073709551616"] {
+                let mut arguments = pool_arguments();
+                pool_set(&mut arguments, flag, value);
+                assert_eq!(pool_parse(arguments), Err(UsageError::InvalidNumber));
+            }
+        }
+    }
+
+    #[test]
+    fn pool_paths_and_tokens_retain_effect_free_admission_limits() {
+        let mut arguments = pool_arguments();
+        pool_set(&mut arguments, "--input-file", "");
+        assert_eq!(pool_parse(arguments), Err(UsageError::EmptyPath));
+        let mut arguments = pool_arguments();
+        pool_set(&mut arguments, "--input-file", "line\nbreak");
+        assert_eq!(pool_parse(arguments), Err(UsageError::ControlCharacter));
+        let mut arguments = pool_arguments();
+        pool_set(&mut arguments, "--input-file", &"x".repeat(MAX_TOKEN_BYTES));
+        assert!(pool_parse(arguments.clone()).is_ok());
+        pool_set(
+            &mut arguments,
+            "--input-file",
+            &"x".repeat(MAX_TOKEN_BYTES + 1),
+        );
+        assert_eq!(pool_parse(arguments), Err(UsageError::TokenTooLong));
+        let mut arguments = pool_arguments();
+        for flag in [
+            "--input-file",
+            "--control-dir",
+            "--store-dir",
+            "--config-hash",
+        ] {
+            pool_set(&mut arguments, flag, &"x".repeat(MAX_TOKEN_BYTES));
+        }
+        assert_eq!(pool_parse(arguments), Err(UsageError::ArgumentsTooLong));
+        let mut arguments = pool_arguments();
+        arguments.extend(std::iter::repeat_n("extra".to_owned(), 6));
+        assert_eq!(pool_parse(arguments), Err(UsageError::TooManyArguments));
+    }
 }
 
 #[cfg(test)]

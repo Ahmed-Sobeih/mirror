@@ -36,6 +36,18 @@ impl Failure {
             | "invalid_peer_request"
             | "listen_bind"
             | "lifecycle_limit"
+            | "pool_input_path"
+            | "pool_input_unsafe"
+            | "pool_input_missing"
+            | "pool_input_io"
+            | "pool_input_changed"
+            | "pool_input_bytes"
+            | "pool_input_count"
+            | "pool_input_framing"
+            | "pool_operation"
+            | "pool_entry_limit"
+            | "pool_encoded_byte_limit"
+            | "pool_work_limit"
             | "unsupported_platform" => "verify-inputs",
             _ => "inspect-status",
         };
@@ -219,6 +231,45 @@ fn recovery(error: &ReplacementRecoveryErrorV2) -> &'static str {
         ReplacementRecoveryErrorV2::RecoveryIncomplete { .. } => "recovery_incomplete",
         ReplacementRecoveryErrorV2::PublicationUncertain { .. } => "publication_uncertain",
         _ => "invalid_recovery",
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+
+    #[test]
+    fn pool_input_and_admission_failures_keep_static_input_advice() {
+        for class in [
+            "pool_input_path",
+            "pool_input_unsafe",
+            "pool_input_missing",
+            "pool_input_io",
+            "pool_input_changed",
+            "pool_input_bytes",
+            "pool_input_count",
+            "pool_input_framing",
+            "pool_operation",
+            "pool_entry_limit",
+            "pool_encoded_byte_limit",
+            "pool_work_limit",
+        ] {
+            let failure = Failure::new(class);
+            assert_eq!(failure.class, class);
+            assert_eq!(failure.next, "verify-inputs");
+            assert_eq!(failure.may_have_completed, None);
+            assert!(failure.acquisition.is_none() && failure.run.is_none());
+        }
+        for class in [
+            "pool_shutdown",
+            "pool_invariant",
+            "allocation_failed",
+            "arithmetic_overflow",
+        ] {
+            let failure = Failure::new(class);
+            assert_eq!(failure.next, "inspect-status");
+            assert_eq!(failure.may_have_completed, None);
+        }
     }
 }
 

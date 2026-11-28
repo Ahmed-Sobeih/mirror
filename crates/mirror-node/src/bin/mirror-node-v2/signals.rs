@@ -1,4 +1,5 @@
-//! Scoped Linux graceful-shutdown handlers for finite serve/rejoin invocations.
+//! Scoped Linux graceful-shutdown handlers for finite serve/rejoin/run and
+//! local pool-inspection invocations.
 //! The handler performs one lock-free atomic store and no I/O/allocation.
 
 use super::errors::Failure;
@@ -25,9 +26,9 @@ pub(super) struct Signals {
 #[cfg(target_os = "linux")]
 impl Signals {
     pub(super) fn install() -> Result<Self, Failure> {
-        // This private guard is installed once per single-threaded serve or
-        // rejoin-serve invocation, never between its phases. Other operator
-        // commands never alter process dispositions.
+        // This private guard is installed once per single-threaded serve,
+        // rejoin, run or local pool-inspection invocation, never between its
+        // phases. Other operator commands never alter process dispositions.
         STOP.store(false, Ordering::Relaxed);
         // SAFETY: zero initializes libc's plain C sigaction storage, whose
         // function/flags/mask fields are filled before use. All pointers passed

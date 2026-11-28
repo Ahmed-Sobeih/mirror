@@ -4,10 +4,17 @@
 use std::{fmt, fmt::Write as _, io};
 
 use mirror_chain::v2::{ForkChoiceV2, MAX_CHAIN_BLOCKS_V2, ManifestIdentityV2};
+use mirror_core::v2::MIN_ENCODED_BLOCK_LEN_V2;
 use mirror_network::v2::session::{
     MAX_SESSION_ATTEMPTS_V2, MAX_SESSION_WIRE_BYTES_V2, SessionStatsV2,
 };
 use mirror_storage::v2::ReplacementCheckpointV2;
+
+use super::{
+    errors::Failure,
+    pool_inspect::{BlockedReason, Evaluation, Report as PoolInspectionReport},
+};
+use mirror_node::v2::pool::MAX_POOL_OPERATION_BYTES_V2;
 
 pub const MAX_OUTPUT_BYTES: usize = 4096;
 
@@ -600,12 +607,159 @@ pub(super) fn run_report(
     Ok(output)
 }
 
+/// Validate only fixed scalar/checkpoint observations after the C2 resource
+/// owners have dropped. This record includes expected blocked evaluation;
+/// neither retention nor execution is a claim of canonical inclusion.
+fn validate_pool_inspection(
+    identity: ManifestIdentityV2,
+    report: &PoolInspectionReport,
+) -> Result<(), Failure> {
+    let invalid = || Failure::new("pool_invariant");
+    let options = report.options;
+    let limits = options.limits;
+    options.validate().map_err(|_| invalid())?;
+    if report.checkpoint.chain.config_hash != identity.config_hash
+        || report.checkpoint.chain.genesis_hash != identity.genesis_hash
+        || report.checkpoint.chain.height >= MAX_CHAIN_BLOCKS_V2 as u64
+        || report.checkpoint.generation > report.checkpoint.chain.height
+        || report.input_bytes > options.max_input_bytes
+        || report.input_count > options.max_input_count
+        || report.retained_count > limits.max_entries
+        || report.retained_count.checked_add(report.duplicate_count) != Some(report.input_count)
+        || report.retained_encoded_bytes > limits.max_encoded_bytes
+        || report.work_used > limits.max_work_units
+        || ((report.input_count == 0) != (report.input_bytes == 0))
+        || ((report.input_count == 0) != (report.retained_count == 0))
+        || ((report.retained_count == 0) != (report.retained_encoded_bytes == 0))
+        || ((report.input_count == 0) != (report.work_used == 0))
+    {
+        return Err(invalid());
+    }
+    // Each record has one LF and twice its decoded byte length. Duplicates
+    // remain in the input totals but contribute no new retained bytes.
+    let hex_bytes = report
+        .input_bytes
+        .checked_sub(report.input_count)
+        .filter(|bytes| bytes % 2 == 0)
+        .ok_or_else(invalid)?;
+    let decoded_input_bytes = hex_bytes / 2;
+    let minimum_decoded_input = report
+        .retained_encoded_bytes
+        .checked_add(report.duplicate_count)
+        .ok_or_else(invalid)?;
+    let maximum_decoded_input = report
+        .duplicate_count
+        .checked_mul(MAX_POOL_OPERATION_BYTES_V2)
+        .and_then(|bytes| bytes.checked_add(report.retained_encoded_bytes))
+        .ok_or_else(invalid)?;
+    let maximum_retained = report
+        .retained_count
+        .checked_mul(MAX_POOL_OPERATION_BYTES_V2)
+        .ok_or_else(invalid)?;
+    if decoded_input_bytes < minimum_decoded_input
+        || decoded_input_bytes > maximum_decoded_input
+        || report.retained_encoded_bytes < report.retained_count
+        || report.retained_encoded_bytes > maximum_retained
+    {
+        return Err(invalid());
+    }
+    match report.evaluation {
+        Evaluation::NotRequested => {
+            if options.evaluate_count != 0 {
+                return Err(invalid());
+            }
+        }
+        Evaluation::Evaluated { count, block_bytes } => {
+            if count == 0 || count != options.evaluate_count || count > report.retained_count {
+                return Err(invalid());
+            }
+            let framing = count
+                .checked_mul(4)
+                .and_then(|bytes| bytes.checked_add(MIN_ENCODED_BLOCK_LEN_V2))
+                .ok_or_else(invalid)?;
+            let encoded_bytes = block_bytes.checked_sub(framing).ok_or_else(invalid)?;
+            let maximum_bytes = count
+                .checked_mul(MAX_POOL_OPERATION_BYTES_V2)
+                .ok_or_else(invalid)?;
+            if block_bytes > limits.max_batch_bytes
+                || encoded_bytes < count
+                || encoded_bytes > maximum_bytes
+                || encoded_bytes > report.retained_encoded_bytes
+                || (count == report.retained_count
+                    && encoded_bytes != report.retained_encoded_bytes)
+            {
+                return Err(invalid());
+            }
+        }
+        Evaluation::Blocked { reason, index } => {
+            if options.evaluate_count == 0
+                || (matches!(reason, BlockedReason::InvalidCount)
+                    != (options.evaluate_count > report.retained_count))
+                || index.is_some_and(|index| {
+                    index >= options.evaluate_count
+                        || index >= report.retained_count
+                        || !matches!(
+                            reason,
+                            BlockedReason::Operation | BlockedReason::Body | BlockedReason::Ledger
+                        )
+                })
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn pool_inspection(
+    identity: ManifestIdentityV2,
+    report: &PoolInspectionReport,
+) -> Result<Output, Failure> {
+    validate_pool_inspection(identity, report)?;
+    let options = report.options;
+    let limits = options.limits;
+    let mut output = Output::state("pool-inspect", "inspected", identity, "confirmed")?;
+    output.checkpoint("selected", report.checkpoint)?;
+    output.field("input_bytes", report.input_bytes)?;
+    output.field("input_count", report.input_count)?;
+    output.field("retained_count", report.retained_count)?;
+    output.field("duplicate_count", report.duplicate_count)?;
+    output.field("retained_encoded_bytes", report.retained_encoded_bytes)?;
+    output.field("work_used", report.work_used)?;
+    output.field("max_input_bytes", options.max_input_bytes)?;
+    output.field("max_input_count", options.max_input_count)?;
+    output.field("max_entries", limits.max_entries)?;
+    output.field("max_encoded_bytes", limits.max_encoded_bytes)?;
+    output.field("max_batch_operations", limits.max_batch_operations)?;
+    output.field("max_batch_bytes", limits.max_batch_bytes)?;
+    output.field("max_work_units", limits.max_work_units)?;
+    output.field("evaluation_requested_count", options.evaluate_count)?;
+    let (evaluation, reason, index, count, block_bytes) = match report.evaluation {
+        Evaluation::NotRequested => ("not-requested", "none", None, 0, 0),
+        Evaluation::Evaluated { count, block_bytes } => {
+            ("evaluated", "none", None, count, block_bytes)
+        }
+        Evaluation::Blocked { reason, index } => ("blocked", reason.as_str(), index, 0, 0),
+    };
+    output.field("evaluation", evaluation)?;
+    output.field("evaluation_reason", reason)?;
+    match index {
+        Some(index) => output.field("evaluation_operation_index", index)?,
+        None => output.field("evaluation_operation_index", "none")?,
+    }
+    output.field("evaluated_count", count)?;
+    output.field("evaluated_block_bytes", block_bytes)?;
+    output.field("canonical_inclusion", "not-checked")?;
+    output.field("pool_disposition", "discarded")?;
+    Ok(output)
+}
+
 pub fn help() -> Result<Output, fmt::Error> {
     let mut output = Output::base("help")?;
     for (key, value) in [
         (
             "commands",
-            "init,status,sync-once,recover,serve,rejoin-serve,rejoin-failover-serve,run,help",
+            "init,status,sync-once,recover,serve,rejoin-serve,pool-inspect,rejoin-failover-serve,run,help",
         ),
         (
             "common_options",
@@ -700,6 +854,14 @@ pub fn help() -> Result<Output, fmt::Error> {
             "run_timing",
             "M*timeout + R*admission + (R-1)*wait; at most 900000 ms; local work/output excluded",
         ),
+        (
+            "pool_options",
+            "--input-file FILE --max-input-bytes UINT --max-input-count UINT --max-entries UINT --max-encoded-bytes UINT --max-batch-operations UINT --max-batch-bytes UINT --max-work-units UINT --evaluate-count UINT",
+        ),
+        (
+            "pool_scope",
+            "finite local admission and optional exact FIFO evaluation; no inclusion or publication claim",
+        ),
         ("help_scope", "help or --help alone"),
         (
             "paths",
@@ -752,6 +914,383 @@ pub fn help() -> Result<Output, fmt::Error> {
         output.field(key, value)?;
     }
     Ok(output)
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+    use crate::args::PoolInspectOptions;
+    use mirror_chain::v2::ChainReplayExpectationV2;
+    use mirror_crypto::Hash256;
+    use mirror_node::v2::pool::{
+        MAX_POOL_BATCH_BYTES_V2, MAX_POOL_BATCH_OPERATIONS_V2, MAX_POOL_ENCODED_BYTES_V2,
+        MAX_POOL_ENTRIES_V2, MAX_POOL_WORK_UNITS_V2, PendingPoolLimitsV2,
+    };
+
+    fn pool_fixture() -> (ManifestIdentityV2, PoolInspectionReport) {
+        let identity = ManifestIdentityV2 {
+            config_hash: Hash256::from_bytes([0xab; 32]),
+            genesis_hash: Hash256::from_bytes([0xcd; 32]),
+        };
+        (
+            identity,
+            PoolInspectionReport {
+                checkpoint: ReplacementCheckpointV2 {
+                    generation: 1,
+                    chain: ChainReplayExpectationV2 {
+                        config_hash: identity.config_hash,
+                        genesis_hash: identity.genesis_hash,
+                        height: 2,
+                        tip_hash: Hash256::from_bytes([0xef; 32]),
+                        ledger_root: Hash256::from_bytes([0x12; 32]),
+                    },
+                },
+                options: PoolInspectOptions {
+                    max_input_bytes: crate::pool_input::MAX_INPUT_BYTES,
+                    max_input_count: crate::pool_input::MAX_INPUT_COUNT,
+                    limits: PendingPoolLimitsV2 {
+                        max_entries: MAX_POOL_ENTRIES_V2,
+                        max_encoded_bytes: MAX_POOL_ENCODED_BYTES_V2,
+                        max_batch_operations: MAX_POOL_BATCH_OPERATIONS_V2,
+                        max_batch_bytes: MAX_POOL_BATCH_BYTES_V2,
+                        max_work_units: MAX_POOL_WORK_UNITS_V2,
+                    },
+                    evaluate_count: 2,
+                },
+                input_bytes: 1461,
+                input_count: 3,
+                retained_count: 2,
+                duplicate_count: 1,
+                retained_encoded_bytes: 486,
+                work_used: 2000,
+                evaluation: Evaluation::Evaluated {
+                    count: 2,
+                    block_bytes: 662,
+                },
+            },
+        )
+    }
+
+    fn pool_text(identity: ManifestIdentityV2, report: &PoolInspectionReport) -> String {
+        let output = pool_inspection(identity, report)
+            .unwrap_or_else(|failure| panic!("unexpected report error: {}", failure.class));
+        let mut bytes = Vec::new();
+        output.write_to(&mut bytes).unwrap();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    fn pool_invariant(identity: ManifestIdentityV2, report: &PoolInspectionReport) {
+        let Err(failure) = pool_inspection(identity, report) else {
+            panic!("inconsistent report was formatted");
+        };
+        assert_eq!(failure.class, "pool_invariant");
+    }
+
+    #[test]
+    fn pool_report_has_exact_unique_fields_and_separate_scope_claims() {
+        let (identity, report) = pool_fixture();
+        let text = pool_text(identity, &report);
+        let keys: Vec<_> = text
+            .lines()
+            .map(|line| line.split_once('=').unwrap().0)
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "format",
+                "operation",
+                "status",
+                "config_hash",
+                "genesis_hash",
+                "store_selection",
+                "selected_generation",
+                "selected_height",
+                "selected_tip_hash",
+                "selected_ledger_root",
+                "input_bytes",
+                "input_count",
+                "retained_count",
+                "duplicate_count",
+                "retained_encoded_bytes",
+                "work_used",
+                "max_input_bytes",
+                "max_input_count",
+                "max_entries",
+                "max_encoded_bytes",
+                "max_batch_operations",
+                "max_batch_bytes",
+                "max_work_units",
+                "evaluation_requested_count",
+                "evaluation",
+                "evaluation_reason",
+                "evaluation_operation_index",
+                "evaluated_count",
+                "evaluated_block_bytes",
+                "canonical_inclusion",
+                "pool_disposition",
+            ]
+        );
+        assert!(
+            text.starts_with("format=mirror-node-v2-1\noperation=pool-inspect\nstatus=inspected\n")
+        );
+        assert!(text.contains("store_selection=confirmed\n"));
+        assert!(text.contains("input_count=3\nretained_count=2\nduplicate_count=1\n"));
+        assert!(text.contains("evaluation=evaluated\nevaluation_reason=none\nevaluation_operation_index=none\nevaluated_count=2\nevaluated_block_bytes=662\n"));
+        assert!(text.ends_with("canonical_inclusion=not-checked\npool_disposition=discarded\n"));
+        assert_eq!(report.exit_code(), 0);
+        assert_eq!(text, pool_text(identity, &report));
+    }
+
+    #[test]
+    fn pool_empty_input_and_explicit_no_evaluation_are_complete_observations() {
+        let (identity, mut report) = pool_fixture();
+        report.options.evaluate_count = 0;
+        report.evaluation = Evaluation::NotRequested;
+        let retained = pool_text(identity, &report);
+        assert!(retained.contains("evaluation=not-requested\n"));
+        assert!(retained.contains("evaluated_count=0\nevaluated_block_bytes=0\n"));
+        report.input_bytes = 0;
+        report.input_count = 0;
+        report.retained_count = 0;
+        report.duplicate_count = 0;
+        report.retained_encoded_bytes = 0;
+        report.work_used = 0;
+        let empty = pool_text(identity, &report);
+        assert_eq!(empty.lines().count(), 31);
+        assert!(empty.contains("input_bytes=0\ninput_count=0\nretained_count=0\n"));
+        assert!(empty.contains("work_used=0\n"));
+        assert_eq!(report.exit_code(), 0);
+    }
+
+    #[test]
+    fn pool_each_closed_blocked_reason_keeps_zero_success_and_typed_index() {
+        for (reason, index, label) in [
+            (BlockedReason::InvalidCount, None, "invalid-count"),
+            (BlockedReason::BatchByteLimit, None, "batch-byte-limit"),
+            (BlockedReason::WorkLimit, None, "work-limit"),
+            (BlockedReason::Operation, Some(1), "operation"),
+            (BlockedReason::Body, Some(1), "body"),
+            (BlockedReason::Ledger, Some(1), "ledger"),
+        ] {
+            let (identity, mut report) = pool_fixture();
+            if reason == BlockedReason::InvalidCount {
+                report.options.evaluate_count = 3;
+            }
+            report.evaluation = Evaluation::Blocked { reason, index };
+            let text = pool_text(identity, &report);
+            assert_eq!(text.lines().count(), 31);
+            assert!(text.contains(&format!("evaluation=blocked\nevaluation_reason={label}\n")));
+            let index = index
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "none".into());
+            assert!(text.contains(&format!("evaluation_operation_index={index}\n")));
+            assert!(text.contains("evaluated_count=0\nevaluated_block_bytes=0\n"));
+            assert_eq!(report.exit_code(), 1);
+        }
+    }
+
+    #[test]
+    fn pool_success_can_describe_only_the_requested_fifo_prefix() {
+        let (identity, mut report) = pool_fixture();
+        report.options.evaluate_count = 1;
+        report.evaluation = Evaluation::Evaluated {
+            count: 1,
+            block_bytes: 415,
+        };
+        let text = pool_text(identity, &report);
+        assert!(text.contains("retained_count=2\n"));
+        assert!(text.contains("evaluation_requested_count=1\n"));
+        assert!(text.contains("evaluated_count=1\nevaluated_block_bytes=415\n"));
+    }
+
+    #[test]
+    fn pool_malformed_parent_counts_bytes_work_and_limits_never_format() {
+        let mutations: &[fn(&mut PoolInspectionReport)] = &[
+            |report| report.checkpoint.chain.config_hash = Hash256::from_bytes([1; 32]),
+            |report| report.checkpoint.chain.genesis_hash = Hash256::from_bytes([1; 32]),
+            |report| report.checkpoint.chain.height = MAX_CHAIN_BLOCKS_V2 as u64,
+            |report| report.checkpoint.generation = report.checkpoint.chain.height + 1,
+            |report| report.options.max_input_bytes = 0,
+            |report| {
+                report.options.limits.max_batch_operations = report.options.limits.max_entries + 1
+            },
+            |report| report.input_bytes = report.options.max_input_bytes + 1,
+            |report| report.input_bytes = 0,
+            |report| report.input_bytes = 1,
+            |report| report.input_bytes = 1462,
+            |report| report.input_bytes = 975,
+            |report| report.input_count = report.options.max_input_count + 1,
+            |report| report.input_count = 0,
+            |report| report.retained_count = report.options.limits.max_entries + 1,
+            |report| report.duplicate_count = usize::MAX,
+            |report| report.duplicate_count = 0,
+            |report| report.retained_encoded_bytes = report.options.limits.max_encoded_bytes + 1,
+            |report| report.retained_encoded_bytes = 0,
+            |report| report.retained_encoded_bytes = 1,
+            |report| report.work_used = report.options.limits.max_work_units + 1,
+            |report| report.work_used = 0,
+        ];
+        for mutation in mutations {
+            let (identity, mut report) = pool_fixture();
+            mutation(&mut report);
+            pool_invariant(identity, &report);
+        }
+    }
+
+    #[test]
+    fn pool_malformed_evaluation_or_impossible_index_never_format() {
+        for (requested, evaluation) in [
+            (2, Evaluation::NotRequested),
+            (
+                0,
+                Evaluation::Evaluated {
+                    count: 2,
+                    block_bytes: 662,
+                },
+            ),
+            (
+                2,
+                Evaluation::Evaluated {
+                    count: 0,
+                    block_bytes: 168,
+                },
+            ),
+            (
+                2,
+                Evaluation::Evaluated {
+                    count: 3,
+                    block_bytes: 909,
+                },
+            ),
+            (
+                2,
+                Evaluation::Evaluated {
+                    count: 2,
+                    block_bytes: 0,
+                },
+            ),
+            (
+                2,
+                Evaluation::Evaluated {
+                    count: 2,
+                    block_bytes: 661,
+                },
+            ),
+            (
+                2,
+                Evaluation::Evaluated {
+                    count: 2,
+                    block_bytes: MAX_POOL_BATCH_BYTES_V2 + 1,
+                },
+            ),
+            (
+                0,
+                Evaluation::Blocked {
+                    reason: BlockedReason::Ledger,
+                    index: None,
+                },
+            ),
+            (
+                2,
+                Evaluation::Blocked {
+                    reason: BlockedReason::InvalidCount,
+                    index: None,
+                },
+            ),
+            (
+                3,
+                Evaluation::Blocked {
+                    reason: BlockedReason::Ledger,
+                    index: None,
+                },
+            ),
+            (
+                2,
+                Evaluation::Blocked {
+                    reason: BlockedReason::Ledger,
+                    index: Some(2),
+                },
+            ),
+            (
+                2,
+                Evaluation::Blocked {
+                    reason: BlockedReason::Body,
+                    index: Some(usize::MAX),
+                },
+            ),
+            (
+                2,
+                Evaluation::Blocked {
+                    reason: BlockedReason::WorkLimit,
+                    index: Some(0),
+                },
+            ),
+        ] {
+            let (identity, mut report) = pool_fixture();
+            report.options.evaluate_count = requested;
+            report.evaluation = evaluation;
+            pool_invariant(identity, &report);
+        }
+    }
+
+    #[test]
+    fn pool_report_and_help_keep_the_existing_output_ceiling() {
+        let (identity, mut report) = pool_fixture();
+        report.input_bytes = crate::pool_input::MAX_INPUT_BYTES;
+        report.input_count = crate::pool_input::MAX_INPUT_COUNT;
+        report.retained_count = MAX_POOL_ENTRIES_V2;
+        report.duplicate_count = 0;
+        report.retained_encoded_bytes = MAX_POOL_ENCODED_BYTES_V2;
+        report.work_used = MAX_POOL_WORK_UNITS_V2;
+        report.options.evaluate_count = MAX_POOL_BATCH_OPERATIONS_V2;
+        report.evaluation = Evaluation::Blocked {
+            reason: BlockedReason::Body,
+            index: Some(63),
+        };
+        let text = pool_text(identity, &report);
+        let mut envelope = String::new();
+        for line in text.lines() {
+            let (key, value) = line.split_once('=').unwrap();
+            let longest = if key == "evaluation" {
+                "not-requested".to_owned()
+            } else if key == "evaluation_reason" {
+                "batch-byte-limit".to_owned()
+            } else if value.len() != 64 && value.bytes().all(|byte| byte.is_ascii_digit()) {
+                u64::MAX.to_string()
+            } else {
+                value.to_owned()
+            };
+            writeln!(envelope, "{key}={longest}").unwrap();
+        }
+        assert_eq!(text.lines().count(), 31);
+        assert!(text.len() <= envelope.len());
+        assert!(envelope.len() < MAX_OUTPUT_BYTES);
+        let mut bytes = Vec::new();
+        help().unwrap().write_to(&mut bytes).unwrap();
+        let help = String::from_utf8(bytes).unwrap();
+        assert_eq!(help.len(), 4045);
+        assert!(help.len() < MAX_OUTPUT_BYTES);
+        assert!(help.contains("pool-inspect,"));
+        assert!(help.contains("rejoin-failover-serve,run,help\n"));
+        let options = help
+            .lines()
+            .find_map(|line| line.strip_prefix("pool_options="))
+            .unwrap();
+        assert_eq!(options.split_whitespace().count(), 18);
+        for flag in [
+            "--input-file",
+            "--max-input-bytes",
+            "--max-input-count",
+            "--max-entries",
+            "--max-encoded-bytes",
+            "--max-batch-operations",
+            "--max-batch-bytes",
+            "--max-work-units",
+            "--evaluate-count",
+        ] {
+            assert!(options.split_whitespace().any(|value| value == flag));
+        }
+    }
 }
 
 #[cfg(test)]
