@@ -140,6 +140,7 @@ dependencies = [
  "mirror-consensus",
  "mirror-core",
  "mirror-crypto",
+ "mirror-personhood",
  "mirror-state",
 ]
 
@@ -156,6 +157,7 @@ name = "mirror-core"
 version = "0.1.0"
 dependencies = [
  "mirror-crypto",
+ "mirror-personhood",
 ]
 
 [[package]]
@@ -171,19 +173,26 @@ dependencies = [
 name = "mirror-network"
 version = "0.1.0"
 dependencies = [
+ "mirror-chain",
+ "mirror-consensus",
+ "mirror-core",
  "mirror-crypto",
+ "mirror-personhood",
  "mirror-protocol",
+ "mirror-storage",
 ]
 
 [[package]]
 name = "mirror-node"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "mirror-chain",
  "mirror-consensus",
  "mirror-core",
  "mirror-crypto",
  "mirror-network",
+ "mirror-personhood",
  "mirror-protocol",
  "mirror-state",
  "mirror-storage",
@@ -192,6 +201,9 @@ dependencies = [
 [[package]]
 name = "mirror-personhood"
 version = "0.1.0"
+dependencies = [
+ "mirror-crypto",
+]
 
 [[package]]
 name = "mirror-protocol"
@@ -206,12 +218,14 @@ version = "0.1.0"
 dependencies = [
  "mirror-core",
  "mirror-crypto",
+ "mirror-personhood",
 ]
 
 [[package]]
 name = "mirror-storage"
 version = "0.1.0"
 dependencies = [
+ "mirror-chain",
  "mirror-core",
  "mirror-crypto",
 ]

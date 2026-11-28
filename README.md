@@ -1,0 +1,1167 @@
+# Mirror
+
+Mirror is a Rust development blockchain exploring human-based participation.
+**It is not a public mainnet, a deployed proof-of-humanity system, or real money.**
+
+## Roadmap and continuation
+
+[MASTER_PLAN.md](MASTER_PLAN.md) tracks the route from the Rust development chain
+to an integrated blockchain/enrollment stack ready for
+supported fingerprint and ECG inputs. Each task has dependencies and acceptance
+criteria. **MB-01B and MB-02A/B/C are verified components:** configuration, membership,
+atomic ledger execution and actual V2 block acceptance/replay. **MB-03A/B supply
+verified storage components:** immutable selected-chain initialization, lifetime
+ownership, checked reopening and bounded one-block append publication with failure
+fencing. MB-03C adds explicit recovery of one independently authorized interrupted
+append. MB-03D adds comparison of complete accepted branches under an independent
+network identity. **MB-03E1 adds bounded replacement-selection metadata and checked
+in-memory preparation** of a preferred complete branch. **MB-03E2a adds actual
+whole-branch publication to a separate replacement store**, with stable root
+ownership, checked old-copy cleanup, failure fencing and clean reconciliation.
+**MB-03E2b adds explicit recovery of recognized interrupted replacement staging
+and cleanup**, using independently retained old/candidate histories and an explicit
+completion or retention action. **MB-03F1 adds separate V2 history frames and an
+in-memory receiver that executes a complete candidate from genesis**, under an
+independently selected network. **MB-03F2 adds finite TCP sessions and explicit
+durable adoption of a completely validated candidate**, including retained inputs
+for explicit recovery. **MB-03F2, MB-03F and MB-03 are VERIFIED_COMPONENT within
+their finite storage and peer-session scope.** **MB-04A1 now adds durable node
+control state and restart authority** in a separate operator-owned directory:
+confirmed local pins and both exact accepted histories survive process restart,
+and unfinished intent requires an explicit recovery decision. MB-04A1 is a
+VERIFIED_COMPONENT within this finite control/restart scope. **MB-04A2 now adds
+the separate finite `mirror-node-v2` operator executable**, with explicit
+`init`, `status`, `sync-once` and `recover` commands using that unchanged A1
+authority. **MB-04B1 adds finite `serve` lifecycle and draining shutdown**:
+one fixed accepted history, one held controller, one listener and one cumulative
+session owner, with explicit attempt/byte/admission limits and SIGINT/SIGTERM.
+**MB-04B2 adds finite `rejoin-serve` coordination**: one complete receive,
+existing durable keep/adopt, then service under the same controller, signal
+guard and cumulative transport allowance. **MB-04B3 adds bounded explicit-peer
+failover**: one-to-four ordered sources, a closed typed failure policy and the
+first validated candidate entering the same keep/adopt/service path. **MB-04B4
+adds finite `run` coordination**: up to four explicitly authorized rounds
+retain the same roots, signal guard and cumulative allowance through bounded
+waits, while preserving completion uncertainty across later errors. **MB-04C1
+adds a bounded local pending-operation pool**: context-valid signed retention,
+one atomic FIFO batch evaluation and explicit accepted-parent reconciliation.
+**MB-04C2 adds finite `pool-inspect`**: bounded regular-file signed intake and
+optional exact FIFO evaluation against one clean owned accepted chain.
+Current source, required-gate and CI acceptance are recorded separately
+in [CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+
+Next is **MB-04D1: local wallet and signing boundary**, beginning with design
+for fresh keys, explicit network/intent binding, protected local storage and
+backup/recovery. Retained pool integration, persistence/gossip, discovery,
+indefinite operation and wider APIs remain unfinished.
+
+## Current direction
+
+- One eligible human, not hardware speed or wealth, is the intended unit of
+  consensus participation. The existing easy-PoW/longest-chain devnet is a
+  development foundation, NOT that final consensus design.
+- Ant Kiss is human-witnessed enrollment and review. Fingerprint and ECG readings
+  are proposed off-chain inputs. Devices are interchangeable instruments.
+- No raw or encrypted biometric archive belongs on the public blockchain.
+- No special founder premine or privileged marketing/airdrop reserve.
+- The founder is eligible for the same 10-MRY grant as each of the first 1,000
+  qualifying humans: an explicit 10,000-MRY bootstrap exception, not an owner fund.
+- Ordinary supply allowance: 0.2 MRY per qualifying historical population maximum.
+  A fall in population does not confiscate currency or lower that record.
+- The combined treatment of the bootstrap exception and population allowance is
+  still OPEN. No minting rule silently chooses an additive allowance or a floor.
+- One MRY = 10,000,000 Nusa. Participation rewards and fees remain to be specified.
+
+See [decisions](docs/DECISIONS.md), [current status](CURRENT_STATUS.md), and
+[personhood milestone](docs/PERSONHOOD_V0_1.md).
+
+## What is implemented
+
+The existing development chain implements signed transfers, account balances and
+nonces, block/state commitments, fixed easy PoW, file persistence, TCP block sync,
+and validated competing-chain replacement. It is not security-audited.
+
+The experimental `mirror-personhood` crate preserves its V1 registry, state root
+and bounded event-log replay. Its separate V2 modules now implement configuration-
+bound signed messages and staged membership execution: exact sequences, expiry,
+permanent identity-reference reservations, parent eligibility, end-of-block
+activation and bounded approval history. B4 adds canonical MPS2 state commitments,
+bounded decoding into an untrusted cache, and MPH2 replay preserving block groups
+and empty blocks. Replay reuses the same executor and checks independently trusted
+configuration, hashes, exact operation groups, intermediate roots and the requested
+final checkpoint. See [state rules and cache boundary](docs/MEMBERSHIP_STATE_V2.md)
+and [replay contract](docs/REPLAY_V2.md). A decoded cache cannot become runtime
+authority; a caller-supplied hash alone is not proof of actual block validity.
+Actual V2 validation and storage now exist in the separate layers below. Bounded
+tip updates and explicit recovery of recognized one-child staging are implemented.
+Separate V2 peer sessions are described below; grants and rewards remain later work.
+
+`mirror_core::v2` adds signed transfers, a unified operation envelope and bounded
+MRB2 blocks with domain-separated header hashes and count-bound ordered-operation
+commitments. Decode is structural; body integrity checks C, roots and signatures.
+Neither grants ledger/chain authority. See the [encoding contract](docs/CORE_V2_ENCODING.md).
+
+`mirror_state::v2` now stages accounts and membership atomically, preserves original
+mixed-operation positions, executes checked zero-fee transfers and commits the
+combined state. Late transfer or membership failure leaves both parent components
+unchanged. Explicit zero accounts and independent sequences are retained. The
+[ledger contract](docs/LEDGER_STATE_V2.md) specifies canonical bytes and boundaries.
+
+`mirror_chain::v2` now accepts actual complete blocks from an exact selected genesis.
+Its MNM2 manifest requires all seed proofs and independently selected configuration/
+genesis pins. Block acceptance checks work, real ancestry, original signed bodies
+and the executed combined root before installing state. Complete MRB2 replay uses
+the same validator and an external expected checkpoint. A false final root with
+valid mining work is rejected without changing the chain. The
+[chain contract](docs/CHAIN_V2.md) records exact rules, resource caps and trust.
+
+The separate [development fork comparator](docs/FORK_CHOICE_V2.md) compares only
+already accepted `ChainV2` values under the same independently selected configuration
+and genesis. Because every block uses that configuration's fixed target, accepted
+post-genesis block count is an exact normalized work ordering. A strictly longer
+candidate is preferred; ties retain the current input. The result identifies the
+actual common ancestor and borrows the entire selected chain, including its complete
+membership and counters. It performs no durable replacement or network operation.
+Equal competing tips can remain different across peers; this is not human finality.
+
+`mirror_storage::v2` supplies three separate storage profiles. Immutable
+`StoreV2` retains its frozen MSS2 generation-zero contract. The separate
+`AppendStoreV2` uses MSU2 profile 2 to publish one completely accepted child at a
+time. It synchronizes the new block and selector before advancing the in-memory
+chain. Both profiles retain directory ownership and reconstruct complete MNM2/MRB2
+history under independently chosen network and full checkpoint pins. Append-store
+reopening also requires the separately retained local generation; it does not
+discover global freshness. No decoded state cache becomes authority.
+
+An append I/O failure fences further writes and ordinary state access. Consuming
+reconciliation fully replays and resynchronizes a clean selected history before
+returning a writer. Normal opening and reconciliation preserve and reject residual
+staging. The new explicit recovery API accepts independently retained parent and
+candidate checkpoints, the exact child and an action. It can complete recognized
+candidate prefixes or retain the still-selected parent by removing only authorized
+staging. It never rolls back an already selected candidate or repairs unexplained
+bytes. Full parent/child execution and final replay/synchronization remain required.
+See the
+[immutable storage contract](docs/STORAGE_V2.md) and
+[append storage contract](docs/STORAGE_APPEND_V2.md) for exact publication boundaries,
+Linux/cooperating-process assumptions and bounded-read rules. The separate
+[recovery contract](docs/STORAGE_RECOVERY_V2.md) specifies the supported failure
+states, caller authority, suffix-only completion, parent retention and finite read
+allowance. These immutable/append APIs provide no automatic migration, implicit
+repair, branch replacement or live V2 daemon. Whole-branch publication belongs to
+the separate replacement store below.
+
+The separate [replacement preparation contract](docs/STORAGE_REPLACEMENT_V2.md)
+adds MSR2 profile-3 metadata without changing either existing store. Its 280-byte
+record wraps the unchanged MSS2 snapshot and a bounded local generation. Decoding
+requires independent network, complete endpoint and generation pins. Preparation
+also derives the entire current record from the accepted current history, rejects
+stale or altered metadata, and borrows the whole preferred candidate with its own
+accounts, membership and counters. This preparation function remains pure: it
+prepares no files and publishes no selection.
+
+The [replacement store contract](docs/STORAGE_REPLACEMENT_STORE_V2.md) adds
+`ReplacementStoreV2`. It revalidates the independently pinned current disk history
+and complete preferred candidate under one stable exclusive root lock. The
+candidate's exact manifest and all blocks are synchronized in a separate generation
+directory before the MSR2 marker is published. After root synchronization, only the
+fully checked old branch copy is removed, one exact file at a time. Memory advances
+after final clean replay and synchronization. The entire accounts/membership state,
+permanent records, approvals, sequences and resource counters move together.
+
+A clean store contains one selected generation; a replacement temporarily uses at
+most two. Every disk discrepancy or failed update fences ordinary access and further
+writes. Reopening and consuming reconciliation require independent full endpoint
+and generation pins and accept only a clean complete selected layout. Pending
+selectors, extra generations and partial cleanup remain preserved and rejected.
+
+The separate [replacement recovery contract](docs/STORAGE_REPLACEMENT_RECOVERY_V2.md)
+defines explicit `Complete` and `RetainOld` actions. A request borrows both exact
+accepted histories and retains their independently selected full checkpoints and
+local generations. Recovery first checks the complete selected history and all
+remaining prescribed files. It can finish authorized candidate byte prefixes or
+remove that staging while old remains selected. Once the candidate is selected,
+only its completion and exact old-copy cleanup are allowed; `RetainOld` cannot
+roll it back. Arbitrary surviving subsets are checked file by file, and unknown or
+different bytes remain preserved and rejected. The same exclusive root ownership
+continues through final clean replay/synchronization. Errors return no writer.
+Missing/corrupt selection and interrupted initialization remain unsupported.
+
+The separate [V2 peer-history contract](docs/PEER_HISTORY_V2.md) defines MPN2
+Begin, manifest, full-block and End frames. Its consuming receiver checks the
+network independently, validates every actual block through `ChainV2`, and exposes
+a candidate only after terminal consistency and full accounting pass. A peer's
+claimed endpoint identifies its promised transfer; it cannot select the local
+canonical chain. Header admission checks phase, length and remaining budgets
+before the TCP adapter allocates its payload. Any receiving error consumes
+the attempt and its private partial chain. The immutable sender produces one frame
+at a time from an accepted branch. This F1 component opens no socket and publishes
+no stored selection. The separate F2 session and adoption layers compose it below.
+
+The [V2 session contract](docs/PEER_SESSION_V2.md) adds one fixed 72-byte MPQ2
+request and one complete unchanged F1 response per TCP connection. Both endpoints
+use independent configuration/genesis pins. The requester must receive a matching
+End and response EOF before obtaining a candidate. A non-Clone session owner permits
+one active connection, at most eight sequential attempts, a finite cumulative
+read/write allowance and one absolute deadline of at most 60 seconds per attempt.
+Partial reads/writes and failed attempts remain charged; slow fragments cannot
+refresh that deadline. These are per-owner bounds, not global availability or
+hard CPU-preemption guarantees.
+
+The [candidate adoption contract](docs/CANDIDATE_ADOPTION_V2.md) checks the complete
+received candidate against the locally selected current history and independently
+retained current checkpoint. Tied or shorter histories keep current without writes.
+A preferred branch is published through the existing owned replacement store.
+Both exact histories and local checkpoints are retained before publication; failure
+preserves ownership for explicit recovery and exposes no ordinary writer. These
+recovery inputs remain in memory in the F2 API. The A1 node layer below persists
+restart authority before calling storage. Fresh initialization remains a separate
+explicit operation, never a fallback after an existing-store open fails.
+
+The [node-control contract](docs/NODE_CONTROL_V2.md) adds `mirror_node::v2`.
+`NodeControlV2` owns a separate control directory before acquiring the existing
+store lock. Its exact 464-byte MNC2 record retains the trusted full checkpoint and
+local generation; its bounded MNI2 intent contains both complete accepted histories.
+Both histories are replayed and compared against canonical metadata before the
+intent is published and synchronized. Existing store publication follows; the new
+confirmed record is synchronized before intent retirement. All prior storage,
+network, ledger and consensus formats remain unchanged.
+
+Clean restart fully replays the selected store against the retained record and
+independently selected C/genesis. Read-only status reports Missing, Clean or
+RecoveryRequired without creating, synchronizing or repairing files. Published
+intent requires explicit `Complete` or `RetainOld`; a selected candidate cannot
+roll back. Exact candidate-confirmation prefixes are completed only with the full
+intent and a clean candidate store. Incomplete intent, partial initialization,
+unknown/corrupt input and unsafe paths remain preserved and rejected. Errors
+consume the ready node owner and return no ordinary storage writer. The operator
+and parent directories are trusted; checksums and cooperative Linux locks do not
+establish protection against a hostile owner or physical power-loss guarantees.
+
+## Local pending-operation pool (library)
+
+`mirror_node::v2::pool::PendingPoolV2` accepts explicit limits and an immutable
+accepted `ChainV2`. `admit` retains context-valid signed bytes with exact-ID
+deduplication; `evaluate` stages one requested FIFO prefix atomically; `reconcile`
+removes exact included IDs and newly context-invalid inputs at an explicitly
+selected accepted parent. `remove` and `clear` preserve cumulative work usage.
+
+Retention is not spendability or inclusion. The pool keeps conflicting/gapped
+inputs, returns historical batch observations and never exposes staged state or
+publishes a block. Currentness checks the full parent, revision and exact prefix.
+It has no command, signing, persistence, gossip or wallet integration in C1.
+The complete limits, charge formulas, failure order and reconciliation behavior
+are in [PENDING_POOL_V2.md](docs/PENDING_POOL_V2.md).
+
+## Finite local pool inspection
+
+`mirror-node-v2 pool-inspect` consumes an explicit bounded regular file of
+LF-terminated lowercase hex signed operations under independently supplied
+configuration/genesis pins. Thirteen option/value pairs specify roots, file,
+input caps, every C1 pool limit and the exact optional evaluation count. Run
+`mirror-node-v2 help` for the option names; [POOL_INSPECT_V2.md](docs/POOL_INSPECT_V2.md)
+defines framing, ranges, file trust and every result field.
+
+The command discards its pool before output. Admission failure returns only a
+static diagnostic; a requested but blocked batch returns a fixed inspection
+record with exit 1. Zero evaluation count explicitly skips execution. No signing,
+publication, inclusion scan, network request or persistent pool is implied.
+
+## Running the finite V2 operator
+
+The [operator contract](docs/NODE_OPERATOR_V2.md) defines the separate executable,
+required options, output and failure behavior. Help needs no paths or network:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- --help
+```
+
+Every operational command requires explicit `--control-dir`, `--store-dir`,
+`--config-hash` and `--genesis-hash`. Choose separate trusted directories with
+existing parents. Network hashes are independently retained 64-character hex
+values. There is no configuration-file, environment or working-directory fallback.
+The shell variables in the following invocations stand for those operator-supplied
+values; set them from your trusted local records before running the commands.
+
+Read-only status verifies a clean selection, or reports missing control or valid
+unresolved intent without repairing it:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- status \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash"
+```
+
+Initialization **only attaches control to an already initialized profile-3
+replacement store**. Supply the independently retained full checkpoint and local
+generation. This command does not create a fresh chain/store or import bootstrap
+history; those remain explicit existing library operations. Existing control is
+not overwritten, and a failed execution may leave an empty or partial control
+directory that remains preserved.
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- init \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --attach-existing --height "$mirror_height" --tip-hash "$mirror_tip_hash" \
+  --ledger-root "$mirror_ledger_root" --generation "$mirror_generation"
+```
+
+One synchronization requires an explicitly selected numeric peer address with a
+nonzero port, timeout and application-byte allowance. It opens the ready local
+controller before contacting that peer, holds both roots through receipt/adoption,
+requires matching End plus EOF, and performs one attempt with no retry:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- sync-once \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --peer "$mirror_peer_address" --timeout-ms 5000 --max-io-bytes 157129488
+```
+
+The peer must already serve the finite F2 protocol; the separate `serve` command
+below provides a fixed accepted history. The timeout bounds the receiving peer
+attempt, excluding local opening and later durable adoption; it does not preempt
+synchronous validation or bound output writes. The byte allowance counts actual
+session application I/O, including partial operations, rather than local storage,
+memory or TCP overhead.
+
+Recovery is a separately requested action. Set `mirror_recovery_action` to
+`complete` or `retain-old` only after reviewing the unresolved state. A selected
+or confirming candidate cannot roll back; unsupported artifacts remain rejected.
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- recover \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --action "$mirror_recovery_action"
+```
+
+### Serving a fixed accepted history
+
+The [provider contract](docs/NODE_PROVIDER_V2.md) specifies the finite `serve`
+command. Select a numeric listen address with a **nonzero port**; all five
+provider options are required:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- serve \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --listen "$mirror_listen_address" --max-attempts 8 \
+  --max-io-bytes 157129488 --timeout-ms 5000 --admission-ms 30000
+```
+
+Startup strictly opens clean A1 control before binding. Missing, pending,
+invalid, mismatched or busy state refuses startup without initialization or
+recovery. The command holds both roots and serves that same accepted history
+through one listener and one F2 owner. Concurrent `status` and `sync-once` return
+busy. At most one admitted connection is active; successful and failed sessions
+share the explicit total attempt and actual-I/O allowances. A TCP handshake in
+the kernel backlog is not application admission.
+
+SIGINT or SIGTERM requests graceful stop. Idle admission ends at the next bounded
+check. An already admitted session completes or rejects under its **original**
+timeout; no additional session is admitted. Admission-window expiry uses the
+same final-drain rule. The serving allowance is the admission window plus at most
+one final attempt timeout, each capped at 60,000 ms. Initial local opening/replay
+and final output are outside this interval. Synchronous work and scheduling are
+not preempted, so this is not a hard process-return guarantee.
+
+There is no readiness or progress output while ownership is held. After all
+sockets and owners are released, one record reports `status=stopped`, the fixed
+selected pins, stop reason, attempts, completed/rejected sessions, actual wire
+bytes and the last static session-error category. Reaching a configured limit or
+honoring graceful stop exits 0, even when earlier peers were rejected. A blocked
+final output consumer cannot prolong listener or directory ownership.
+
+Output uses bounded `key=value` records. Exit 0 means help, clean status or a
+completed operation; 1 means an operational failure; 2 means rejected command
+input before effects. Status alone uses 3 for missing control and 4 for unresolved
+intent. Pending status labels `store_selection=uninspected`; it does not assert
+which endpoint is currently selected or that both recovery actions are available.
+If output fails after a mutating command or serving, `operation_may_have_completed=true`
+directs the operator to inspect status. A lost response does not authorize an
+automatic mutation retry or provider restart.
+
+### Receiving, adopting and then serving
+
+The [rejoin contract](docs/NODE_REJOIN_V2.md) adds one explicitly selected source
+to the finite provider options. Select both numeric addresses and every limit:
+
+```sh
+cargo +1.98.0 run -p mirror-node --bin mirror-node-v2 --locked -- rejoin-serve \
+  --control-dir "$mirror_control_dir" --store-dir "$mirror_store_dir" \
+  --config-hash "$mirror_config_hash" --genesis-hash "$mirror_genesis_hash" \
+  --peer "$mirror_peer_address" --listen "$mirror_listen_address" \
+  --max-attempts 8 --max-io-bytes 157129488 \
+  --timeout-ms 5000 --admission-ms 30000
+```
+
+The request must complete full validation and terminal EOF before existing A1
+keep/adopt runs. Reception and serving share one total attempt/byte allowance;
+at most seven service attempts remain after the receive. With `--max-attempts 1`,
+a successful receive may adopt and then stop normally without binding.
+
+SIGINT/SIGTERM during receive preserves its original deadline. If it completes
+and stop is observed before adoption admission, the candidate is discarded and
+the old selection remains. An admitted durable adoption completes or fails under
+A1's unchanged intent/confirmation rules. Service uses B1's draining shutdown.
+A later bind/output failure can follow successful adoption: inspect status before
+choosing any explicit next action. No automatic retry, recovery or rollback occurs.
+
+The 26-field final record includes previous and selected checkpoints, actual
+choice, total usage, receive usage and service usage. Completed/rejected counts
+refer only to service. The controller and all sockets are released before output.
+The service admission clock starts after adoption; initial receive/adoption are
+not covered by that window. Complete local/network timing qualifications are in
+the contract. A successful result does not establish global latestness.
+
+### Trying a bounded list of explicit peers
+
+Use `rejoin-failover-serve` with `--peers ADDRESS[,ADDRESS...]` and all nine
+other deliberate B2 service/common options. Supply one to four numeric,
+nonzero-port endpoints; duplicate numeric aliases and scoped IPv6 lists reject
+before effects. See the [complete command contract](docs/NODE_FAILOVER_V2.md).
+
+Allowed peer failures can advance once to the next entry; local, allocation,
+internal/resource and unlisted errors stop. The first validated candidate ends
+acquisition even when it keeps current. All acquisition and service share the
+same 1..8 attempts and actual-byte allowance. No validated candidate means no
+serve-old fallback. Per-entry output uses ordinals and static categories, never
+raw addresses. Existing `rejoin-serve` remains a one-source command.
+
+### Repeating explicitly bounded rounds
+
+Use `run` with all common and `serve` options, an ordered `--peers` list,
+`--max-rounds 1..4` and `--round-wait-ms 0..60000`. All twelve options are
+required; see the [complete run contract](docs/NODE_RUN_V2.md). The limits
+apply to the whole invocation: later rounds do not replenish attempts or bytes.
+
+Each round starts at the first configured peer and stops acquiring at its first
+validated history, even if stale. Successful keep/adopt and finite service may
+be followed by an explicit wait and another round. All-peer/fatal failure ends
+the invocation. Shutdown prevents new work while admitted operations finish
+under their existing rules. A later error after any admitted keep/adopt reports
+possible completion and directs status inspection. No automatic recovery or
+convergence guarantee is added. Initial, per-round and final checkpoints fit
+one bounded record emitted only after all ownership has been released.
+
+## Verification checkpoints
+
+### Current MB-04C2 pool inspection checkpoint
+
+Implementation source: **39948d40703ee832d528f662c04f6cd5df7d69e4**.
+Tested source tree: **733e483ebaa0ecfba8737fd7fe2e1da12d4cd8f1**.
+Parent checkpoint: **b488287ab47dba327d6b6d1efbde86213fb3fbfc**.
+[Source PR CI 46097203497](https://github.com/Ahmed-Sobeih/mirror/actions/runs/46097203497)
+**attempt 1** passed all **43 steps**. Full job `140831260936` logs confirm
+**1,386 runtime tests and eleven compile-fail doctests**, zero failures and
+three retained parent-exercised ignored helpers. Actual synthetic checkout
+`d699c9be6e52114b2de1481e55d3b50f9a05fd4d` has no file differences from the implementation source.
+All **12 published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **213 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed, with all **222 tested source/checkpoint inputs
+unchanged during execution**:
+
+- **1,386 workspace/all-target runtime tests**, zero failures: 1,333 retained
+  plus **53 new**. Parameterized cases, subprocesses and release reruns are
+  not additional tests.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers remain exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **367+1**. All **twelve references** and **sixteen examples** passed.
+
+New executable test inventory:
+
+- `crates/mirror-node/src/bin/mirror-node-v2/args.rs`: **7** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/errors.rs`: **1** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/main.rs`: **1** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/output.rs`: **7** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/pool_input.rs`: **8** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/pool_inspect.rs`: **9** new tests.
+- `crates/mirror-node/tests/pool_commands_v2.rs`: **20** new tests.
+
+Focused binary verification first passed all 114 then-registered tests. Source
+review then tightened impossible typed-body representation/context/root errors
+to operational invariants and added one classifier test, which passed separately;
+the final full gates exercise all 115 binary tests. These are 33 new private
+tests plus the retained 82-test binary suite.
+
+The first process-suite run passed 19 of 20 functions. Its sole failure was the
+test harness's optional Unix-domain socket creation returning EPERM on this host,
+before the operator command ran. That complete failed log is retained. Only the
+optional socket fixture and unused import were removed; missing-file, directory,
+writerless FIFO, symlink-parent/leaf and hardlink checks remain. The final focused
+suite passed all 20 functions in debug and release, with no ignored cases. Socket
+path rejection is not claimed as observed process evidence. No production
+behavior or retained test was weakened to accommodate the host limitation.
+
+The new process suite covers full framing admission before a busy controller;
+empty input; malformed operation encodings; exact maximum 149248-byte/256-record
+input and distinct count/byte refusals; all four operation kinds; duplicates at
+full retention and exact FIFO order; independent retention caps; signature/context
+refusal; overspending, gaps/conflicts, funding order and a late mixed-operation
+failure; literal cumulative work and body quotas; missing/wrong/busy/corrupt/
+unknown/pending A1 state; restart; bounded records; broken stdout; and actual
+blocked stdout with input and both authority owners released. Observed SIGKILL
+there occurs after computation/resource release, not during admission or staging.
+
+The initial publication `e2c1c68d72380bb4c111d6839119377febed52f2` was not accepted.
+Its first full local workspace gate passed all 53 new tests but failed a retained
+B2 test before its chosen SIGINT: the helper found that the child had already
+exited. That failed path did not retain the child's diagnostic, so the exact
+exit class is unknown. The test constructed/transmitted/replayed its candidate
+inside a 1000 ms session, then started another 650 ms sleep after observing EOF
+receive, without establishing that 650 ms remained. The complete failed gate
+and initial publication evidence are preserved separately.
+
+The final source repairs only that test's observation timing. It precomputes
+the transcript before launch, anchors the 650 ms offset to completed-request
+observation before transmission/replay, sleeps only the remaining offset and
+freshly observes the same one-byte EOF receive immediately before SIGINT. The
+unchanged 1450 ms elapsed bound uses that earlier epoch; renewing 1000 ms after
+the signal would require at least 1650 ms. All three timing constants, the full
+post-signal assertions, the other 26 test bodies and all helpers are unchanged.
+One exact targeted debug execution passed after the repair. Production B2 and
+C2 behavior were not changed. The full final gates and exact-source CI reported
+above apply to this repaired source; the earlier publication's CI alone cannot
+accept the later repair.
+
+The initial publication's PR CI run `46095907470`, job `140827064527`, ended
+cancelled during the workspace gate. Its complete archived log contains all 53
+new passing test names and no reported test-failure marker, but not a complete
+workflow. That partial run is not source acceptance. The exact final-source run
+identified above is verified independently from its full log and actual checkout.
+
+New process tests use actual accepted synthetic chains, real signed operations,
+separate roots and bounded child cleanup. Full canonical state, selected
+checkpoint, control/store/input bytes and strict reopening are checked. The
+observed full-pipe stdout write establishes release of both authority owners and
+the input descriptor before output. This evidence is local and finite; it does
+not establish production network operation or a wall-clock bound on filesystem I/O.
+
+Private deterministic checks cover bounded framing/read behavior and the closed
+error/report boundary. Static unsafe-file cases are actual process evidence.
+Concurrent hostile namespace mutation, induced allocator exhaustion and signals
+at every internal synchronous validation/synchronization phase are not claimed
+as observed process evidence. A1 replay/synchronization retains its accepted
+contract; equal file contents do not establish absence of synchronization.
+
+Preservation audit: **71 of 72 existing test/helper files** and
+**67 pre-existing private test functions** in changed binary
+modules are byte-identical. The exception is the single retained B2 deadline
+observer described in the evidence; all **26 other test bodies**, the rest of that
+file and its complete post-signal assertions are unchanged. All lower-layer
+production source, C1/A1 public APIs,
+frozen vectors, reference tools, monetary policy and runtime-data boundaries
+remain unchanged. The existing mirror-personhood path dependency is promoted to
+normal dependency access for typed nested error classification; no new crate or
+version is added, and **Cargo.lock is unchanged**. The existing workflow commands,
+pinned toolchain and 20-minute job limit are unchanged. The new contract was
+written before implementation, with the dependency-access refinement recorded
+before coordinator implementation. No monetary, enrollment, privacy, device or
+accessibility choice was silently changed.
+
+Next is MB-04D1, local wallet and signing boundary, design first.
+Full MB-04 and both device-readiness gates remain unfinished.
+
+### Historical MB-04C1 local pool checkpoint
+
+Implementation source: **94207e713dd89f4d33586263c510591be0e78201**.
+Tested source tree: **9c40a4852c8ab935cd7318d33d81d0720cd0dd15**.
+Parent checkpoint: **35bbd0817843c35a42ff8c09b779391df331d53c**.
+[Source PR CI 46086769527](https://github.com/Ahmed-Sobeih/mirror/actions/runs/46086769527)
+**attempt 2** passed all **43 steps**. Full job `140804733638` logs confirm **1,333 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`17ece65483bd57dbfb3c6e11c64895ddf0afbbe2` has no file differences from the implementation source.
+All **seven published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **208 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed, with all **217 tested source/checkpoint inputs
+unchanged during execution**:
+
+- **1,333 workspace/all-target runtime tests**, zero failures: 1,281 retained plus
+  **52 new** — 31 admission/evaluation and 21 reconciliation/work integration tests.
+  Parameterized cases, subprocesses and release reruns are not additional tests.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers remain exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **314+1**. All **twelve references** and **sixteen examples** passed.
+- Both new focused suites passed on their first execution: **31 and 21** tests,
+  with no execution-driven production/test corrections. Scoped formatting,
+  whitespace and allocation/runtime-data checks passed.
+
+The first full local workspace attempt and one unchanged targeted retry failed in
+the retained B4 test's inter-round observer: it waited for requester durability
+before looking for a 200 ms phase. Both captured runner reports completed two
+legal rounds successfully. The narrowly repaired test starts the requester
+concurrently, observes the real listener-free wait, verifies an owned SIGSTOP,
+retains the owner/busy checks, awaits requester completion and resumes before the
+second request. Original timing values, two-request outcomes and restart/state
+assertions remain. The repaired targeted case and all required gates passed on
+the final source. Failed attempt evidence is retained; production lifecycle and
+C1 implementation/test semantics were not changed to suppress the failure.
+
+The final source's first hosted CI attempt passed every test/release gate, then
+was cancelled during the examples just after the configured 20-minute job limit.
+Its log records only a generic cancellation; timing supports a budget-boundary
+explanation but does not establish a more specific cause. That incomplete attempt
+is preserved and not accepted. The unchanged source/workflow was rerun; the
+successful complete attempt is identified in the source record above. The
+20-minute workflow limit and all verification commands remain unchanged.
+
+The new suites construct actual mined, manifest-pinned accepted chains with public
+synthetic keys. They cover all four operation kinds, exact signed bytes/IDs,
+malformed/signature/context refusals, duplicates at full capacity, actual 256-entry
+and 64-operation limits, independent local/canonical quotas, framed batch bytes,
+FIFO order/removal, retained sequence gaps/conflicts, receive-before-spend,
+aggregate overspending, independent account/member sequences and mixed late failure.
+
+Reconciliation evidence covers exact included IDs from earlier history, unchanged-
+parent inclusion, included-before-expiry reporting, survivor order, same-height and
+shorter replacements, changed/old anchors, newly future windows, wrong configuration
+and distinct accepted genesis, no resurrection and stale/cross-pool batches.
+Literal boundary checks verify successful/failed state-work charges, historical
+scan/revalidation charges, partial admission reservations, sticky exhaustion,
+atomic failed reconciliation and no refund from removal/clear/parent changes.
+
+Complete chain equality and exact retained-state observations establish this
+in-memory boundary. New C1 tests do not add command/process, socket, persistence,
+wallet or power-loss evidence; the existing required process/recovery suites are
+retained and rerun. Fallible bounded pool allocation paths are reviewed but induced
+OOM is not tested. Abstract work units are not CPU-time, RSS or global DoS limits.
+No runtime behavior is inferred merely from the written contract.
+
+**210 of 212 existing repository files are byte-identical to the B4
+checkpoint before the later nine-document handoff.** The sole existing Rust change
+in production is one `pub mod pool;` export in the V2 node module; removing that
+line reproduces its entire earlier body byte-for-byte. **68 of 69 retained
+test/helper files** and **173 of 175 retained source/dependency/workflow/reference/
+fixture paths** remain byte-identical. The sole retained test exception is the
+documented B4 observation-coordination repair; all other 18 test bodies and every
+byte outside that function in its file are preserved. Five new files add the pool,
+two suites, an isolated synthetic fixture and the contract. Existing command implementations, A1/F2/storage,
+lower-layer/V1/consensus/monetary bodies, Cargo manifests/lockfile, workflow commands
+and its 20-minute budget, reference tools and frozen vectors are unchanged.
+No wire, storage, hash, monetary, enrollment, device or accessibility policy changed.
+
+Next is MB-04C2, finite local pool intake and inspection, design first.
+Full MB-04 and both device-readiness gates remain unfinished.
+
+### Historical MB-04B4 run checkpoint
+
+Checkpoint **MIRROR-MB04B4-001**. Master-plan section 32 and
+[test-matrix section 24](docs/MEMBERSHIP_TEST_MATRIX.md#24-mb-04b4-bounded-persistent-run-lifecycle)
+record the scope and exact acceptance.
+
+Implementation source: **e768268fae2e4c5c9980cc74dc7a9973da56849c**.
+Tested source tree: **daff130cc7652ea0946106f46a600c54671ecf18**.
+Parent checkpoint: **e421494a5a2ba28992ad581af4067618c38c0dae**.
+[Source PR CI 45941543950](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45941543950)
+passed all **43 steps**. Full job `140316760168` logs confirm **1,281 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`e51ff7da8385981dd9d94e4329ed35861f2dc31f` has no file differences from the implementation source.
+All **16 published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **203 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed with **203 frozen noncheckpoint files unchanged**:
+
+- **1,281 runtime tests**, zero failures: 1,242 retained plus **39 new** — six
+  parser, five output, one failure-context, one diagnostic-fallback, seven lifecycle
+  unit tests and **19 actual-process tests**. Parameterized cases, subprocesses and
+  release reruns are not additional unique test functions.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers are exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **262+1**. All **twelve references** and **sixteen examples** passed.
+- The focused first execution passed **82 binary tests and all 19 new process
+  tests**. Scoped formatting, whitespace and allocation/runtime-data checks passed.
+
+Actual processes cover two preferred adoptions under unchanged root descriptors,
+complete reopened history/accounts/membership/counters, three real executables and
+an explicit restart, repeated stale first-valid selection, and actual four-round
+execution with one eight-attempt allowance. A three-round sequence with earlier
+failed-peer and rejected-service attempts, ending in clean receipt/service, proves
+earlier errors remain visible and peer ordinals restart independently of prior usage.
+
+The suite exercises first/later all-peer or fatal refusal, keep-current followed
+by a later fatal error, cumulative receive/service bytes and terminal-EOF exhaustion,
+observed inter-round waits under SIGINT/SIGTERM, later validated-candidate discard,
+original-deadline failure, later active-service drain, second-adoption bind failure,
+closed/blocked final stdout, and SIGKILL during a later partial receive. A live
+second-adoption SIGTERM case observes and verifies the actual A1 intent before
+queuing shutdown; the admitted operation finishes without binding afterward.
+
+Linux observations identify owned directory descriptors and relevant socket/blocked
+syscall or verified intent phases. Busy competing commands and unused listeners
+check retained ownership and absence of later contact. Conservative independent-
+value output envelopes format to exactly **3918** and **3529 bytes**; these are
+synthetic width bounds, not simultaneously reachable runtime counter combinations.
+Validated normal records and additive help stay within the unchanged 4096-byte cap.
+
+Tests use Linux IPv4; numeric IPv6 parsing is separate CLI evidence. Pre-first-round
+and narrow between-request signal races retain source-level coverage. New SIGKILL
+evidence concerns a later partial receive, not forced death at every A1/fsync or
+service boundary. Process death and replay do not prove physical power-loss safety.
+No production test hook, induced OOM, hidden retry or untested-filesystem guarantee
+is introduced. First-valid repeated rounds do not prove convergence or latestness.
+
+**164 of 172 retained source/dependency/workflow/reference/fixture paths remain
+byte-identical.** Seven existing private command modules change intentionally:
+args, errors, failover, main, output, provider and rejoin. The sole retained test
+helper change appends an observed-wait method; all previous helper bytes remain an
+exact prefix. All **62 earlier private unit-test bodies** and every other retained
+test/helper file remain byte-identical. Four new files add the coordinator,
+process suite/helper and contract; four existing command contracts gain additive
+cross-references. Public/lower-layer/V1/A1/F2/storage/consensus/monetary source,
+Cargo manifests/lockfile, reference tools, frozen fixtures, workflow commands and
+the 20-minute CI budget remain unchanged. No wire, storage or hash encoding,
+enrollment/device or monetary policy changed.
+
+### Historical MB-04B3 failover checkpoint
+
+Checkpoint **MIRROR-MB04B3-001**. Master-plan section 31 and
+[test-matrix section 23](docs/MEMBERSHIP_TEST_MATRIX.md#23-mb-04b3-bounded-explicit-peer-failover)
+record the scope and exact acceptance.
+
+Implementation source: **3311151ab627b3512abed47be20adea2f0e6d66a**.
+Tested source tree: **fc238ae2df95b7b2b3df2457d06f739048812c7e**.
+Parent checkpoint: **9ca7d99681877d014ae64aab31cb5eb22a957c35**.
+[Source PR CI 45933868084](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45933868084)
+passed all **43 steps**. Full job `140292436668` logs confirm **1,242 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`0cada2958afe985bb5fcd3b683c57a40b01042ce` has no file differences from the implementation source.
+All **12 published implementation/test/contract files** were read back byte-for-byte.
+The later checkpoint updates nine status/handoff records and clarifies one
+contract compatibility wording: existing operational records remain unchanged; the help
+catalogue gains the new command and options. It changes no runtime/test file,
+and the other 198 files frozen during source acceptance remain byte-identical.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+Later documentation-head CI is checked separately and recorded on PR #1; this
+source record does not assert that a future documentation head is tested.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed with **199 frozen noncheckpoint files unchanged**:
+
+- **1,242 runtime tests**, zero failures: 1,201 retained plus **41 new** — six
+  parser, eight typed-policy, three output, one error-context, one diagnostic-fallback
+  and **22 actual-process tests**. Scenarios, subprocesses and release reruns are
+  not additional unique test functions.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers are exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **223+1**. All **twelve references** and **sixteen examples** passed.
+- Scoped formatting, whitespace and allocation/runtime-data checks passed.
+
+Separate refused-first and malformed-first tests run a real seed executable,
+the B3 executable and a third requester with independent roots and a second
+explicit restart cycle. Strict reopening compares complete histories, accounts,
+membership records/bytes, approvals, sequences, population and resource counters;
+the preferred fork has equal accounts but different membership. First validated
+identical/shorter/tied candidates stop acquisition and leave later peers untouched.
+
+Actual cases cover all four peers failing, eligible malformed/wrong-network/
+incomplete/trailing/missing-EOF transfers, and a constructed nested manifest
+configuration error that remains fatal without later contact. Fixed invalid-header
+exchanges establish 84 charged bytes (72 request + 12 consumed header). Exact
+EOF-capacity and payload-larger-than-positive-remainder cases verify shared bytes;
+last-allowed receive succeeds without binding an occupied address. Later successful
+acquisition and service retain distinct earlier rejection evidence.
+
+Bounded Linux observations identify the child socket endpoints/inode/FD and blocked
+syscall before SIGINT/SIGTERM. They verify original deadlines, failed-receive stop,
+later validated-candidate discard, both exact directory descriptors across two
+receives and service, and busy competing commands with no outgoing contact.
+Bind/closed-output failure preserves adopted state and possible-completion context.
+Blocked final stdout releases the listener/owners before the write finishes;
+SIGKILL during a partial second receive preserves old state. Unused listeners
+remain reserved until exit when absence of later contact is asserted.
+
+The retained B2 live-adoption signal and service-drain/no-rollback tests exercise
+the same extracted post-receive path; they are separate retained evidence, not
+22 additional B3 scenarios. No new production hook, permission change, induced
+OOM, hidden retry, power-loss or untested-filesystem guarantee is introduced.
+Pre-first-request zero-attempt and brief between-request shutdown branches retain
+source-level evidence. Process tests use Linux IPv4; numeric IPv6 parsing is separate CLI coverage.
+
+**164 of 169 retained source/dependency/workflow/reference/fixture paths remain
+byte-identical.** Five existing private command modules change: args, errors,
+main, output and rejoin. New files add the coordinator, process suite/helper and
+contract. All earlier test functions and process helpers, public/lower-layer/V1/
+A1/F2/storage/consensus/monetary source, Cargo manifests/lockfile, references,
+fixtures, workflow commands and 20-minute budget remain unchanged. No wire,
+storage or hash encoding, enrollment/device or monetary policy changed.
+
+### Historical MB-04B2 rejoin checkpoint
+
+Checkpoint **MIRROR-MB04B2-001**. Full evidence is in master-plan section 30 and
+[test-matrix section 22](docs/MEMBERSHIP_TEST_MATRIX.md#22-mb-04b2-finite-rejoin-and-serve-coordination).
+
+Implementation source: **bbac1622be18c97ab640f6834a158e5378f1d172**.
+Tested source tree: **d724df618f6b45429abebaa3c24bb52ad742799b**.
+Parent checkpoint: **966286bec62ce422db6bc091c472d74659935344**.
+[Source PR CI 45927607784](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45927607784)
+passed all **43 steps**. Full job `140272547972` logs were inspected and confirm
+**1,201 runtime tests and eleven compile-fail doctests**, with zero failures.
+The actual synthetic PR checkout `e00fbb793f5eb417cc0f0cda1ed52443c5cef34d` has no file differences from
+the implementation commit. All **13 published implementation, test and
+contract files** were read back byte-for-byte against locally tested content.
+Source acceptance: **PASSED — all 38 local gates and exact-source CI**.
+Later documentation-head CI is checked separately and recorded on PR #1; this
+source acceptance does not assert that a future head is tested. PR #1 remains
+OPEN and UNMERGED on `work/personhood-register-v0.1`. Main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used Rust **1.98.0** and locked dependencies. All **38 required
+command gates** passed:
+
+- **1,201 workspace/all-target runtime tests**, zero failures: 1,167 retained
+  plus **34 new** (six parser, one diagnostic and
+  **27 actual rejoin-process tests**). Parameterized cases,
+  subprocesses and release reruns are not extra unique tests.
+- **Eleven compile-fail doctests**, unchanged; three retained subprocess helpers
+  remain intentionally ignored in ordinary enumeration and exercised by parent tests.
+- Required release suites: personhood 234 runtime + 3 doctests, core 121, state 49,
+  consensus 23, chain 85 + 3, storage 350 + 2, protocol 38, network **108 + 2**,
+  node **182 + 1**.
+- All **twelve independent Python references** and **sixteen synthetic examples**;
+  scoped formatting, whitespace and allocation/runtime-data checks also passed.
+
+The 27 added actual-process tests cover complete seed `serve` -> `rejoin-serve`
+-> third `sync-once` transfer with independent directories and an explicit second
+restart/rejoin cycle. Fresh strict reopening compares full histories, account
+bytes, membership records/bytes, retained approvals, sequences, population and
+resource counters. The seed keeps local generation 0 while adopters advance to 1;
+the restart keeps those local generations and complete state unchanged. The
+preferred fork retains equal account bytes but different membership state.
+
+Further cases cover effect-free parsing; local missing/pending/corrupt/mismatched/
+busy refusal before contact or bind; identical/shorter/tied keep-current; shared
+attempts and actual bytes; the exact terminal-EOF capacity boundary; rejected and
+partial serving; malformed/trailing/incomplete/wrong-network sources; idle/active
+service drain; original deadlines and admission timing; post-adoption bind/output
+uncertainty; and selected/confirming/confirmed no-rollback fixtures. Constructed
+pending layouts are explicitly separate from actual interrupted processes.
+
+Bounded Linux observations identify the actual child's socket endpoints, inode,
+descriptor and blocked syscall. SIGINT/SIGTERM during complete or partial receipt
+permit original-deadline completion/failure; validated completion under a prior
+stop discards the candidate before adoption. Directory descriptors and competing
+busy commands are checked across controlled receive/service phases; source review
+also verifies direct retained-controller flow. These observations do not claim
+to sample every hypothetical microscopic ownership gap.
+
+The adoption test extends a valid synthetic history by 128 mined empty blocks.
+An inotify event only prompts SIGSTOP. While the actual child is verified stopped,
+the test requires the complete canonical intent, independently validates both
+histories and checkpoints, confirms both owners remain held and no listener exists,
+then verifies caught, unblocked SIGTERM is pending before SIGCONT. Adoption finishes,
+retires intent and reopens the candidate at generation 1, followed by normal shutdown
+despite an occupied listen port. This observation passed in debug and release; it
+establishes signal generation during live adoption, not a particular fsync boundary.
+
+A full-pipe case observes the child blocked on final stdout while its listener is
+gone and fresh status plus strict writer opening already succeed. SIGKILL cases
+separately preserve the old branch during reception and the new branch during
+adopted service. Existing A1 publication-failure/process tests remain the evidence
+for their exact durable substeps. Zero-attempt stop before initial request is not
+artificially forced by this new process suite; that branch retains source-level
+lifecycle evidence. Process tests use Linux IPv4 loopback; numeric IPv6 parsing
+has CLI coverage. No test adds a production hook, permission change, hidden retry,
+power-loss guarantee or untested-filesystem claim.
+
+**160 of 166 retained source/dependency/workflow/reference/fixture
+paths remain byte-identical**; 6 existing private V2 command
+modules change deliberately. New code adds the rejoin composition and its process
+suite/helper. Earlier tests, lower-layer/V1/A1/F2/storage/consensus/monetary source,
+public APIs, Cargo manifests and lockfile, all twelve references, frozen fixtures,
+workflow commands and its 20-minute job budget remain unchanged. No wire/storage/hash
+encoding, enrollment/device policy, dependency selection or runtime data changes.
+
+### Historical MB-04B1 provider checkpoint
+
+Checkpoint **MIRROR-MB04B1-001**. This historical acceptance record belongs to
+master-plan section 29 and
+[test-matrix section 21](docs/MEMBERSHIP_TEST_MATRIX.md#21-mb-04b1-finite-provider-lifecycle-and-draining-shutdown).
+
+**MB-04B1 is VERIFIED_COMPONENT — FINITE PROVIDER / DRAINING SHUTDOWN.**
+All **38 local command gates** and **43 source-CI steps** passed. Full source-CI
+logs confirm **1,167 runtime tests and eleven compile-fail doctests**, zero failures
+and three retained parent-exercised ignored helpers. The actual synthetic checkout
+`cdb00671509b4f2876d51bd677ab39d861833396` has no file differences from the implementation
+commit. All **17 published implementation/test/contract/dependency/workflow files**
+were read back byte-for-byte. Later documentation-head CI is recorded separately
+on PR #1; source acceptance does not assert that a future head has passed.
+
+| B1 evidence field | Recorded value |
+|---|---|
+| Implementation source | [ed631eae05ebeebe2b3a58a433ab8a0cc5753150](https://github.com/Ahmed-Sobeih/mirror/commit/ed631eae05ebeebe2b3a58a433ab8a0cc5753150) |
+| Source tree | `dc32d623bf6a8e5e3ab03023b699a729e0c630a1` |
+| Parent checkpoint | `f507827aabcaecda85c02d66f0de6a10db8972ac` |
+| Published implementation/contract/workflow files | 17 |
+| Workspace runtime tests | 1,167 |
+| New runtime tests | 30 |
+| Node runtime tests | 148 |
+| Network runtime tests | 108 |
+| Source PR CI run / full job | [45904484131](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45904484131) / `140197823058` |
+
+The new cases comprise six parser tests, nine accepted-connection transport
+tests and fifteen actual-provider process tests. The required set retains eleven
+compile-fail doctests, three parent-exercised ignored helpers, twelve independent
+references, sixteen examples, all required release suites and all 38 local
+command gates. The workflow has 43 steps; its job budget changes from 15 to
+20 minutes while every command remains unchanged. Reruns, parameterized scenarios
+and child invocations are not additional unique tests.
+
+Process evidence covers both graceful signals, fixed complete history, refused
+startup, cumulative failure/byte limits, admission expiry, ownership during
+serving, actual forced termination and output failure. A full-pipe test observes
+the child blocked in its final stdout write while a fresh status process succeeds,
+proving ownership release before output. Admission observation uses bounded
+Linux direct-parent `/proc` access to the child's exact socket, FD and blocked
+receive syscall; it does not infer admission from a handshake or sleep. Those
+observations require the tested Linux `/proc` access policy. SIGKILL evidence
+establishes forced release, not graceful drain or physical power-loss safety.
+
+Compatibility comparison retains **153 of 161 source/reference/fixture paths
+byte-identical**; eight deliberate changes supply the F2 accepted-stream
+integration, finite command plumbing, node dependency edge and workflow budget.
+The node uses Linux-target `libc = "=0.2.189"` already present in Cargo.lock; no
+package version, source or checksum changes. Existing A1/store/V1 behavior and all
+frozen protocol/storage/hash bytes remain unchanged. Implementation-source
+acceptance and later documentation-head CI are recorded separately.
+
+### Historical MB-04A2 operator checkpoint
+
+The **MB-04A2 acceptance record** belongs to master-plan section 28 and
+[test-matrix section 20](docs/MEMBERSHIP_TEST_MATRIX.md#20-mb-04a2-finite-v2-operator-commands).
+All 38 required local command gates and all 43 exact-source CI steps passed.
+The fields below come from inspected full logs and published source readback.
+
+| A2 evidence field | Recorded value |
+|---|---|
+| Implementation source | [eea42a403fef2a1442e553df2a6823b1b25da616](https://github.com/Ahmed-Sobeih/mirror/commit/eea42a403fef2a1442e553df2a6823b1b25da616) |
+| Tested source tree | `cda30cd7e8b564a82d09a46b7067012e7112e2dd` |
+| Parent checkpoint | `957599df1b8a424ba333d0e0c10247b2807c3a09` |
+| Published implementation/contract file count | 9 |
+| Workspace runtime tests | 1,137 |
+| New runtime tests | 54 |
+| Actual-command process tests | 24 |
+| Node runtime tests | 127 |
+| Exact-source PR CI run / full job | [45882757484](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45882757484) / `140125894368` |
+| Inspected synthetic merge checkout | `7dbc9921785f52c4c0136c27dc5890f9b0188e2c` |
+
+The new binary has 23 parser, four output and three diagnostic unit cases; its
+actual-command integration suite is counted separately above. The retained gate
+set passed all eleven compile-fail doctests (including the node's one case),
+all required release suites, twelve independent references and sixteen synthetic
+examples. A2 introduces no additional example/reference gate. Parameterized
+scenarios, spawned processes and release reruns do not add unique tests.
+
+Compatibility comparison against the parent found **153 of 154 retained source,
+reference and fixture files byte-identical**. Only the node Cargo manifest adds
+`default-run = "mirror-node"`, preserving the V1 default after the second binary
+is added. Cargo.lock, all prior runtime code, formats and fixtures remain unchanged.
+The exact source/CI and later documentation-head evidence remain separate.
+
+The following MB-04A1 source is a **historical accepted checkpoint**:
+[`32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0`](https://github.com/Ahmed-Sobeih/mirror/commit/32c9117ab9dab36faa1a47f9ebb4fb0718b57dc0),
+with tested tree `d79080968d822a2267ce5f1b1196efcf16d2e546` and parent
+`37010bc5c5827f5a8dd886af0e79d079ebfe1d4e`.
+All required local gates passed **1,083 runtime tests, eleven compile-fail doctests,
+all required release suites, twelve independent references and sixteen synthetic
+examples**. The 73 new cases comprise 24 control-record/intent codec cases, 31 public
+control integration cases, twelve actual-process restart cases and six private
+failure cases. The new node release gate passed **73 runtime tests and one doctest**.
+Three ignored subprocess helpers run through parent tests and are not extra passes.
+
+[Exact-source PR CI 45861912935](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45861912935)
+passed all configured gates. Full job `140054826270` was inspected; its synthetic
+merge checkout `62437dc1c338156fb984349b791efc7a4ad34ebb` has no file differences from the implementation
+source. Later documentation-head CI is recorded separately on PR #1. Preservation
+checks found **140 of 142 retained runtime/dependency/reference/fixture files
+byte-identical**; only the node manifest and lockfile add a local personhood
+**development** dependency. No external package versions change. Exact acceptance
+and the test map are in [CURRENT_STATUS.md](CURRENT_STATUS.md) and
+[test-matrix section 19](docs/MEMBERSHIP_TEST_MATRIX.md#19-mb-04a1-durable-node-control-and-restart-authority).
+
+The following MB-03F2 source is a **historical accepted checkpoint**:
+[`851193ea6428198441e6cdf29361b1885fae157b`](https://github.com/Ahmed-Sobeih/mirror/commit/851193ea6428198441e6cdf29361b1885fae157b).
+All required local gates passed **1,010 runtime tests, ten compile-fail doctests,
+all required release suites, eleven independent references and fifteen synthetic
+examples**. The 59 new runtime cases include actual TCP processes, malformed/stalled
+traffic, whole-membership-fork adoption and explicit recovery ownership. Two ignored
+subprocess entry points are exercised by their parent tests; they are not additional
+passing cases. Exact-source CI and later documentation-head evidence are tracked in
+[CURRENT_STATUS.md](CURRENT_STATUS.md) and [MASTER_PLAN.md](MASTER_PLAN.md).
+Earlier MB-03E2a/E2b and F1 acceptance remains in master-plan sections 23–25;
+F2 is preserved in section 26, A1 in section 27 and A2 in section 28. The following
+MB-03D record is retained as a **historical accepted checkpoint**;
+its results do not establish a newer source's full-suite or CI status.
+
+MB-03D source: `b9a2e870996fcafe1128dcb5cfdfb6b01b158ded`.
+Source tree: `dd0a3fc29f429dcd4999261801c2bc7897d6aace`.
+Focused checks passed 28 new branch-comparison integration tests, three new
+compile-fail ownership/type cases and the new `fork_choice_v2_demo` example.
+Full checkpoint verification:
+
+Published-source [push CI 45703714223](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703714223)
+and [PR CI 45703726306](https://github.com/Ahmed-Sobeih/mirror/actions/runs/45703726306)
+both passed. Full push-job `139520118282` logs confirmed the exact implementation
+checkout, **735 workspace tests, six compile-fail doctests, all required release
+suites, eight independent references, ten examples and the allocation/runtime-data
+audit**. The single intentionally ignored subprocess helper is invoked by parent
+tests and is not another pass. Release reruns are not additional unique tests.
+MB-03D is **VERIFIED_COMPONENT — ACCEPTED-BRANCH COMPARISON**. Subsequent
+documentation-head CI is checked separately and recorded on PR #1.
+
+[CURRENT_STATUS.md](CURRENT_STATUS.md) records exact source acceptance separately
+from later documentation-head CI. Historical MB-03C acceptance remains in
+master-plan section 20 and the decision record: 707 workspace tests, three
+doctests, eight references and nine examples at that earlier source. Release
+reruns are not additional unique tests. Fork comparison adds no encoded score,
+wire format, hash domain or dependency.
+
+Storage examples create temporary synthetic stores. The append example
+adds accepted mixed and empty blocks, then reopens and checks the complete state.
+The recovery example constructs known partial-write shapes, completes an append,
+repeats it idempotently, retains another parent, and then performs an ordinary next
+append. These are controlled software scenarios, not physical power-loss tests.
+They do not start a persistent V2 daemon; that integration remains MB-04.
+The fork-choice example compares frozen branches with equal account bytes and
+different membership, demonstrates sticky ties, and borrows the complete longer
+selected branch without changing either input or a store.
+The replacement-preparation example checks a genuine divergent candidate and
+round-trips MSR2 metadata without opening or changing a store.
+The new `replacement_store_v2_demo` initializes the accepted fork at height 3,
+publishes the preferred main branch at height 4 as local generation 1, retires the
+old copy, and independently reopens and reconstructs the complete candidate state.
+It also exercises clean reconciliation; it does not repair interrupted replacement
+staging or cleanup.
+The separate `replacement_recovery_v2_demo` constructs authorized partial candidate
+files, explicitly completes replacement, reopens the complete result and repeats
+completion idempotently. It rejects rolling back the selected candidate and shows
+`RetainOld` in a second owned store. It simulates residual layouts, not a physical
+power cut. Its histories and endpoint pins come from frozen independent fixtures.
+The new `peer_session_v2_demo` starts separate real provider processes over localhost
+TCP. It explicitly initializes and strictly reopens a fresh peer, keeps current
+on an equal-height membership fork, then adopts and reopens a preferred fork whose
+accounts match but memberships and population history differ. Each provider and
+receiver use their own synthetic store; the example is finite and is not a daemon.
+The `node_control_v2_demo` uses four separate processes to initialize trusted control,
+restart and keep a tied membership fork, restart and adopt the preferred history,
+then strictly reopen its persisted confirmation. The old height-3/generation-0
+state has active/pending/peak 3/0/3; the preferred height-4/generation-1 state has
+1/1/2, with all four accounts and both recorded approvals checked. Actual process
+termination and explicit recovery at each new control-publication boundary are
+covered by the separate test harness. The example exposes no interruption hook.
+[PR #1](https://github.com/Ahmed-Sobeih/mirror/pull/1) remains open and unmerged.
+
+The register prevents exact request/key/evidence reuse. It cannot identify the
+same human presenting a different key and new evidence. Human review and private
+biometric deduplication remain external, unfinished mechanisms. Public keys and
+approval relationships in this prototype are linkable: anonymity is not claimed.
+
+## Important: the development accounts are not founder allocations
+
+The node starts its historical devnet with 100 MRY assigned to the public test
+key called Alice (`[1; 32]`); Bob uses `[2; 32]`. Those known keys are insecure for
+real funds. The fixture is retained to avoid invalidating existing local devnet
+files and reorg checkpoints. It is NOT a founder entitlement, a mainnet genesis,
+or an implementation of the new bootstrap grants. No production founder wallet
+or billion-MRY founder allocation is established by this repository.
+
+Never use these keys for assets with value. Never upload biometric records,
+secrets or `mirror-data` to GitHub.
+
+## Development checks
+
+Use Rust 1.98.0 and locked dependencies. The focused operator checks are:
+
+```sh
+cargo +1.98.0 test -p mirror-node --bin mirror-node-v2 --locked
+cargo +1.98.0 test -p mirror-node --test operator_commands_v2 --locked
+cargo +1.98.0 test -p mirror-node --test provider_commands_v2 --locked
+cargo +1.98.0 test -p mirror-network --test provider_connection_v2 --locked
+```
+
+The complete required gates remain:
+
+```sh
+cargo test --workspace --all-targets --locked
+cargo test --workspace --doc --locked
+cargo test -p mirror-personhood --release --locked
+cargo test -p mirror-core --release --locked
+cargo test -p mirror-state --release --locked
+cargo test -p mirror-consensus -p mirror-chain --release --locked
+cargo test -p mirror-storage --release --locked
+cargo test -p mirror-protocol -p mirror-network --release --locked
+cargo test -p mirror-node --release --locked
+python3 tools/reference_config_v2.py --check
+python3 tools/reference_operations_v2.py --check
+python3 tools/reference_state_v2.py --check
+python3 tools/reference_blocks_v2.py --check
+python3 tools/reference_ledger_v2.py --check
+python3 tools/reference_chain_v2.py --check
+python3 tools/reference_storage_v2.py --check
+python3 tools/reference_append_storage_v2.py --check
+python3 tools/reference_replacement_storage_v2.py --check
+python3 tools/reference_peer_history_v2.py --check
+python3 tools/reference_peer_session_v2.py --check
+python3 tools/reference_node_control_v2.py --check
+cargo run -p mirror-personhood --example registry_demo --locked
+cargo run -p mirror-personhood --example operation_v2_demo --locked
+cargo run -p mirror-personhood --example state_v2_demo --locked
+cargo run -p mirror-core --example block_v2_demo --locked
+cargo run -p mirror-state --example ledger_v2_demo --locked
+cargo run -p mirror-chain --example chain_v2_demo --locked
+cargo run -p mirror-chain --example fork_choice_v2_demo --locked
+cargo run -p mirror-storage --example storage_v2_demo --locked
+cargo run -p mirror-storage --example append_v2_demo --locked
+cargo run -p mirror-storage --example recovery_v2_demo --locked
+cargo run -p mirror-storage --example replacement_plan_v2_demo --locked
+cargo run -p mirror-storage --example replacement_store_v2_demo --locked
+cargo run -p mirror-storage --example replacement_recovery_v2_demo --locked
+cargo run -p mirror-network --example history_receiver_v2_demo --locked
+cargo run -p mirror-network --example peer_session_v2_demo --locked
+cargo run -p mirror-node --example node_control_v2_demo --locked
+```
+
+The examples use synthetic attestations, issue no currency and never open the
+existing chain database. GitHub Actions verifies the workspace using Rust 1.98.0.
+
+Legacy `mirror-node mine`, `listen` and `connect` remain devnet-only. Do not run
+multiple writers against one data directory. Directory replacement has only
+limited crash-recovery tests; it is not a proven atomic transaction across all
+filesystems or a substitute for locking.

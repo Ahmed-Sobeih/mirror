@@ -12,6 +12,9 @@
 //! Writes first go to a temporary file, are flushed to disk, and are then
 //! renamed into place.
 
+/// Explicit, independently pinned V2 storage. Legacy APIs remain separate.
+pub mod v2;
+
 use std::{
     ffi::OsString,
     fmt,

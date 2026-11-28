@@ -1,5 +1,6 @@
 [package]
 name = "mirror-node"
+default-run = "mirror-node"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,3 +15,7 @@ mirror-chain = { path = "../mirror-chain" }
 mirror-storage = { path = "../mirror-storage" }
 mirror-network = { path = "../mirror-network" }
 mirror-protocol = { path = "../mirror-protocol" }
+mirror-personhood = { path = "../mirror-personhood" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "=0.2.189"

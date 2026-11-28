@@ -1,0 +1,976 @@
+Continue Mirror from https://github.com/Ahmed-Sobeih/mirror.
+Work directly in GitHub. The user expects implemented, verified increments and a
+current handoff. Updated 2026-11-28. This prompt never overrides newer verified work.
+
+RECOVER LIVE STATE FIRST
+Verify default/active branches, PRs, recent commits/comments and exact-source CI.
+Preserve newer/unpushed changes and runtime data. Never reset to this snapshot.
+PR #1 is OPEN and UNMERGED: https://github.com/Ahmed-Sobeih/mirror/pull/1
+Active branch: work/personhood-register-v0.1. Do not merge merely to publish handoff.
+
+Implementation source: **39948d40703ee832d528f662c04f6cd5df7d69e4**.
+Tested source tree: **733e483ebaa0ecfba8737fd7fe2e1da12d4cd8f1**.
+Parent checkpoint: **b488287ab47dba327d6b6d1efbde86213fb3fbfc**.
+[Source PR CI 46097203497](https://github.com/Ahmed-Sobeih/mirror/actions/runs/46097203497)
+**attempt 1** passed all **43 steps**. Full job `140831260936` logs confirm
+**1,386 runtime tests and eleven compile-fail doctests**, zero failures and
+three retained parent-exercised ignored helpers. Actual synthetic checkout
+`d699c9be6e52114b2de1481e55d3b50f9a05fd4d` has no file differences from the implementation source.
+All **12 published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **213 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+CURRENT POSITION
+Roadmap MIRROR-PLAN-001. Checkpoint MIRROR-MB04C2-001.
+**MB-04C2 is VERIFIED_COMPONENT — FINITE LOCAL POOL INTAKE AND INSPECTION.**
+C2 adds the finite `pool-inspect` command around C1's accepted in-memory pool and
+one clean A1 controller. C1 retention/evaluation/reconciliation, B4 finite run
+rounds, B3 failover, B2 rejoin/serve, B1 provider/draining shutdown, A2 operator
+commands and the existing storage/peer components retain their boundaries.
+MB-04 remains IN_PROGRESS: wallet/key custody, pool persistence/gossip and retained
+network-loop integration, wider APIs and broader scheduling remain unfinished.
+Complete Ant Kiss remains MB-05 and final human consensus MB-06. Gate A/B remain
+UNMET.
+
+NEXT: MB-04D1 — local wallet and signing boundary, beginning with design.
+
+READ FIRST
+AGENTS.md, CURRENT_STATUS.md, MASTER_PLAN.md (tracker and section 34), NEXT_SESSION.md,
+docs/DECISIONS.md, docs/POOL_INSPECT_V2.md, docs/PENDING_POOL_V2.md, docs/NODE_RUN_V2.md,
+docs/NODE_FAILOVER_V2.md, docs/NODE_REJOIN_V2.md, docs/NODE_PROVIDER_V2.md,
+docs/NODE_OPERATOR_V2.md, docs/NODE_CONTROL_V2.md, docs/PEER_SESSION_V2.md,
+docs/CANDIDATE_ADOPTION_V2.md, docs/PEER_HISTORY_V2.md,
+docs/STORAGE_REPLACEMENT_RECOVERY_V2.md, docs/STORAGE_REPLACEMENT_STORE_V2.md,
+docs/STORAGE_REPLACEMENT_V2.md, docs/FORK_CHOICE_V2.md and docs/CHAIN_V2.md.
+Retain earlier configuration, operation, ledger, membership, replay and storage
+contracts, docs/THREAT_MODEL.md and docs/MEMBERSHIP_TEST_MATRIX.md.
+
+LATEST USER DESIGN INPUT — COMBINED INITIAL PROFILES AND ACCESSIBILITY
+The user wants the complete combination to establish confidence; they are not
+claiming each ingredient must prove uniqueness alone. Their preferred initial
+standard route is ECG + one designated pinky + human-supervised Ant Kiss.
+The earlier possible left-pinky choice is not a frozen capture specification.
+When the fingerprint is unavailable, they propose ECG + details of the observed
+limitation (no hands/no pinky/etc) + supervised exceptional review. They proposed
+three qualified reviewers and deliberate controls on changes/removal. Three is a
+proposed committee size, not a chosen quorum or requirement for physicians.
+
+The user believes the complete routes can suffice for launch and may consider
+more fingerprints later, even all fingers as population grows. Preserve this as
+design preference and a sufficiency hypothesis, not measured accuracy or launch
+acceptance. No all-finger mandate, automatic population trigger, alternate biometric,
+quorum or real launch has been selected. Committee selection/independence, evidence,
+fusion, review/appeal and measurable acceptance remain D-02/D-05/D-06 work.
+
+Keep human-observed limitations as minimal private explanations, not public medical
+labels or standalone uniqueness. Normal and exceptional routes share duplicate-search
+scope. They must not create separate namespaces, identities, bootstrap claims or
+participation weight. Missing/unusable evidence cannot automatically mean no match.
+Profile upgrades retain the same membership and claim history, allow reviewed
+corrections/changed circumstances, and do not retroactively prove uniqueness.
+More fingers cannot provide a route for someone who cannot supply fingerprints.
+
+Devices are flexible off-chain instruments; compatible adapters/imports may vary
+by manufacturer. Raw results still need compatible formats, quality and a tested
+private comparison procedure. A device-unlock flag is insufficient. Evaluate the
+combined route with repeat applicants/new wallets, different days/devices/reviewers,
+genuine newcomers, collusion and cross-route attempts. Do not multiply error rates
+assuming independence. Conflicting modalities need review. The blockchain receives
+authorized outcomes/commitments, not the biometric archive. No actual personal
+records or capture are needed for the current build.
+Read docs/DEVICE_INPUT_CONTRACT.md v0.3 and docs/ACCESSIBLE_ENROLLMENT_PROPOSAL.md;
+future work is mapped to MB-05/08/09/10/12. These preferences are not runtime devices
+or a biological-uniqueness guarantee.
+
+LATEST IMPLEMENTATION — MB-04C2
+The separate finite `mirror-node-v2 pool-inspect` command requires thirteen
+deliberate option/value pairs: the existing roots and independent configuration/
+genesis pins, one input path, input byte/count caps, all five C1 pool limits and
+an explicit evaluation count. The existing 32-argument, 4096-byte-token and
+16384-total-byte ceilings remain. Every argument and scalar relation is checked
+before effects; old commands reject C2-only options. No default network or stdin
+fallback is introduced.
+
+The file is a bounded local regular file of LF-terminated lowercase hex records
+around unchanged signed V2 operation bytes. Empty input is valid; nonempty
+records have 2..582 even hexadecimal characters and one LF. Blank/uppercase/CRLF/
+odd/nonhex/truncated framing fails before A1 opens. Input caps are independently
+1..149248 bytes and 1..256 records; every duplicate counts. Retention, batch and
+abstract work retain C1's separate limits. Signed input cannot choose its network.
+
+The input path rejects lexical `..`, stdin-like `-`, symlink parents/leaves,
+nonregular objects and multiply linked files. Read-only `O_NOFOLLOW|O_NONBLOCK`
+opening, pre/open/post device/inode/type/link/length/mtime/ctime checks and a
+fallibly allocated length-plus-one EOF sentinel reject observed changes. The
+descriptor closes before A1 opens. Parent namespaces remain trusted: metadata
+checks are not hostile-writer snapshot isolation, and nonblocking open prevents
+a raced FIFO's writer wait without imposing a regular-filesystem deadline.
+
+One sticky signal guard, one clean `NodeControlV2::open_writer` and one C1 pool
+span the invocation. The real immutable accepted chain remains owned throughout
+admission/evaluation. A1 still replays and synchronizes; unchanged application
+bytes and selected checkpoint do not mean no synchronization. Missing, pending,
+corrupt, wrong-network or busy roots retain their existing refusal/recovery rules.
+
+Complete framing precedes sequential FIFO admission. Any file, operation,
+capacity or admission-work refusal ends with a static diagnostic, exit 1 and no
+normal partial-success result. The ephemeral pool is discarded. Exact duplicates
+preserve their retained position and charged identification work, including at
+full retention. No failure or retry replenishes the owner allowance.
+
+`--evaluate-count 0` skips evaluation explicitly. A positive count evaluates
+exactly that deduplicated FIFO prefix once; a count above retained length is
+blocked instead of shortened. Success returns an evaluated count/framed size.
+Expected operation/body/ledger/count/byte/work refusal returns `evaluation=blocked`
+with exit 1, a closed reason and an available zero-based FIFO ledger index.
+Allocation, arithmetic and internal-state failures remain operational diagnostics.
+Typed nested membership errors are classified without formatting their text.
+
+One fixed 31-field report names the complete observed checkpoint, input/retention/
+duplicate/work counters, every supplied limit and evaluation result. It explicitly
+reports `canonical_inclusion=not-checked` and `pool_disposition=discarded`.
+The formatter checks scalar, limit, identity, count and evaluation consistency;
+normal output and diagnostics remain within 4096 bytes. No raw paths, input
+bytes, unbounded operation-ID list or nested error strings are emitted.
+
+Sticky shutdown is checked around bounded reads and successful A1/C1 calls;
+already admitted synchronous work finishes or fails before another check. A real
+returned error takes precedence over relabeling it as shutdown. The pool,
+controller, input bytes and signal guard drop before formatting/stdout. Lost
+output retains conservative completion uncertainty and never triggers a retry.
+
+C2 does not reconcile or scan accepted history, retain a pool after exit, sign,
+mine, prepare/append/adopt a block, initialize/recover, use a peer or integrate
+with B4's run loop. Contextual retention, exact batch executability and canonical
+inclusion remain separate. C1/A1 public APIs, lower-layer code/encodings, crate
+versions, Cargo.lock, workflow commands and timeout remain unchanged. The sole
+dependency access adjustment promotes the existing local mirror-personhood path
+dependency for typed nested error classification; no new crate is introduced.
+
+RETAINED MB-04C1 — BOUNDED LOCAL POOL
+The new `mirror_node::v2::pool` component borrows an actual accepted `ChainV2`.
+Its private binding contains configuration/genesis, height, tip and accepted ledger
+root. Five deliberate local limits cap retained entries (at most 256), encoded
+operation bytes (74,496), one batch's operations (64), complete framed block bytes
+(19,048), and cumulative abstract work (67,108,864). Individual input is capped at
+291 bytes before decoding/ID/signature work. Canonical membership `max_pending`
+remains unrelated, and canonical operation/body limits apply independently.
+
+Admission decodes the exact existing signed operation, deduplicates its complete
+signed ID against retained entries and validates it for the selected next block.
+Stable FIFO retention permits context-valid overspends, sequence gaps, competing
+sequences and unknown membership targets. An exact duplicate preserves its position
+even at full capacity; a distinct full-pool input never evicts another entry.
+Admission does not scan history, so an already-included but still context-valid
+input may be retained until evaluation/reconciliation. Future windows and invalid
+expiry/anchor/signature/configuration reject. No fee replacement is invented.
+
+Evaluation chooses exactly one requested nonempty FIFO prefix. Local count/framed-
+byte and canonical complete-body preflight precede copying or execution. One full
+`LedgerV2::stage_operations` call preserves original mixed order and atomic accounts/
+membership semantics, including separate account and member sequence domains.
+The staged ledger is discarded even on success; only immutable ordered input and
+parent/revision observations are returned. Failures retain original indexed ledger
+errors and leave all pool entries and accepted chain state unchanged.
+
+Explicit reconciliation handles the same parent, append or accepted replacement
+within the same configuration/genesis. It reserves complete work before history
+ID hashing, contextual checks or temporary allocation, scans accepted history
+once. Each input's removal reason prefers exact inclusion over contextual
+invalidity; removal reports and survivors keep FIFO order. Context-valid stateful
+blockers remain. Parent,
+entries, exact bytes and revision publish together; budget/allocation/arithmetic
+failure preserves the prior binding and semantic entries. Removed inputs are not
+automatically resurrected after a replacement.
+
+Work is cumulative for one non-Clone owner. Identification charges failed/duplicate
+attempts, each evaluation charges the current parent-state size again, and every
+reconciliation charges accepted history plus bounded retained-ID comparisons and
+revalidation. No failure, clear, removal or parent change refunds work. The meter
+is an explicit abstract budget, not CPU/RSS/wall-clock or a global rate guarantee.
+Every successful reconciliation and actual entry mutation invalidates earlier
+batch observations. Currentness checks the real chain, full parent, revision and
+exact prefix; a different pool's different entries cannot match on revision alone.
+
+The component never returns/binds staged state, appends/mines/prepares blocks,
+signs, mutates A1/store, persists, gossips, exposes submission CLI/API ingress or
+assumes wallet custody. Existing commands do not create a pool automatically.
+Retained input, contextual validity, evaluated execution and canonical inclusion
+remain separate. Actual block acceptance still checks complete blocks, timestamps,
+work, roots and cumulative chain budgets. Zero-fee/no-mint development semantics
+and all monetary, enrollment, privacy, device and accessibility decisions remain.
+
+RETAINED MB-04B4 — BOUNDED RUN LIFECYCLE
+The separate `mirror-node-v2 run` command requires all twelve deliberate
+options. It uses B3's ordered one-to-four numeric peer list and existing common,
+listen, attempt, byte, timeout and admission options, plus `--max-rounds` in 1..4
+and `--round-wait-ms` in 0..60000. The old 32-argument, 4096-byte-token and
+16384-total-byte limits remain. All validation precedes effects; existing commands
+reject the new flags and `run` rejects the single-source `--peer` flag.
+
+Strict clean A1 opening occurs once. One controller, sticky signal guard and
+cumulative F2 owner span every acquisition, admitted keep/adopt, service phase and
+wait. Successful private round helpers return the same owner after closing their
+listener. Earlier commands remain dropping wrappers. Neither root is reopened or
+released between rounds; at most one stream is active and acquisition pauses service.
+
+Each entered round restarts the same ordered list at entry one, with one request
+per entry and B3's unchanged closed typed advancement policy. Checked round-local
+deltas determine peer ordinals; the actual cumulative owner enforces budgets.
+First complete validated history, including terminal EOF, ends acquisition even
+when stale or tied. All-peer or fatal failure ends the invocation even after
+earlier successful rounds, without another-round retry or serving an old branch.
+
+A round completes only after validated receipt, admitted successful keep/adopt and
+normal service return. Service may consume the remaining allowance; no attempt is
+reserved for a later round. Overall stop priority is shutdown, wire-limit,
+attempt-limit, round-limit. Only a normal service admission expiry with allowance
+and rounds remaining permits a bounded signal-aware wait and another acquisition.
+Waits hold the roots but no listener or stream, and never occur after a final stop.
+
+The unchanged invocation caps are 1..8 total attempts and 1..157129488 actual I/O
+bytes, with each attempt timeout and per-round service admission in 1..60000 ms.
+Failed/partial traffic is charged without refund. The terminal EOF probe still
+needs one unused byte. For total attempts M, timeout T, round limit R, admission A
+and wait W, `M*T + R*A + (R-1)*W <= 900000 ms` bounds configured network,
+admission and wait allowances. Opening, synchronous replay/adoption/processing,
+scheduling and output are separate; this is not a hard wall-clock, CPU or RSS bound.
+
+Shutdown before adoption discards a validated candidate; admitted A1 completes or
+fails. An active service request drains under its original deadline. Once any
+round admits keep/adopt, every later fatal error preserves its original class,
+possible completion and inspect-status guidance, including errors in later receipt
+or bookkeeping. Keep-current admission also establishes that sticky context.
+
+The fixed normal record has `30 + 16*C + 7*I` fields for completed rounds C and
+optional incomplete acquisition I, with C+I<=4. It distinguishes initial, each
+completed and final selected checkpoints, checked phase totals and retained prior
+errors. Error context adds fifteen fixed keys and eight for a current acquisition;
+it does not assert a selected checkpoint or unreturned service outcome counts.
+Invalid optional evidence falls back to the safe original diagnostic. All sockets,
+roots and signal guards are dropped before final output; output loss never repeats work.
+
+RETAINED MB-04B3 — BOUNDED EXPLICIT-PEER FAILOVER
+The separate `mirror-node-v2 rejoin-failover-serve` command accepts one to four
+ordered numeric peers in a single required `--peers ADDRESS[,ADDRESS...]` token.
+The other nine deliberate options, 32-argument/4096-token-byte/16384-total-byte
+limits and effect-free validation remain. Reject empty/malformed/scoped lists,
+duplicate numeric endpoints including IPv4-mapped aliases, DNS and zero ports.
+Original parsed connection addresses are retained; no distinct-physical-node
+or peer-authentication claim follows from endpoint checks.
+
+Strict clean A1 opening precedes all contact and binding. One controller, sticky
+signal guard and cumulative F2 owner span a finite ordered acquisition prefix,
+at most one admitted keep/adopt and fixed-history service. Each configured entry
+is requested at most once. Classify the typed session/history error before
+sanitizing it: only the explicit contract allowlist advances. Allocation,
+authority, accounting/global-resource and all unlisted errors remain fatal,
+including ambiguous nested configuration/operation/ledger failures. A failed
+receive plus shutdown remains an operational error, with no next-peer contact.
+
+The first complete validated candidate permanently ends acquisition, including
+identical/shorter/tied keep-current choices. Matching End and terminal EOF remain
+mandatory. The shared B2 post-receive routine handles adoption admission, existing
+A1 durability, retained-controller service and checked phase deltas. Stop before
+admission discards a validated candidate; admitted adoption finishes or fails.
+All-peer failure never serves the old branch as a fallback.
+
+Configured caps remain 1..8 total receive/service attempts and 1..157129488
+actual I/O bytes;
+each original attempt timeout and post-adoption service admission remain
+1..60000 ms. Failed/partial traffic is charged without refund or replenishment.
+The EOF probe needs one unused byte even though zero-byte EOF is not charged.
+A final allowed successful receive can adopt then stop normally without binding.
+For P peers, M attempts, timeout T and admission A, conservative configured phase
+allowances are min(P,M)*T+A+T (at most 360000 ms) and M*T+A. All service attempts
+remain within M; these are not hard wall-clock/CPU/RSS guarantees. Local opening,
+adoption, nonpreemptible processing, scheduling and output retain their qualifications.
+
+Normal output has 32..35 fields: B2's 26 fields plus bounded acquisition totals,
+first validated ordinal, latest receive error, terminal acquisition reason and
+one static result per configured entry. Service rejection evidence stays separate.
+Errors attach sanitized acquisition evidence without selected-pin assertions.
+Every adoption error and later fatal setup/service failure retains its category,
+possible-completion warning and inspect-status guidance. Invalid optional trace
+formatting cannot erase that core diagnostic. All sockets/owners/signal guards
+are released before final output; output loss never repeats the operation.
+
+RETAINED MB-04B2 — FINITE REJOIN / SERVE
+The separate `mirror-node-v2` executable adds `rejoin-serve`. It performs
+at most one explicit complete receive, existing A1 keep/adopt, then finite serving
+of the resulting fixed history. The contract was written before implementation:
+[NODE_REJOIN_V2.md](docs/NODE_REJOIN_V2.md). Existing A2 commands, B1 `serve` and
+the V1 default invocation remain available.
+
+| Boundary | Delivered behavior |
+|---|---|
+| Startup | Complete argument validation, one signal guard, strict clean A1 opening before either outgoing contact or bind. Missing, pending, corrupt, wrong-network or busy state refuses. |
+| Receive | One unchanged F2 request, actual complete history execution, matching End and mandatory terminal EOF. A failure is fatal even if shutdown was requested; there is no serve-old fallback. |
+| Adoption | A stop observed after validated receipt but before adoption admission discards the candidate. Once admitted, synchronous A1 keep/adopt finishes or fails through its unchanged durable ordering. |
+| Ownership | Retain `outcome.into_control()` directly. The same controller, signal state and F2 attempt/byte allowance span both phases; no reopen, reset or concurrent receive/serve. |
+| Service | Check shutdown and exhausted budgets before binding. Serve the selected whole branch with B1 admission and original-deadline drain. A last-allowed receive can adopt and then stop without binding. |
+| Reporting | Release sockets and both directory owners before a bounded 26-field result. Report previous/selected pins, actual choice and separate receive/service usage plus combined totals. |
+
+All ten options are deliberate: separate control/store paths, independent C/genesis,
+one numeric nonzero-port `--peer`, numeric nonzero-port `--listen`, `--max-attempts`
+1..8, `--max-io-bytes` 1..157129488, `--timeout-ms` 1..60000 and `--admission-ms`
+1..60000. Existing 32-argument, 4096-byte-token and 16384-total-byte parser bounds
+remain, with no DNS, environment/stdin/config fallback or effects before validation.
+
+Receipt charges one attempt and its actual I/O. Service uses only the remainder.
+An allowance equal to the 72-byte request plus complete response bytes is still
+insufficient: the terminal EOF probe needs one unspent byte of capacity even though
+zero-byte EOF is not charged. The service admission clock starts after adoption,
+immediately before bind when permitted. Receive timeout plus admission window plus
+at most one final service timeout totals at most 180000 ms at configured ceilings.
+This excludes opening, durable adoption and output and is not hard CPU preemption
+or a complete wall-clock guarantee. Standalone B1 retains its 120000-ms allowance.
+
+The post-receive stop check admits adoption. Signals after that check do not cancel
+A1 or imply rollback. Every adoption error or later fatal bind/listener/service error preserves
+its static error class and reports `operation_may_have_completed=true` with
+`next=inspect-status`; no error asserts unresolved selected pins. Final output loss
+uses the existing conservative rule, including normal pre-adoption shutdown.
+No implicit initialization, recovery, retry or rollback is introduced.
+
+Normal results obey receive_attempts + serve_attempts = attempts,
+completed_sessions + rejected_sessions = serve_attempts, and receive_wire_bytes +
+serve_wire_bytes = wire_bytes. A validated candidate discarded on shutdown reports
+`receive_status=validated`, `choice=not-attempted` and the unchanged verified
+selection. Normal limits/signals exit 0; operational/output failures exit 1 and
+usage errors exit 2. Only status retains exits 3 and 4. No result claims peer
+adoption, global latestness, human finality or protection against a later local writer.
+
+RETAINED MB-04B1 — FINITE PROVIDER / DRAINING SHUTDOWN
+The existing `mirror-node-v2` executable now has an explicit finite `serve`
+command. All A2 commands and the V1 default invocation remain available. The
+complete contract is [NODE_PROVIDER_V2.md](docs/NODE_PROVIDER_V2.md).
+
+| Boundary | Delivered behavior |
+|---|---|
+| Startup | Validate all arguments, install scoped Linux signal handling, then strictly open ready A1 control before binding. Missing, pending, corrupt, wrong-network or busy state refuses startup without listening. |
+| Fixed selection | Retain one controller and its complete accepted history. Concurrent status/sync commands are busy; no history refresh or controller reacquisition occurs between clients. |
+| Admission | One nonblocking listener, one retained F2 owner and at most one active admitted stream. Failed sessions keep their charged attempts and actual read/write bytes. |
+| Shutdown | SIGINT/SIGTERM stop new admissions. An already admitted session completes or rejects under its original absolute F2 deadline. Admission expiry follows the same final-drain rule. |
+| Final output | Release streams, listener and both directory owners before one bounded result record. Report full selected pins, reason, charged attempts/bytes and completed/rejected counts. |
+
+Require explicit control/store paths, independent config/genesis hashes, numeric
+nonzero-port `--listen`, `--max-attempts` 1..8, `--max-io-bytes` 1..157129488,
+`--timeout-ms` 1..60000 and `--admission-ms` 1..60000. The existing parser caps remain
+32 arguments after argv[0], 4,096 UTF-8 bytes per token and 16,384 total. No defaults,
+DNS, environment/stdin/config fallback or side effects before complete validation.
+
+The admission clock starts after A1 opening, immediately before bind. Check stop,
+admission time, remaining bytes and attempts before accept, and check stop/time
+again after accept. A raced stream closes before F2 and is not an admitted attempt.
+A successful TCP handshake or kernel-backlog entry is not application admission.
+One owner retains all attempt/byte charges across clients; creation of a fresh owner
+cannot replenish this invocation's budget because the loop never creates one.
+
+`PeerSessionsV2::serve_connection` adds an accepted-stream entry with an immediate
+shutdown/drop guard, including preflight refusals. It shares the checked request,
+EOF and history-output routine with `serve_once`; the latter retains its original
+pre-accept deadline and consumed-listener ordering. The 72-byte MPQ2 request,
+mandatory request EOF, complete F1 history and all original encodings remain.
+
+The handler only sets a sticky atomic stop flag and prior handlers are restored on
+exit. Final drain retains at most one original attempt timeout after the admission
+window; configured ceilings total 120,000 ms. This is deadline-aware synchronous
+behavior, not a hard process wall-clock guarantee: processing and scheduling are
+not preempted, and initial open/replay plus final output lie outside that interval.
+A1 opening may synchronize; it is distinct from read-only status. SIGKILL is forced
+termination and does not establish graceful drain or physical power-loss safety.
+
+Ordinary stop priority is shutdown, admission timeout, wire limit, then attempt
+limit. Completed plus rejected equals charged attempts; the last static session
+error persists across later successes. Normal limits/signals exit 0 even with
+rejected peers, operational/output failures exit 1, and invalid commands exit 2.
+Only status uses exits 3/4. Peer input errors can consume a bounded attempt; local
+history/allocation/setup/listener errors terminate rather than masquerading as peer
+rejections. Diagnostics echo no raw paths, addresses or peer bytes.
+
+There is no readiness/progress output while resources are held. Final records stay
+within 4,096 bytes. Output failure may follow completed serving and reports
+`operation_may_have_completed=true` with explicit status inspection, without retry.
+Provider completion reports local transfer completion, not remote validation,
+durable adoption, global latestness or human finality.
+
+RETAINED MB-04A2 — FINITE OPERATOR COMMANDS
+A separate `mirror-node-v2` executable composes the accepted A1 controller
+and F2 peer receiver. The existing V1 executable source is unchanged; the package
+sets `default-run = "mirror-node"` to preserve its prior default invocation.
+
+| Command | Delivered behavior |
+|---|---|
+| `init --attach-existing` | Initialize only the separate control state for an **already initialized** profile-3 store, under independent C/genesis and all height/tip/ledger-root/generation pins. No store creation, mining, overwrite or failed-open fallback. |
+| `status` | Call only A1 read-only status. Missing control exits 3, clean verified selection exits 0, validated pending intent exits 4; invalid/unsafe/busy state returns operational failure. |
+| `sync-once` | Open and retain a clean ready controller before connecting, request exactly one candidate with one bounded F2 owner, then consume it through A1 adoption. No retry or automatic recovery. |
+| `recover --action complete\|retain-old` | Forward the explicit action to A1's existing fully checked recovery. Selected/confirmed candidates cannot roll back. |
+
+Every operational command requires explicit `--control-dir`, `--store-dir`,
+`--config-hash` and `--genesis-hash`. The complete argument list is validated before
+filesystem/socket operations: at most 32 arguments after argv[0], 4,096 UTF-8 bytes
+per token and 16,384 total bytes. Reject duplicate/unknown/cross-command options,
+non-UTF-8/control input, malformed exact-64 hexadecimal hashes, noncanonical
+unsigned decimal, overflow and invalid init height/generation. Init height is
+0..4095 and generation cannot exceed height. No env/stdin/file-config fallback.
+
+Sync requires a numeric peer address with nonzero port, an explicit 1..60000 ms
+timeout and positive I/O allowance up to 157,129,488 bytes. Its one F2 attempt
+retains all prior header admission, replay, matching End and terminal EOF checks.
+The timeout covers the session, not local open/replay, adoption or stdout; encoded
+I/O bounds are not RSS, CPU preemption or global admission guarantees.
+
+Output uses at most 4,096 bytes of deterministic `key=value` records. It reports
+network and full checkpoints, successful sync choice/attempts/actual wire bytes,
+or static non-echoing diagnostic categories. Pending fields use confirmed/old/
+candidate labels with `store_selection=uninspected`; they do not assert current
+store selection or infer which recovery actions are permitted. Usage exits 2
+before effects; operational/output failures exit 1. Help exits 0 without paths.
+Only status uses missing/pending exits 3/4.
+
+Output failure after a mutating command can follow durable completion. The process
+reports `operation_may_have_completed=true` and directs inspection instead of
+retrying. Owners are released before stdout writing. Partial initialization and
+unsupported/corrupt/unknown artifacts remain preserved under A1's rules.
+
+RETAINED MB-04A1 — DURABLE CONTROL / EXPLICIT RESTART
+A separate `mirror_node::v2` library now preserves trusted local restart authority
+outside the strict profile-3 store. The operator supplies separate non-nested
+control/store paths and independently chosen C/genesis. Both roots use cooperative
+Linux directory-inode locks, always control first and store second. The ready
+controller exposes no raw store writer; failures consume it and return no writer.
+
+`NodeControlV2::initialize` explicitly attaches control to an already initialized
+store under independent full checkpoint/generation pins. It never initializes or
+repairs a store after failed opening. `open_writer` accepts only clean control and
+strictly replays the selected store. `status` performs no application writes or
+synchronization: absent/empty control is Missing, verified clean storage is Clean,
+and fully replayed pending intent is RecoveryRequired. Invalid input rejects.
+RecoveryRequired reports local intent and last-confirmed pins; it does not inspect
+or assert the store's current selected endpoint.
+
+MNC2 is an exact 464-byte confirmed record with full local checkpoint and unchanged
+MSR2 canonical metadata. MNI2 has a 952-byte header, both complete unchanged MPN2
+history streams and a checksum; its maximum is 39,283,208 bytes. Loading binds the
+external network identity, executes both complete histories, checks both canonical
+records and reuses existing strict replacement/generation rules. Checksums detect
+corruption; they cannot defeat a hostile operator who replaces all trusted state.
+
+Consuming adoption accepts a completed F1/F2 candidate. Ties, shorter and identical
+histories keep the current controller without filesystem calls. Strict preference
+retains an old-chain clone and moves the complete candidate into intent. The exact
+intent is written, synchronized, read back, fully replayed, renamed and its control
+directory synchronized BEFORE invoking existing storage replacement. The ready
+writer rechecks confirmed bytes, intent and exact layout immediately before that
+mutation. Accounts, memberships, approvals, sequences and population history always
+come from one complete accepted branch.
+
+After storage returns clean success, the exact new confirmed record is staged,
+synchronized, renamed and the directory synchronized. Only then is the exact intent
+removed and that absence synchronized. A retry reestablishes intent durability
+before storage recovery and confirmed durability before retiring intent; visible
+renames alone are insufficient. Clean writer reopening also resynchronizes the
+confirmed record/control directory/parent before another adoption.
+
+Startup never completes or retains pending intent automatically. Explicit recovery
+selects Complete or RetainOld through existing storage rules. Once candidate
+confirmation has begun, only Complete with a strictly clean candidate store is
+permitted. Old-selected storage contradicting candidate confirmation rejects before
+mutation. A selected candidate cannot roll back.
+
+`intent.pending`, incomplete control initialization, unknown entries, corrupt data,
+overlong files and unsafe links are preserved and rejected. The only recoverable
+confirmation staging is an exact 0..464-byte candidate-record prefix beside valid
+old confirmation and complete intent; explicit Complete extends it without truncation.
+Candidate confirmation plus remaining intent is also explicitly completable. A
+failure after intent retirement may leave an already confirmed clean state; errors
+do not always leave intent and do not promise arbitrary corruption repair.
+
+Control reads check type, length, inode and hardlink count, allocate only after
+checked length-plus-one admission and charge one 314,269,392-byte per-call allowance.
+Storage keeps its separate bounds. Encoded sizes are not RSS/time guarantees;
+history copies, checksum buffers and replay consume additional memory. Parent paths
+and local operators remain trusted. Process termination tests are not physical
+power-loss certification or hostile-same-user race protection.
+
+RETAINED MB-03F2 — FINITE TCP / IN-MEMORY ADOPTION AUTHORITY
+The new one-shot V2 TCP path requests and reconstructs one complete accepted
+history under independently selected configuration/genesis. MPQ2 is an exact
+72-byte request: magic, version 2, kind 1, C and genesis. The requester half-closes;
+the provider validates the request and its EOF before responding. Existing F1
+Begin/Manifest/Block/End bytes and every earlier wire/hash domain remain unchanged.
+
+The receiver calls consuming F1 header admission before payload allocation, then
+checks the whole admitted payload against the session owner's remaining budget.
+Every original block executes against its own accepted branch ancestry. A matching
+End, terminal EOF, consuming finish and final deadline check are all required before
+a candidate becomes public. Incomplete, malformed, oversized or trailing input
+closes the attempt and returns no partial candidate. Reception writes no store.
+
+One non-Clone synchronous owner permits at most eight sequential attempts, one
+live stream at a time, and 157,129,488 cumulative actual read/write bytes. Failed
+attempts and partial I/O remain charged. Each attempt has one positive absolute
+deadline, at most 60 seconds, including connect/accept, every individual read/write,
+request/response EOF and checks after semantic work. Slow fragments cannot reset
+that deadline. EOF probing requires one unused byte of allowance; EOF itself
+charges zero bytes. Limits are per owner, not global peer admission or bandwidth.
+CPU validation is bounded but not preempted; late results are rejected afterward.
+
+Explicit adoption consumes a completed candidate and an independently pinned owned
+replacement store. It checks both network identities, the full current checkpoint/
+generation and canonical metadata, then compares actual accepted whole histories.
+Identical, shorter and tied candidates keep current without filesystem calls.
+A strictly preferred candidate uses the existing owned replacement publication.
+Before any publication, the attempt retains an exact old-chain clone, the moved
+candidate, independent identity and both local checkpoints. Complete balances,
+memberships, permanent records, approvals, sequences, population history and resource
+counters always follow one history; no losing-branch state is grafted into it.
+
+Publication failure retains the same store lock and both exact histories but exposes
+no ordinary writer. Recovery is explicit: Complete or RetainOld invokes the existing
+consuming recovery under that same lock. Recovery failure returns no handle while
+retaining the exact inputs/root for a separately requested retry. A selected candidate
+cannot roll back. Fresh initialization remains a separate explicit operation;
+failed existing-store opening never falls back to initialization or repair.
+
+These recovery inputs are in memory, not a crash-persistent intent journal.
+Adoption runs outside the socket deadline. Extra accepted histories and replay
+allocations are not covered by encoded-input ceilings. Storage's cooperative Linux
+locking, trusted local owner/parents, fencing, full replay and unsupported-layout
+rules remain unchanged. The separate A1 wrapper now persists restart authority; F2 itself is unchanged.
+
+RETAINED MB-03F1 — FRAMING / IN-MEMORY RECONSTRUCTION
+The separate V2 protocol now carries one finite candidate history: Begin, its
+complete canonical manifest, genesis and every child block in order, then an
+explicit matching End. The caller selects the expected configuration hash and
+genesis independently before accepting any peer data. Every advertised height,
+tip, root and byte count is a claim to check, not trusted replay authority.
+
+The receiver validates the manifest and seed proofs, then reconstructs the branch
+through actual `ChainV2::from_genesis` and `append`. All original mixed operations
+execute against that branch's own ancestry. Accounts, memberships, permanent
+reservations, approvals, sequences, population history and resource counters stay
+together. Computed terminal state and exact counts must match the captured claim.
+A valid shorter or losing branch is still a candidate; receiving does not select
+it as canonical, establish global freshness or change a store.
+
+Each receive operation consumes ownership. A checked 12-byte header must pass
+phase, per-kind, configured and remaining-transfer limits before a pending owner
+exposes its permitted payload length. Consuming that owner requires exactly those
+payload bytes. Errors destroy continuation; partial accepted state has no public
+getter or clone. All blocks alone are insufficient: only a matching End and a
+successful consuming `finish` release the complete `ReceivedCandidateV2`.
+
+The sender borrows one immutable accepted history, derives its summary from that
+history, and yields one frame at a time. It retains no all-history output buffer
+and stops permanently after completion or an encoding error. The convenience
+receiver for an already allocated complete frame cannot establish allocation
+safety for its caller; a future stream adapter must use checked header admission
+before allocating or reading the declared payload.
+
+MPN2 has a separate 12-byte header, version 2, and four known message kinds.
+Begin and End each contain an exact 152-byte summary. There is no new signed
+checkpoint, hash domain or local storage generation on the wire. For N complete
+blocks, M manifest bytes and B MRB2 bytes, exact accounting is N + 3 frames and
+`340 + M + B + 20*N` total wire bytes.
+
+| Per-transfer bound | Maximum |
+|---|---:|
+| Complete blocks including genesis | 4,096 |
+| Canonical MNM2 manifest bytes | 2,781,636 |
+| Complete MRB2 bytes across all blocks | 16,777,216 |
+| One complete MRB2 block | Configured cap, at most 1,048,576 bytes |
+| Frames | 4,099 |
+| Total framed wire bytes | 19,641,112 |
+| Actual cumulative chain state/configuration items | 1,048,576 |
+
+Genesis remains exactly 168 MRB2 bytes. After decoding the configuration, the
+receiver rejects impossible declared totals using that fixed genesis and the
+configured child-block limit. Before each payload, checked arithmetic reserves
+both minimum and maximum possible space for all remaining blocks. Exact final
+counts are required; unused declared capacity does not complete a transfer.
+
+These are encoded-input and abstract-work limits, not resident-memory, latency,
+bandwidth, connection-count or availability guarantees. F1 opens no sockets,
+implements no deadlines/session lifecycle and performs no canonical storage
+publication. End is a framing boundary, not an EOF or connection-close rule.
+
+Public APIs: HistoryReceiverV2::new(independent_identity); consuming begin_frame
+and accept_frame; PendingHistoryFrameV2::payload_len and consuming accept_payload;
+consuming finish -> ReceivedCandidateV2; completed chain()/into_chain(), summary(),
+frame_count(), wire_bytes(); HistoryFramesV2::new(&ChainV2) yields one frame at a time.
+The retained F1 receiver itself opens no socket and publishes no store; F2 above
+composes its accepted candidate with separate sessions and adoption.
+
+RETAINED MB-03E2b — LOCAL REPLACEMENT RECOVERY
+The separate explicit recovery API now accepts independently retained old and
+candidate checkpoints/generations, BOTH exact accepted histories, and an explicit
+`Complete` or `RetainOld` action. The request immutably borrows the histories;
+construction validates their exact relationship and recovery repeats selection
+checks under independently selected network identity and exclusive root ownership.
+
+Before mutation, recovery bounds all names/lengths, checks the exact canonical
+selected MSR2, fully replays selected history, and verifies every surviving residue.
+While old remains selected, candidate files may be any authorized subset of heights,
+with exact canonical byte prefixes; the manifest may be absent. Pending-selector
+prefixes require the entire candidate history to be complete. Once candidate is
+selected, its history must be complete, pending must be absent, and every remaining
+old file must contain its exact full bytes. A surviving old blocks directory requires
+the old manifest; manifest-only, empty generation, and absent old generation are
+recognized cleanup states. Unknown/corrupt/overlong/unsafe artifacts reject unchanged.
+
+Completion extends authorized prefixes without truncation, synchronizes and fully
+validates candidate history, checks both exact generations, publishes/synchronizes
+the selector, and rechecks all residue before deleting old files. Selected-candidate
+recovery also reestablishes selected-file/directory/selector/root durability before
+old deletion. Retention removes and synchronizes a pending marker before removing
+candidate staging. Both actions remove only exact prescribed unselected files and
+empty directories; no recursive cleanup or locked-root replacement occurs.
+
+An already-absent old blocks directory still requires old generation-directory
+synchronization BEFORE old manifest unlink. Otherwise an earlier interrupted
+directory removal could remain nondurable. The implementation and regression
+trace cover that ordering, including interruptions of recovery itself.
+
+Final strict clean replay, equality and synchronization precede the returned writer.
+Consuming recovery retains the same lock, including from a fenced handle, and requires
+its retained memory checkpoint to match one supplied endpoint. Every error returns
+no handle. A publication attempt may already have selected candidate. Repeated
+completion/retention is explicit and bounded; actions can change while old is still
+selected, but `RetainOld` NEVER rolls back a selected candidate. Ordinary open,
+inspect and reconcile remain clean-only and never call recovery implicitly.
+
+Accounts, memberships, permanent reservations, approvals, sequences, population
+history and replay/resource counters always come from one fully accepted history.
+Copied roots, cache state, filenames and local generations never substitute for
+independent selection or complete execution.
+
+The E2b recovery increment changed no encoding, hash domain, dependency, monetary
+rule or prior store behavior; F1 preserves that recovery behavior.
+MSR2 remains 280 bytes, version 2/profile 3, with the unchanged nested MSS2.
+The distinct two-history/two-selector payload ceiling is **39,118,264 bytes**;
+all payload reads and growth sentinels share one **313,011,680-byte** allowance.
+With one conservative history pass H=19,562,949 and selector S=281 bytes:
+
+| Recovery path | Full replays | Conservative charged reads |
+|---|---:|---:|
+| Old selected → Complete | 4 | 15H + 12S = 293,447,607 bytes |
+| Candidate selected → Complete | 2 | 9H + 6S = 176,068,227 bytes |
+| Old selected → RetainOld, pending present | 2 | 11H + 10S = 215,195,249 bytes |
+
+Every history retains 4096 blocks, 16 MiB complete MRB2 and 1,048,576 cumulative
+state/configuration items. These are not RSS, latency or physical durability bounds.
+Cooperative Linux locking and trusted local owners/parents remain assumptions;
+WSL/DrvFS, native Windows and network filesystems are not newly certified.
+Interrupted initialization, missing/corrupt selected markers and unknown artifacts
+remain unsupported and preserved. Recovery needs both histories; it cannot infer
+missing authorization from damaged residue or a peer's higher generation.
+
+Public recovery APIs: ReplacementRecoveryRequestV2::new(old_checkpoint,
+candidate_checkpoint,&old_chain,&candidate_chain); its old()/candidate() return
+checkpoints, old_chain()/candidate_chain() return immutable references.
+ReplacementStoreV2::recover_interrupted(root,identity,&request,action) acquires
+ownership; store.recover(&request,action) consumes and retains the same ownership.
+Ordinary initialize/open_writer/inspect/replace/reconcile APIs remain unchanged.
+E2a's clean layout is one generation-{generation:020} directory plus selection.v2.
+The selected directory contains its own exact manifest and full block history;
+at most old and next generations plus an optional pending selector coexist.
+
+RETAINED E1 METADATA / PURE PREPARATION
+MSR2 is exactly 280 bytes:
+- 0..4 magic MSR2; 4..6 u16 LE encoding version 2; 6..8 u16 LE profile 3.
+- 8..16 u64 LE local publication generation.
+- 16..248 exact unchanged 232-byte MSS2, version 2/profile 1/inner generation 0.
+- 248..280 SHA256d(MIRROR_STORAGE_REPLACEMENT_SELECTION_V2 || bytes[0..248]), no NUL.
+ReplacementCheckpointV2 contains generation plus all ChainReplayExpectationV2
+fields: configuration hash, genesis hash, height, tip hash and ledger root.
+Decoder order: exact length/magic/version/profile; outer checksum; all nested MSS2
+bounds and independently pinned endpoint checks; generation <= height; generation
+matches expected. No unpinned decoder or input-sized allocation. Valid metadata
+is not an accepted chain; exact manifest verification and full replay remain separate.
+
+Generation 0 may initialize any accepted height. A strictly preferred publication
+counts once even if it replaces/skips several heights, so generation <= height <= 4095.
+Generation is not score, observed proof of publication or global freshness.
+Equal-height or human-weighted replacement needs a separately reviewed profile.
+Existing MSS2 and MSU2 bytes/domains/APIs remain unchanged; no implicit migration.
+
+prepare_replacement_v2(identity, expected_current, current_selection,
+                       current: &ChainV2, candidate: &ChainV2)
+returns a private ReplacementPlanV2 borrowing both complete accepted histories.
+Order: both independent network identities via comparator; current complete endpoint;
+selector endpoint/generation; entire canonical current metadata; strict preference;
+checked generation increment and canonical candidate metadata. Recomputed checksums
+and correct endpoint pins cannot hide changed manifest digest/length or block totals.
+The candidate retains its own exact manifest, blocks, accounts, membership, permanent
+records, approvals, sequences, population peaks and resource counters. No grafting.
+Both chains stay immutable while the plan is used. Accessors expose identity,
+relation, common ancestor, current/candidate checkpoints/selectors/chains. No public
+constructor, decoder, serialization or disk mutation API exists for the plan.
+
+Success encodes two bounded manifests but clones/reexecutes no chain and touches
+no filesystem. It is not allocation-free. GenerationOverflow is defensive and
+unreachable for valid accepted inputs under the present cap. A copied selection
+or plan is not a durable permit or lock. E2a adds a separate store that repeats
+checks under ownership; it never accepts the pure plan as a reusable write permit.
+
+VERIFICATION
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed, with all **222 tested source/checkpoint inputs
+unchanged during execution**:
+
+- **1,386 workspace/all-target runtime tests**, zero failures: 1,333 retained
+  plus **53 new**. Parameterized cases, subprocesses and release reruns are
+  not additional tests.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers remain exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **367+1**. All **twelve references** and **sixteen examples** passed.
+
+New executable test inventory:
+
+- `crates/mirror-node/src/bin/mirror-node-v2/args.rs`: **7** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/errors.rs`: **1** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/main.rs`: **1** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/output.rs`: **7** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/pool_input.rs`: **8** new tests.
+- `crates/mirror-node/src/bin/mirror-node-v2/pool_inspect.rs`: **9** new tests.
+- `crates/mirror-node/tests/pool_commands_v2.rs`: **20** new tests.
+
+Focused binary verification first passed all 114 then-registered tests. Source
+review then tightened impossible typed-body representation/context/root errors
+to operational invariants and added one classifier test, which passed separately;
+the final full gates exercise all 115 binary tests. These are 33 new private
+tests plus the retained 82-test binary suite.
+
+The first process-suite run passed 19 of 20 functions. Its sole failure was the
+test harness's optional Unix-domain socket creation returning EPERM on this host,
+before the operator command ran. That complete failed log is retained. Only the
+optional socket fixture and unused import were removed; missing-file, directory,
+writerless FIFO, symlink-parent/leaf and hardlink checks remain. The final focused
+suite passed all 20 functions in debug and release, with no ignored cases. Socket
+path rejection is not claimed as observed process evidence. No production
+behavior or retained test was weakened to accommodate the host limitation.
+
+The new process suite covers full framing admission before a busy controller;
+empty input; malformed operation encodings; exact maximum 149248-byte/256-record
+input and distinct count/byte refusals; all four operation kinds; duplicates at
+full retention and exact FIFO order; independent retention caps; signature/context
+refusal; overspending, gaps/conflicts, funding order and a late mixed-operation
+failure; literal cumulative work and body quotas; missing/wrong/busy/corrupt/
+unknown/pending A1 state; restart; bounded records; broken stdout; and actual
+blocked stdout with input and both authority owners released. Observed SIGKILL
+there occurs after computation/resource release, not during admission or staging.
+
+The initial publication `e2c1c68d72380bb4c111d6839119377febed52f2` was not accepted.
+Its first full local workspace gate passed all 53 new tests but failed a retained
+B2 test before its chosen SIGINT: the helper found that the child had already
+exited. That failed path did not retain the child's diagnostic, so the exact
+exit class is unknown. The test constructed/transmitted/replayed its candidate
+inside a 1000 ms session, then started another 650 ms sleep after observing EOF
+receive, without establishing that 650 ms remained. The complete failed gate
+and initial publication evidence are preserved separately.
+
+The final source repairs only that test's observation timing. It precomputes
+the transcript before launch, anchors the 650 ms offset to completed-request
+observation before transmission/replay, sleeps only the remaining offset and
+freshly observes the same one-byte EOF receive immediately before SIGINT. The
+unchanged 1450 ms elapsed bound uses that earlier epoch; renewing 1000 ms after
+the signal would require at least 1650 ms. All three timing constants, the full
+post-signal assertions, the other 26 test bodies and all helpers are unchanged.
+One exact targeted debug execution passed after the repair. Production B2 and
+C2 behavior were not changed. The full final gates and exact-source CI reported
+above apply to this repaired source; the earlier publication's CI alone cannot
+accept the later repair.
+
+The initial publication's PR CI run `46095907470`, job `140827064527`, ended
+cancelled during the workspace gate. Its complete archived log contains all 53
+new passing test names and no reported test-failure marker, but not a complete
+workflow. That partial run is not source acceptance. The exact final-source run
+identified above is verified independently from its full log and actual checkout.
+
+New process tests use actual accepted synthetic chains, real signed operations,
+separate roots and bounded child cleanup. Full canonical state, selected
+checkpoint, control/store/input bytes and strict reopening are checked. The
+observed full-pipe stdout write establishes release of both authority owners and
+the input descriptor before output. This evidence is local and finite; it does
+not establish production network operation or a wall-clock bound on filesystem I/O.
+
+Private deterministic checks cover bounded framing/read behavior and the closed
+error/report boundary. Static unsafe-file cases are actual process evidence.
+Concurrent hostile namespace mutation, induced allocator exhaustion and signals
+at every internal synchronous validation/synchronization phase are not claimed
+as observed process evidence. A1 replay/synchronization retains its accepted
+contract; equal file contents do not establish absence of synchronization.
+
+Preservation audit: **71 of 72 existing test/helper files** and
+**67 pre-existing private test functions** in changed binary
+modules are byte-identical. The exception is the single retained B2 deadline
+observer described in the evidence; all **26 other test bodies**, the rest of that
+file and its complete post-signal assertions are unchanged. All lower-layer
+production source, C1/A1 public APIs,
+frozen vectors, reference tools, monetary policy and runtime-data boundaries
+remain unchanged. The existing mirror-personhood path dependency is promoted to
+normal dependency access for typed nested error classification; no new crate or
+version is added, and **Cargo.lock is unchanged**. The existing workflow commands,
+pinned toolchain and 20-minute job limit are unchanged. The new contract was
+written before implementation, with the dependency-access refinement recorded
+before coordinator implementation. No monetary, enrollment, privacy, device or
+accessibility choice was silently changed.
+
+RETAIN COMPARISON, STORAGE AND RECOVERY BOUNDARIES
+The comparator requires independently selected C/genesis and two complete accepted
+ChainV2 values. Checks current C/genesis then candidate C/genesis. Same literal
+fixed target means height 0..4095 is normalized work ordering; no work total is
+multiplied. Higher candidate wins; ties keep current, with no global tie winner.
+Hash magnitude, timestamps, population, money and local generation add no score.
+Actual matching header hashes establish common ancestry; equal balances/state roots
+do not. It compares at most 4,096 accepted pairs / 8,192 header hashes without allocations
+or replay, and returns a private immutable whole-chain borrow. Finite caps/terminal
+timestamps may prevent tie resolution. This is not final human consensus.
+
+StoreV2 profile 1 keeps exact 232-byte MSS2/generation 0. AppendStoreV2 profile 2 keeps
+exact 280-byte MSU2 and unchanged nested MSS2. Independent full checkpoint/generation
+pins remain mandatory. Normal opening fully replays selected history and rejects
+staging. All three implemented stores use cooperative Linux root-directory inode locks:
+exclusive writers/shared inspectors. Trusted parent/local owner; never replace,
+rename or remove a locked root, infer ownership from PID files, or claim same-user
+hostile-race protection. Inherited fork descriptors can prolong locks; preserve
+process-test isolation. WSL/DrvFS/native Windows/network mounts remain unverified.
+
+Append validates the whole child, rechecks selected history, syncs block/directory,
+prepares/syncs selector, checks old selection, renames marker and syncs root before
+memory advances. Errors fence normal state access and writes. last_confirmed_checkpoint
+means prior confirmed memory only. Clean reopen/reconcile fully replay and resync;
+consuming reconciliation retains the same lock. It repairs no staging.
+
+Explicit append recovery independently pins parent/candidate adjacent checkpoints
+and exact child. It fully replays parent and accepts child before Complete or
+RetainParent. It changes only authorized matching prefixes/paths. A pending selector
+requires complete child; selected candidate requires clean complete history and
+supports only idempotent Complete, never RetainParent rollback. Unknown/corrupt
+selected bytes, unsafe aliases and initialization failures stay preserved/rejected.
+Prefix equality does not prove origin; independent request supplies authority.
+Consuming recovery retains ownership; every error returns no usable handle. Final
+strict replay/equality/resync precedes success. No journal/automatic repair exists.
+Its distinct encoded input cap 19,559,412 bytes and conservative payload-read allowance
+156,508,096 bytes remain separate from RSS. One-child recovery is not generic reorg.
+
+EXACT NEXT WORK — MB-04D1
+**Next: MB-04D1 — local wallet and signing boundary. READY — DESIGN FIRST.**
+
+C2 now consumes already signed operations; the next useful MB-04 increment is
+an explicit local wallet boundary that can eventually supply those inputs. Begin
+with repository inspection and a written threat model/API/file-lifetime design,
+then select the smallest reviewable implementation slice. D1 is not implemented
+by this checkpoint, and choosing this next slice does not mark broader pool or
+node integration complete.
+
+Specify fresh operating-system randomness, key ownership and separate signing,
+transport and membership roles; independently selected configuration/genesis;
+the exact operation fields and user intent authorized by signing; and a truthful
+distinction between constructing/signing bytes, pool admission, ledger execution
+and canonical inclusion. Do not let an untrusted input choose its signer, network,
+recipient, amount, sequence, anchor or authorization window silently.
+
+Choose deliberate local secret input/output, authenticated protected storage,
+file permissions/identity, bounded decoding/KDF work, backup/export/recovery,
+cancellation and error semantics before implementation. Review established
+cryptographic libraries and official documentation if new dependency support is
+needed; pin exact reviewed versions and do not invent encryption or KDF schemes.
+Document the limits of memory clearing, filesystem persistence and same-user
+trust honestly. Keep real private keys, passwords, recovery seeds and biometric data
+out of argv, logs, fixtures, repository files and diagnostics. Tests use fresh temporary
+or explicitly synthetic public development material only; known demo keys are
+not real wallets.
+
+Keep signing local and explicitly authorized. Do not add automatic mining,
+append/adoption, transaction gossip, pool persistence, a remote submission/signer
+endpoint, default key selection or B4 loop integration as incidental work.
+Existing canonical operation encodings, no-fee/no-mint development behavior,
+monetary decisions, enrollment profiles and open privacy/accessibility/consensus
+gates remain unchanged. Design separately any later persistence/gossip or retained
+pool lifecycle across chain changes; C2 still discards its owner after each call.
+
+Retain all existing gates and test bodies. Verify exact implementation source,
+full local/CI evidence and published readbacks before the later nine-document
+checkpoint; verify checkpoint-head CI separately and refresh `the-prompt`.
+
+FOUNDATION TO PRESERVE
+Legacy chain: signed transfers, fixed easy PoW, persistence/restart, TCP sync and reorg.
+The historical public Alice 100-MRY fixture is development data, not founder funds.
+B1 MCF2 binds seed order, configuration and limits; every seed proves possession.
+B2 signed Enroll/Approve/Withdraw checks context/anchor/window but alone does not
+establish current reviewer rights, target status or sequence authorization.
+B3 immutable membership retains sequences, Pending/Active/Revoked/Expired statuses,
+permanent key/evidence/ID reservations, empty-block expiry, self-only withdrawal,
+parent-Active surviving reviewers, end-block activation in original inclusion order,
+and final-count high-water. Same-block new members cannot approve. Preserve 64 retained
+approvals per record and max_records aggregate approvals; never evict history to recover
+capacity. These are synthetic admission rules, not production uniqueness guarantees.
+B4 MPS2 remains an untrusted cache with no runtime conversion. Membership-only MPH2
+replay requires trusted per-height hashes/group digests/roots and external final pins.
+Its digest is not the MRB2 operation root. Preserve separate 4,096-group and 1,048,576-item
+MPH2 diagnostic bounds.
+MB-02A roots bind exact signed bytes/order/count: Transfer 243, Enroll 291, Approve 227,
+Withdraw 227 bytes; header 160, empty MRB2 168. Preserve MIRROR_ADDRESS_V1 addresses
+and separate account/member sequences. MB-02B executes complete bodies atomically,
+conserves initial test funds, permits positive zero-fee transfers and funded self-transfer
+sequence advancement, retains zero/spent accounts and adds no membership spending
+restriction. No mint/grant/reward/redistribution API exists. Preserve original mixed
+indices. MPS2 runtime indices use max_operations with unchanged layout/domain.
+
+MB-02C NetworkManifestV2 requires independently selected C/exact genesis and every seed
+proof. Genesis requires configured time/bits, empty body, executed bootstrap root,
+valid work and exact selected hash. ChainV2 validates full budgets, version/C,
+height/parent/time, literal bits/work, ordered operation root, complete LedgerV2
+execution and claimed ledger root before publishing block/state/counters. Its own
+private accepted ancestry supplies anchors; no external oracle or state setter is
+accepted. bind_to_validated_block alone remains trusted provenance attachment.
+Complete MRB2 replay returns no partial branch and checks all external pins. There is
+no retargeting or wall-clock future ceiling; child time exceeds parent time, so u64::MAX
+is terminal. Easy PoW is not encryption, equal hardware participation, human voting,
+reward assignment or final human consensus. Preserve CHAIN_V2.md's exact charge formula.
+
+USER POLICY AND OPEN GATES
+No extra founder allocation or privileged marketing/airdrop reserve. First 1,000
+qualifying humans receive 10 MRY each INCLUDING the founder: explicit 10,000-MRY
+bootstrap exception. Ordinary allowance is 0.2 MRY per highest qualifying human
+population; declines do not lower the record or confiscate currency. One MRY equals
+10,000,000 Nusa. D-01 additive-versus-floor combined bootstrap treatment and D-04
+fees/rewards remain OPEN. Do not assume a combined ceiling or enable issuance/grants.
+Synthetic activation is not monetary qualification. Founder-led startup is initial
+trust, not permanent administrative authority. Equal-human participation must not
+scale with hash rate; current easy PoW is not the final human-round consensus.
+Fingerprint/ECG devices are interchangeable OFF-CHAIN Ant Kiss instruments. No raw
+OR encrypted biometric archives, real keys, personal records or device secrets belong
+on-chain or in GitHub. Key/evidence equality is not biological uniqueness; new keys
+and evidence still need private deduplication. Public review metadata is linkable;
+anonymity is unfinished. No actual capture or hardware purchase is needed for this work.
+
+PROGRESS ESTIMATE
+Last rough estimate: 20–25% of Gate A, discussed 2026-11-26. This is an engineering
+scope judgment, not a test-count/task ratio, time forecast or security percentage.
+Do not add a fixed percentage for F2 or 1,010 tests. Remaining
+persistent node/restart/operator/wallet work, Ant Kiss lifecycle, human consensus, unresolved money,
+protected off-chain intake/matching and integrated hardening are substantial.
+Gate A requires complete synthetic-input software flow ready for compatible device
+adapters; actual captures/recognition/device compatibility belong to Gate B.
+Both gates remain unmet; no mainnet or biological-uniqueness claim.
+
+KEEP HANDOFF CURRENT
+Before EVERY Mirror final response refresh this file and relevant master/status/next/
+decisions with actual evidence and exact next work. On discussion-only turns preserve
+the verified source/next task; do not invent progress. Read first, reconcile newer
+work, publish with expected-head guards and verify readback. Keep source evidence
+separate from later documentation commits; do not chase self-referential SHAs. If
+publication fails, say so and provide continuation text. At a session switch give
+the direct active-branch the-prompt link. Work occurs in the current conversation,
+not promised background execution. Git-backed work is saved in GitHub.

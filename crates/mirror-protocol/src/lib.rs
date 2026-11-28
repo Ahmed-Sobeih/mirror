@@ -3,6 +3,8 @@
 //! This crate defines the exact binary messages exchanged between
 //! independent Mirror nodes. Transport itself lives in `mirror-network`.
 
+pub mod v2;
+
 use core::fmt;
 
 use mirror_crypto::Hash256;

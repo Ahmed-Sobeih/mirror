@@ -1,0 +1,106 @@
+name: Rust verification
+
+on:
+  push:
+    branches: [main, 'work/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install the development toolchain
+        run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt
+      - name: Independent V2 configuration vectors
+        run: python3 tools/reference_config_v2.py --check
+      - name: Independent V2 operation vectors
+        run: python3 tools/reference_operations_v2.py --check
+      - name: Independent V2 state and replay vectors
+        run: python3 tools/reference_state_v2.py --check
+      - name: Independent V2 transfer and block vectors
+        run: python3 tools/reference_blocks_v2.py --check
+      - name: Independent V2 atomic ledger vectors
+        run: python3 tools/reference_ledger_v2.py --check
+      - name: Independent V2 actual chain vectors
+        run: python3 tools/reference_chain_v2.py --check
+      - name: Independent V2 storage selection vectors
+        run: python3 tools/reference_storage_v2.py --check
+      - name: Independent V2 append selection vectors
+        run: python3 tools/reference_append_storage_v2.py --check
+      - name: Independent V2 replacement selection vectors
+        run: python3 tools/reference_replacement_storage_v2.py --check
+      - name: Independent V2 peer history framing vectors
+        run: python3 tools/reference_peer_history_v2.py --check
+      - name: Independent V2 finite peer session vectors
+        run: python3 tools/reference_peer_session_v2.py --check
+      - name: Independent V2 node control and restart intent vectors
+        run: python3 tools/reference_node_control_v2.py --check
+      - name: Workspace tests
+        run: cargo +1.98.0 test --workspace --all-targets --locked
+      - name: Documentation tests
+        run: cargo +1.98.0 test --workspace --doc --locked
+      - name: Membership release-mode tests
+        run: cargo +1.98.0 test -p mirror-personhood --release --locked
+      - name: Core release-mode tests
+        run: cargo +1.98.0 test -p mirror-core --release --locked
+      - name: Ledger release-mode tests
+        run: cargo +1.98.0 test -p mirror-state --release --locked
+      - name: V2 work and chain release-mode tests
+        run: cargo +1.98.0 test -p mirror-consensus -p mirror-chain --release --locked
+      - name: V2 storage release-mode tests
+        run: cargo +1.98.0 test -p mirror-storage --release --locked
+      - name: V2 peer framing and reconstruction release-mode tests
+        run: cargo +1.98.0 test -p mirror-protocol -p mirror-network --release --locked
+      - name: V2 durable node control and restart release-mode tests
+        run: cargo +1.98.0 test -p mirror-node --release --locked
+      - name: V2 explicit storage and reopening demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example storage_v2_demo --locked
+      - name: V2 durable append and reconciliation demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example append_v2_demo --locked
+      - name: V2 explicit interrupted-append recovery demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example recovery_v2_demo --locked
+      - name: V2 pure branch replacement preparation demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example replacement_plan_v2_demo --locked
+      - name: V2 durable whole-branch replacement demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example replacement_store_v2_demo --locked
+      - name: V2 explicit interrupted-replacement recovery demonstration
+        run: cargo +1.98.0 run -p mirror-storage --example replacement_recovery_v2_demo --locked
+      - name: V2 complete candidate-history reception demonstration
+        run: cargo +1.98.0 run -p mirror-network --example history_receiver_v2_demo --locked
+      - name: V2 real-process peer session and durable adoption demonstration
+        run: cargo +1.98.0 run -p mirror-network --example peer_session_v2_demo --locked
+      - name: V2 independent-process node control restart demonstration
+        run: cargo +1.98.0 run -p mirror-node --example node_control_v2_demo --locked
+      - name: V2 accepted chain and replay demonstration
+        run: cargo +1.98.0 run -p mirror-chain --example chain_v2_demo --locked
+      - name: V2 accepted branch comparison demonstration
+        run: cargo +1.98.0 run -p mirror-chain --example fork_choice_v2_demo --locked
+      - name: V2 atomic ledger demonstration
+        run: cargo +1.98.0 run -p mirror-state --example ledger_v2_demo --locked
+      - name: V2 mixed operation and block format demonstration
+        run: cargo +1.98.0 run -p mirror-core --example block_v2_demo --locked
+      - name: Synthetic enrollment and replay demonstration
+        run: cargo +1.98.0 run -p mirror-personhood --example registry_demo --locked
+      - name: V2 signed authorization demonstration
+        run: cargo +1.98.0 run -p mirror-personhood --example operation_v2_demo --locked
+      - name: V2 membership commitment and replay demonstration
+        run: cargo +1.98.0 run -p mirror-personhood --example state_v2_demo --locked
+      - name: Allocation and runtime-data audit
+        shell: bash
+        run: |
+          test -z "$(git ls-files mirror-data)"
+          git grep -n -E 'FOUNDER_EXTRA_ALLOCATION_NUSA|MARKETING_PREALLOCATION_NUSA|BOOTSTRAP_GRANT_NUSA' -- crates/mirror-core/src/monetary_policy.rs
+          git grep -n '100 \* NUSA_PER_MRY' -- crates/mirror-node/src/main.rs
+          echo 'Historical Alice funds are a public development fixture, not a founder grant.'
+          git diff --exit-code -- Cargo.lock
