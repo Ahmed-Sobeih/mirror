@@ -225,8 +225,25 @@ selection or authorize an automatic retry. Stdout itself has no deadline.
 
 Private binary modules separate bounded file capture/framing from coordination.
 The existing argument parser, output buffer, failure mapping, signal guard,
-A1 and C1 code are reused. Existing test/helper bodies and frozen fixtures are
-preserved; new private tests and `pool_commands_v2` process tests are additive.
+A1 and C1 code are reused. New private tests and `pool_commands_v2` process tests
+are additive. Frozen fixtures and existing helpers are preserved. One retained
+B2 test requires the narrowly recorded observation repair below; its production
+path, timing constants and result/state assertions remain unchanged.
+
+The initial full local gate failed before its chosen SIGINT: the retained
+receive-deadline test observed that its child had already exited, without
+capturing that exit's diagnostic. The test constructed/transmitted/replayed a
+candidate inside an existing 1000 ms session, then began another 650 ms wait
+after observing terminal receive. That observation did not establish 650 ms of
+remaining allowance. The repair precomputes the full candidate transcript before
+launch, anchors a 650 ms signal offset to observed request receipt, waits only
+the remaining offset after terminal-receive observation and freshly observes the
+same one-byte EOF read immediately before SIGINT. The original 1450 ms upper
+bound is measured from that same earlier epoch: a renewed 1000 ms deadline after
+the signal would take at least 1650 ms. All existing outcome, no-adoption and
+state assertions remain. This strengthens the test's clock relationship without
+changing runtime behavior or loosening its three timing constants. The initial
+failed gate is retained separately from final-source acceptance.
 
 Verification covers effect-free argument refusal; exact byte/count limits;
 empty and malformed framing; missing/nonregular/symlink/hardlink/FIFO inputs;

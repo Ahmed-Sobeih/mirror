@@ -587,6 +587,7 @@ fn sigint_during_receive_preserves_the_original_deadline_and_operational_error()
     let _guard = process_guard();
     let scratch = ready("rejoin-receive-original-deadline");
     let before = snapshot(&scratch.0);
+    let response = transcript(&preferred_fork());
     let source = reserve();
     let occupied = reserve();
     let mut args = arguments(
@@ -597,12 +598,15 @@ fn sigint_during_receive_preserves_the_original_deadline_and_operational_error()
     set(&mut args, "--timeout-ms", "1000");
     let mut child = RejoinProcess::spawn_occupied(&args, occupied.local_addr().unwrap());
     let mut stream = accept_request(&source);
-    stream.write_all(&transcript(&preferred_fork())).unwrap();
-    child.wait_outbound_receiving(&stream, 1);
     let observed_at = Instant::now();
-    // The exact child socket/EOF syscall established reception before this
-    // delay. The delay only places the signal inside the existing allowance.
-    thread::sleep(Duration::from_millis(650));
+    stream.write_all(&response).unwrap();
+    child.wait_outbound_receiving(&stream, 1);
+    // The epoch follows the actual request but precedes candidate replay and
+    // observation work. They consume the same 650ms offset, not an extra delay.
+    // A deadline reset at SIGINT would finish at least 1650ms after this epoch,
+    // beyond the unchanged 1450ms ceiling; the original 1000ms starts earlier.
+    thread::sleep(Duration::from_millis(650).saturating_sub(observed_at.elapsed()));
+    child.wait_outbound_receiving(&stream, 1);
     child.signal(libc::SIGINT);
     let values = failure(&child.finish(), 1);
     assert_eq!(values["error"], "peer_deadline");
