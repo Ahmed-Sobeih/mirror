@@ -225,7 +225,8 @@ failure, independent local/canonical limits, failed/repeated work consumption,
 included/expired/anchor-invalid reconciliation, unchanged-parent inclusion,
 same-height and shorter replacements, wrong network and stale/cross-pool batches.
 
-Preserve existing test bodies, V1, A1/F2/storage, workflow/toolchain/dependencies,
+Preserve existing test bodies except the narrowly documented B4 observation
+repair below. Preserve V1, A1/F2/storage, workflow/toolchain/dependencies,
 reference tools and frozen formats/vectors. Run all existing 38 gates; record
 actual new counts and exact-source acceptance separately from a later checkpoint
 head. No new consensus encoding requires a new reference format in this increment.
@@ -235,3 +236,33 @@ ordinary allowance policy, combined ECG/designated pinky/human-supervised Ant Ki
 privacy and accessibility proposals retain their existing decisions and open gates.
 Pool ingress, transaction gossip, wallet, block production, broader scheduling,
 full MB-04 and Gate A/B remain unfinished.
+
+## 8. Retained B4 test observation repair
+
+The first C1 full local workspace run and one unchanged targeted retry exposed
+the same existing test coordination defect in
+`real_seed_and_requester_observe_two_rounds_per_invocation_and_explicit_restart`.
+It awaited the first requester's complete replay/adoption/synchronization and exit
+before observing the runner's 200 ms inter-round sleep. No handshake held that
+phase open. Both captured runner reports exited successfully after two legal
+rounds; the observer missed the wait and never issued the second request. This
+does not identify the precise scheduling or synchronization delay, and it is not
+evidence that production skipped its wait.
+
+The selected test-only repair starts the first requester through the existing
+bounded command helper in a scoped thread while the parent observes the actual
+listener-free inter-round sleep. Immediately afterward it sends SIGSTOP to the
+owned runner, verifies actual stopped state and listener absence, and retains the
+directory-owner and busy-command assertions. Only then does it join and validate
+the first requester, resume with SIGCONT, observe the second listener and issue
+the second request. All original exact two-request, checkpoint, counters, seed
+immutability and explicit-restart assertions remain. The observation-to-stop race
+must still fail if the runner has already rebound a listener; a missed phase is
+never accepted as success.
+
+This uses existing test process/observation helpers, changes one retained test
+body, and adds no production hook, weakened assertion or inflated timing window.
+All pool and production lifecycle code stays unchanged. Preserve the failed
+attempt evidence, run the repaired targeted case, then rerun the full required
+workspace and remaining gates against the final frozen source. Source/CI records
+must identify the follow-up publication rather than accept the earlier snapshot.

@@ -350,14 +350,33 @@ fn real_seed_and_requester_observe_two_rounds_per_invocation_and_explicit_restar
         let owners = child.directory_owners(&joining);
         assert_busy(&joining);
         for index in 0..2 {
-            if index != 0 {
-                child.wait_between_rounds();
-                assert_eq!(child.directory_owners(&joining), owners);
-                assert_busy(&joining);
-                child.wait_listening();
-            }
             assert_eq!(child.directory_owners(&joining), owners);
-            let result = success(&command(&sync(&requester, child.address())), 0, "sync-once");
+            let output = if index == 0 {
+                let requester_args = sync(&requester, child.address());
+                thread::scope(|scope| {
+                    let request = scope.spawn(|| command(&requester_args));
+                    // Observe the real wait while the requester can still be
+                    // replaying or synchronizing its independently owned store.
+                    child.wait_between_rounds();
+                    child.signal(libc::SIGSTOP);
+                    child.wait_stopped();
+                    assert!(
+                        !child.listener_is_owned(),
+                        "runner rebound before the observed wait could be paused"
+                    );
+                    assert_eq!(child.directory_owners(&joining), owners);
+                    assert_busy(&joining);
+                    // Keep round two's admission clock unstarted until the
+                    // first requester has completed and its result is checked.
+                    request.join().expect("first actual requester panicked")
+                })
+            } else {
+                child.signal(libc::SIGCONT);
+                child.wait_listening();
+                assert_eq!(child.directory_owners(&joining), owners);
+                command(&sync(&requester, child.address()))
+            };
+            let result = success(&output, 0, "sync-once");
             assert_eq!(
                 result["choice"],
                 if !restart && index == 0 {
