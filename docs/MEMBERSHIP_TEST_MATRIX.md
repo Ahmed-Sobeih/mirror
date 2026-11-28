@@ -1,10 +1,10 @@
 # Membership integration acceptance matrix
 
 Design checkpoint MIRROR-MB01A-001; reviewed baseline db2861930cc0f01f735ccfba80a4f530f4d1ddd6.
-Current implementation: **MB-04B4 — bounded persistent-run lifecycle**,
-MIRROR-MB04B4-001. Section 24 records source inventory, focused results and exact
-acceptance. Section 23 preserves B3's accepted 1,242-runtime baseline and all its
-prior evidence. B2 remains in section 22, B1 in section 21 and A2 in section 20.
+Current implementation: **MB-04C1 — bounded local pending-operation pool**,
+MIRROR-MB04C1-001. Section 25 records source inventory, focused results and exact
+acceptance. Section 24 preserves B4's accepted 1,281-runtime baseline and all its
+prior evidence. B3 remains in section 23, B2 in section 22, B1 in section 21 and A2 in section 20.
 A1 remains a
 **VERIFIED_COMPONENT within finite operator-owned control/restart scope**;
 section 19 preserves its accepted evidence.
@@ -40,13 +40,15 @@ existing keep/adopt and fixed-history serving under the same owners. B3's separa
 and closed typed advancement before that shared path. B4's separate
 [run contract](NODE_RUN_V2.md) repeats acquisition, keep/adopt and service under
 explicit round/wait caps while retaining the controller and cumulative transport
-owner. Arbitrary corruption repair, indefinite reconnect and broader persistent
-scheduling remain unfinished.
+owner. C1's [pool contract](PENDING_POOL_V2.md) adds bounded local signed
+retention, one complete FIFO ledger evaluation and explicit selected-parent
+reconciliation without publication authority. Pool operator intake, arbitrary
+corruption repair, indefinite reconnect and broader scheduling remain unfinished.
 
-The following increment counts through B3 are historical accepted checkpoint
-evidence. Current B4 inventory and acceptance appear in section 24. Sections 2–23
+The following increment counts through B4 are historical accepted checkpoint
+evidence. Current C1 inventory and acceptance appear in section 25. Sections 2–24
 are preserved byte-for-byte, including their then-current continuation plans;
-those historical future-tense statements do not override section 24.
+those historical future-tense statements do not override section 25.
 
 Historical counts and exact-source CI remain in sections 3–9: B1 added 31 cases,
 B2 39, B3 51, B4 69, and MB-02C added 61 to reach its **523-test baseline**. Those
@@ -2294,3 +2296,224 @@ mutating the accepted chain. Preserve zero-fee/no-mint development semantics;
 production monetary, enrollment, device, privacy and accessibility decisions remain
 at their existing unresolved gates. C1 is planned only. Broader scheduling, wallet,
 operator APIs, full MB-04 and Gate A/B remain unfinished.
+## 25. MB-04C1 bounded local pending-operation pool acceptance
+
+**MB-04C1 is VERIFIED_COMPONENT — BOUNDED LOCAL PENDING-OPERATION POOL.**
+C1 adds an in-memory library component for context-valid signed retention,
+one atomic ordered batch evaluation and explicit selected-parent reconciliation.
+B4's finite run rounds, B3 failover, B2 rejoin/serve, B1 provider/draining shutdown,
+A2 operator commands, A1 durable control/recovery and MB-03's storage/peer components
+retain their accepted boundaries. MB-04 remains IN_PROGRESS: finite operator pool
+intake, persistence/gossip integration, wallet, wider APIs and broader scheduling
+remain unfinished. Complete Ant Kiss remains MB-05 and final human consensus
+MB-06. Gate A/B remain UNMET.
+
+### Exact source and executed gates
+
+Implementation source: **94207e713dd89f4d33586263c510591be0e78201**.
+Tested source tree: **9c40a4852c8ab935cd7318d33d81d0720cd0dd15**.
+Parent checkpoint: **35bbd0817843c35a42ff8c09b779391df331d53c**.
+[Source PR CI 46086769527](https://github.com/Ahmed-Sobeih/mirror/actions/runs/46086769527)
+**attempt 2** passed all **43 steps**. Full job `140804733638` logs confirm **1,333 runtime
+tests and eleven compile-fail doctests**, zero failures and three retained
+parent-exercised ignored helpers. Actual synthetic checkout
+`17ece65483bd57dbfb3c6e11c64895ddf0afbbe2` has no file differences from the implementation source.
+All **seven published implementation/test/contract files** were read back byte-for-byte.
+Source acceptance: **VERIFIED_COMPONENT — all 38 local gates and exact-source CI**.
+The later checkpoint changes nine status/handoff documents; all **208 frozen
+noncheckpoint files** remain byte-identical. Later checkpoint-head CI is checked
+separately and recorded on PR #1. This source record does not assert that a future
+checkpoint head has passed, and does not embed its own future commit SHA.
+PR #1 remains OPEN and UNMERGED on `work/personhood-register-v0.1`; main remains
+`ad7ffd120fb451fe44cf59cb909176785b33bf8f`.
+
+Local acceptance used pinned **Rust 1.98.0** and locked dependencies. All
+**38 required gates** passed, with all **217 tested source/checkpoint inputs
+unchanged during execution**:
+
+- **1,333 workspace/all-target runtime tests**, zero failures: 1,281 retained plus
+  **52 new** — 31 admission/evaluation and 21 reconciliation/work integration tests.
+  Parameterized cases, subprocesses and release reruns are not additional tests.
+- **Eleven compile-fail doctests**, unchanged; three retained ignored subprocess
+  helpers remain exercised by parent tests.
+- All seven required release commands: personhood 234+3 doctests, core 121,
+  state 49, consensus 23, chain 85+3, storage 350+2, protocol 38, network 108+2,
+  node **314+1**. All **twelve references** and **sixteen examples** passed.
+- Both new focused suites passed on their first execution: **31 and 21** tests,
+  with no execution-driven production/test corrections. Scoped formatting,
+  whitespace and allocation/runtime-data checks passed.
+
+The first full local workspace attempt and one unchanged targeted retry failed in
+the retained B4 test's inter-round observer: it waited for requester durability
+before looking for a 200 ms phase. Both captured runner reports completed two
+legal rounds successfully. The narrowly repaired test starts the requester
+concurrently, observes the real listener-free wait, verifies an owned SIGSTOP,
+retains the owner/busy checks, awaits requester completion and resumes before the
+second request. Original timing values, two-request outcomes and restart/state
+assertions remain. The repaired targeted case and all required gates passed on
+the final source. Failed attempt evidence is retained; production lifecycle and
+C1 implementation/test semantics were not changed to suppress the failure.
+
+The final source's first hosted CI attempt passed every test/release gate, then
+was cancelled during the examples just after the configured 20-minute job limit.
+Its log records only a generic cancellation; timing supports a budget-boundary
+explanation but does not establish a more specific cause. That incomplete attempt
+is preserved and not accepted. The unchanged source/workflow was rerun; the
+successful complete attempt is identified in the source record above. The
+20-minute workflow limit and all verification commands remain unchanged.
+
+The new suites construct actual mined, manifest-pinned accepted chains with public
+synthetic keys. They cover all four operation kinds, exact signed bytes/IDs,
+malformed/signature/context refusals, duplicates at full capacity, actual 256-entry
+and 64-operation limits, independent local/canonical quotas, framed batch bytes,
+FIFO order/removal, retained sequence gaps/conflicts, receive-before-spend,
+aggregate overspending, independent account/member sequences and mixed late failure.
+
+Reconciliation evidence covers exact included IDs from earlier history, unchanged-
+parent inclusion, included-before-expiry reporting, survivor order, same-height and
+shorter replacements, changed/old anchors, newly future windows, wrong configuration
+and distinct accepted genesis, no resurrection and stale/cross-pool batches.
+Literal boundary checks verify successful/failed state-work charges, historical
+scan/revalidation charges, partial admission reservations, sticky exhaustion,
+atomic failed reconciliation and no refund from removal/clear/parent changes.
+
+Complete chain equality and exact retained-state observations establish this
+in-memory boundary. New C1 tests do not add command/process, socket, persistence,
+wallet or power-loss evidence; the existing required process/recovery suites are
+retained and rerun. Fallible bounded pool allocation paths are reviewed but induced
+OOM is not tested. Abstract work units are not CPU-time, RSS or global DoS limits.
+No runtime behavior is inferred merely from the written contract.
+
+**210 of 212 existing repository files are byte-identical to the B4
+checkpoint before the later nine-document handoff.** The sole existing Rust change
+in production is one `pub mod pool;` export in the V2 node module; removing that
+line reproduces its entire earlier body byte-for-byte. **68 of 69 retained
+test/helper files** and **173 of 175 retained source/dependency/workflow/reference/
+fixture paths** remain byte-identical. The sole retained test exception is the
+documented B4 observation-coordination repair; all other 18 test bodies and every
+byte outside that function in its file are preserved. Five new files add the pool,
+two suites, an isolated synthetic fixture and the contract. Existing command implementations, A1/F2/storage,
+lower-layer/V1/consensus/monetary bodies, Cargo manifests/lockfile, workflow commands
+and its 20-minute budget, reference tools and frozen vectors are unchanged.
+No wire, storage, hash, monetary, enrollment, device or accessibility policy changed.
+
+### Observable coverage mapping
+
+| Boundary | New evidence |
+|---|---|
+| Signed retention | Four exact kinds, malformed/context/signature refusal, retained-ID duplicates and stable full-pool behavior. |
+| Independent limits | Entry/retained-byte/batch count/framing/cumulative work; canonical total/member/enrollment/byte quotas; actual 256/64 boundaries. |
+| Atomic execution | Aggregate overspend, gaps/conflicts, receive-before-spend, separate account/member sequences, mixed late failure and original first error. |
+| Accepted-parent reconciliation | Exact historical inclusion versus same-sequence conflicts, unchanged parent, append, same-height/shorter replacement, expiry/anchor/future removal and no resurrection. |
+| Evidence currentness | Full actual checkpoint, revision and exact current prefix; cross-pool mismatches and explicit invalidation. |
+| Finite work | Literal exact charges, parent state/approval size, accepted-history work, failed/partial reservations, no refunds and atomic failed rebind. |
+
+The inventory below contains exactly 52 new test functions. Shared fixture helpers,
+parameterized assertions and release reruns are not additional test functions.
+
+### pending_pool_v2.rs — 31 tests
+
+```text
+constructor_checks_every_local_range_and_starts_with_no_validation_work
+all_four_operation_kinds_retain_exact_signed_bytes_and_ids_in_arrival_order
+input_size_preflight_precedes_decode_and_an_insufficient_work_allowance
+structural_rejections_do_not_change_existing_entries_or_order
+invalid_transfer_and_membership_signatures_never_retain_a_new_id
+transfer_context_rejects_future_wrong_anchor_wrong_context_and_unsupported_money
+admission_uses_selected_next_height_for_expiry_and_anchor_age
+membership_admission_preserves_existing_context_checks
+exact_duplicate_is_recognized_at_entry_capacity_without_reordering
+retained_byte_capacity_is_exact_and_recognizes_duplicates_when_full
+a_positive_tiny_retention_limit_is_valid_but_cannot_admit_an_operation
+removal_reuses_capacity_preserves_survivor_order_and_clear_is_explicit
+canonical_pending_membership_capacity_does_not_limit_retained_input
+evaluated_batch_is_an_exact_prefix_and_does_not_remove_or_consume_input
+invalid_batch_counts_do_not_reserve_work_or_silently_shorten_the_prefix
+batch_byte_limit_includes_full_framing_and_refuses_before_staging_work
+canonical_total_operation_limit_remains_independent_of_pool_limits
+canonical_membership_and_enrollment_quotas_are_checked_before_evaluation_work
+canonical_block_bytes_are_checked_even_when_the_local_batch_fits
+actual_maximum_entry_count_and_batch_count_are_bounded_independently
+contextual_admission_of_an_overspend_does_not_claim_spendability
+aggregate_spends_are_checked_in_one_ordered_ledger_transition
+a_sequence_gap_blocks_the_exact_prefix_until_explicit_removal_and_resubmission
+distinct_ids_with_one_account_sequence_are_retained_without_replacement
+an_earlier_receive_can_fund_a_later_spend_but_reversed_order_fails
+transfer_account_and_membership_record_sequences_are_separate_domains
+late_transfer_failure_discards_earlier_mixed_effects_without_dropping_entries
+late_membership_failure_discards_earlier_transfer_and_enrollment_effects
+original_mixed_order_selects_the_first_stateful_failure
+retained_enrollment_still_obeys_canonical_pending_state_during_execution
+admission_removal_and_clear_invalidate_batches_but_no_ops_and_refusals_do_not
+```
+
+### pending_pool_reconciliation_v2.rs — 21 tests
+
+```text
+unchanged_parent_reconciliation_finds_inclusion_before_the_tip_block
+append_reconciliation_removes_exact_ids_and_retains_consumed_sequence_conflicts
+reconciliation_reports_fifo_removals_and_inclusion_takes_precedence_over_expiry
+same_height_replacement_invalidates_the_exact_anchor_and_old_batch
+shorter_replacement_drops_a_window_that_is_now_in_the_future
+unchanged_anchor_hash_does_not_exempt_an_overage_anchor
+another_configuration_is_not_a_reconciliation_target
+matching_configuration_does_not_authorize_another_genesis_pin
+abandoning_an_including_branch_never_resurrects_removed_input
+successful_unchanged_reconciliation_invalidates_an_owned_batch_observation
+equal_parent_and_revision_cannot_make_a_different_pools_prefix_current
+reconciliation_budget_failure_keeps_old_parent_binding_and_all_retained_state
+identification_charge_is_retained_when_contextual_reservation_cannot_fit
+rejected_signature_consumes_both_admission_charges_and_exhaustion_is_sticky
+malformed_duplicate_and_full_refusals_charge_only_work_they_start
+successful_evaluation_fits_the_exact_work_limit_and_cannot_be_reused_for_free
+repeated_failed_execution_consumes_full_state_work_without_retained_mutation
+evaluation_charge_includes_actual_accounts_membership_indexes_and_retained_approvals
+every_unchanged_parent_revalidation_is_charged_and_advances_observation_revision
+empty_reconciliation_has_a_one_unit_charge_and_cannot_refill_an_exhausted_owner
+removing_and_clearing_retained_entries_never_refunds_validation_work_or_rebinds
+```
+
+### Exact next increment
+
+**Next: MB-04C2 — finite local pool intake and inspection. READY — DESIGN FIRST.**
+
+Design the smallest explicit operator path that can feed already signed V2 inputs
+into C1 and inspect one local result against a clean accepted A1 chain. Specify the
+command, deliberate input source/framing and finite invocation lifetime before
+implementation. Preserve C1's exact-parent binding, contextual-only admission,
+FIFO batch semantics, independent limits and cumulative work; never treat a pool
+receipt as accepted chain state or permission to publish a block.
+Require independently selected configuration/genesis identity; signed input must
+never select its own network or accepted parent.
+
+Define argument, input-file/stream, item-count and total-byte ceilings before any
+input-sized read/copy, and a closed policy for malformed framing, duplicates,
+individual rejections, budget exhaustion and a blocked requested batch. Choose
+all-or-nothing intake versus bounded per-item reporting explicitly; do not let a
+decoder or reporting loop silently reset C1's owner allowance. Keep retained,
+contextually admitted, evaluated and canonically included observations distinct.
+Choose bounded regular-file intake with explicit file-type/symlink/EOF rules, or
+specify absolute deadline, cancellation and terminal-EOF behavior for streams.
+Byte and item limits alone do not bound a stalled pipe, FIFO or stdin read.
+
+Define clean controller ownership and selected checkpoint capture, shutdown/error
+semantics, bounded output and release-before-output behavior. Any A1 open/replay/
+synchronization must retain its existing contract. Report the exact observed
+parent and finite local outcome; do not imply durable pool retention across exit,
+network propagation, inclusion or currentness after owner release. Test actual
+operator processes, malformed/overlong input, independent caps, duplicate/order
+handling, contextual/execution errors, output failure and unchanged canonical
+history/control selections before claiming operator integration.
+Opening the A1 writer to borrow its accepted chain includes ownership, replay and
+synchronization; unchanged canonical selection does not turn it into the existing
+read-only, no-synchronization `status` path.
+
+No wallet signing/key custody, automatic mining/append, new monetary rule,
+transaction gossip, pool persistence, remote submission endpoint or integration
+into B4's retained network loop is implicitly authorized by this narrow step.
+Those require separately specified increments. Keep existing commands, A1/F2/store
+authority, consensus encodings and all policy gates unchanged. C2 is planned only;
+broader scheduling, wallet, wider APIs, full MB-04 and Gate A/B remain unfinished.
+
+Run every existing AGENTS.md gate, verify published source and exact-source CI,
+then check the later checkpoint head separately and refresh this handoff.
